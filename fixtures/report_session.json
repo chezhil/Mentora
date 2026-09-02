@@ -1,0 +1,51 @@
+{
+  "session": {
+    "session_id": "s1",
+    "profile": {
+      "level": "beginner",
+      "language": "en",
+      "time_minutes": 20,
+      "goal": "understand the relationship between voltage, current and resistance",
+      "known_concepts": [],
+      "weak_concepts": ["resistance"]
+    },
+    "plan": {
+      "topic": "Electricity Basics",
+      "language": "en",
+      "total_minutes": 20,
+      "concepts": [
+        {"id": "c1", "name": "Current", "depth": "brief",
+         "minutes": 4.0, "prerequisites": []},
+        {"id": "c2", "name": "Voltage", "depth": "brief",
+         "minutes": 5.0, "prerequisites": ["c1"]},
+        {"id": "c3", "name": "Resistance", "depth": "standard",
+         "minutes": 5.0, "prerequisites": ["c1"]},
+        {"id": "c4", "name": "Ohm's Law", "depth": "standard",
+         "minutes": 6.0, "prerequisites": ["c2", "c3"]}
+      ]
+    },
+    "doc_id": "doc-abc123",
+    "turns": [
+      {"role": "teacher", "content": "Lear me kya hota hai bacche...",
+       "concept_id": "c1", "timestamp": "2026-09-02T10:00:00"},
+      {"role": "teacher", "content": "Voltage is the push, current is the flow.",
+       "concept_id": "c2", "timestamp": "2026-09-02T10:03:00"},
+      {"role": "teacher", "content": "If resistance increases at constant voltage, what happens to current?",
+       "concept_id": "c4", "timestamp": "2026-09-02T10:08:00"},
+      {"role": "student", "content": "Current increases.",
+       "concept_id": "c4", "timestamp": "2026-09-02T10:09:00"}
+    ],
+    "current_concept": 3,
+    "attempts": {"c4": 0},
+    "evaluations": [
+      {"correct": true, "misconception": null,
+       "action": "continue", "feedback": "Good, current is the flow of charge.",
+       "concept": "c1"},
+      {"correct": false,
+       "misconception": "believes current and resistance are directly proportional",
+       "action": "reexplain",
+       "feedback": "Not quite — a narrower pipe lets less water through. Resistance works the same way.",
+       "concept": "c4"}
+    ]
+  }
+}
