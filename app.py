@@ -11,8 +11,15 @@ the script starts again from line 1.
 """
 
 import os
+import re
 
 import streamlit as st
+
+try:                       # load .env if present; it holds GEMINI_API_KEY
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 
 import orchestrator as orch
 import wiring
@@ -28,8 +35,15 @@ LANGUAGES = {
     "hinglish": "Hinglish",
 }
 
-st.set_page_config(page_title="Mentora — AI Teacher", page_icon="🎓",
-                   layout="wide")
+st.set_page_config(
+    page_title="Mentora — AI Teacher", page_icon="🎓", layout="wide",
+    menu_items={
+        "About": "**Mentora** — AI Teacher.\n\nTo change the Gemini API key "
+                 "or switch to offline mode, use the **⚙️ APIs** panel at the "
+                 "bottom of the sidebar. (Streamlit does not allow custom "
+                 "controls in this menu.)",
+    },
+)
 
 
 # ---------------------------------------------------------------------------
@@ -43,9 +57,79 @@ def init_state() -> None:
     st.session_state.setdefault("report", None)
     st.session_state.setdefault("last_feedback", None)
     st.session_state.setdefault("student_id", "student")
+    st.session_state.setdefault("busy", None)
+    st.session_state.setdefault("done_tokens", set())
 
 
 init_state()
+
+
+# ---------------------------------------------------------------------------
+# Double-click protection
+#
+# Streamlit queues a rerun for every click. Without this, hammering "Answer"
+# fires orch.answer() once per click, and each one costs 10-15 Gemini requests
+# against a 20/day free-tier cap — the whole quota gone before the first call
+# returns.
+#
+# Two layers, because either alone is not enough:
+#   busy flag   - blocks a second run while one is in flight, and greys the
+#                 buttons out so it is visible
+#   done tokens - an action already completed can never run twice, even if the
+#                 flag were lost to a cancelled script run
+# ---------------------------------------------------------------------------
+
+def _busy() -> bool:
+    return st.session_state.get("busy") is not None
+
+
+def _claim(token: str) -> bool:
+    """Claim the right to run `token` once. False if busy or already done."""
+    if _busy():
+        return False
+    if token in st.session_state.setdefault("done_tokens", set()):
+        return False
+    st.session_state.busy = token
+    return True
+
+
+def _release(token: str, completed: bool) -> None:
+    st.session_state.busy = None
+    if completed:
+        st.session_state.done_tokens.add(token)
+
+
+def _friendly(exc: Exception) -> str:
+    """Turn provider errors into something readable, and open the APIs panel."""
+    msg = str(exc)
+    st.session_state.api_panel_open = True
+
+    if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
+        retry = re.search(r"retry in ([\d.]+)s", msg)
+        when = f" Google suggests retrying in {float(retry.group(1)):.0f}s." if retry else ""
+        per_day = "PerDay" in msg or "free_tier_requests" in msg
+        return (
+            "**Gemini quota exhausted.**"
+            + (" This is the *daily* free-tier cap (20 requests/day), which "
+               "resets at midnight US Pacific — not in a few seconds."
+               if per_day else when)
+            + "\n\nOne lesson costs 10-15 requests. Fix it in **⚙️ APIs** in the "
+              "sidebar: paste another team member's key, or switch on "
+              "*Offline mode* to keep working for free."
+        )
+    if "API key not valid" in msg or "API_KEY_INVALID" in msg or "PERMISSION_DENIED" in msg:
+        return ("**Gemini rejected that API key.** Paste a valid one in "
+                "**⚙️ APIs** in the sidebar. Keys from Google AI Studio start "
+                "with `AIza`.")
+    if "no longer available" in msg or "NOT_FOUND" in msg:
+        return (f"**That Gemini model is not available to this key.** Pick a "
+                f"different one in **⚙️ APIs** in the sidebar.\n\n`{msg[:200]}`")
+    if "No Gemini API key" in msg:
+        return ("**No Gemini API key set.** Add one in **⚙️ APIs** in the "
+                "sidebar, or switch on *Offline mode*.")
+    if "deadline" in msg.lower() or "timeout" in msg.lower():
+        return "**Gemini timed out.** Try again, or use *Offline mode* in **⚙️ APIs**."
+    return f"**{type(exc).__name__}**\n\n```\n{msg[:400]}\n```"
 
 
 def save_upload(uploaded) -> str | None:
@@ -65,6 +149,108 @@ def save_upload(uploaded) -> str | None:
 # copied straight off an Evaluation or off a decision the orchestrator made.
 # Nothing here is invented for display.
 # ---------------------------------------------------------------------------
+
+# Free-tier quota is per-project-PER-MODEL, so switching model gives a fresh
+# daily allowance. Ordered cheapest-first: our calls are structured JSON
+# against a fixed schema, which is what Flash-Lite is built for.
+GEMINI_MODELS = [
+    "gemini-2.5-flash-lite",   # ~$0.004/lesson
+    "gemini-3.1-flash-lite",   # ~$0.012/lesson
+    "gemini-3.5-flash-lite",   # ~$0.018/lesson
+    "gemini-3.6-flash",        # ~$0.032/lesson
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
+]
+ENV_PATH = ".env"
+
+
+def _mask(value: str | None) -> str:
+    if not value:
+        return "not set"
+    return f"{value[:6]}…{value[-4:]}" if len(value) > 14 else "set"
+
+
+def _write_env(updates: dict) -> None:
+    """Persist keys to .env, which is gitignored. Never goes near the repo."""
+    lines, seen = [], set()
+    if os.path.exists(ENV_PATH):
+        for line in open(ENV_PATH).read().splitlines():
+            k = line.split("=", 1)[0].strip()
+            if k in updates:
+                lines.append(f"{k}={updates[k]}")
+                seen.add(k)
+            else:
+                lines.append(line)
+    for k, v in updates.items():
+        if k not in seen:
+            lines.append(f"{k}={v}")
+    with open(ENV_PATH, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    os.chmod(ENV_PATH, 0o600)
+
+
+def api_panel() -> None:
+    """Swap the Gemini key without restarting — for when quota runs out mid-demo."""
+    import llm
+
+    opened = st.session_state.pop("api_panel_open", False)
+    with st.sidebar.expander("⚙️ APIs", expanded=opened):
+        offline = os.environ.get("AI_TEACHER_MOCK") is not None
+        st.caption(
+            f"Gemini key: `{_mask(llm.API_KEY)}`  \n"
+            f"Model: `{llm.MODEL}`  \n"
+            f"Mode: {'🟡 offline (mock)' if offline else '🟢 live'}"
+        )
+
+        key = st.text_input("Gemini API key", type="password",
+                            placeholder="paste a teammate's key",
+                            help="Free tier is 20 requests/day per key. "
+                                 "One lesson costs 10-15.")
+        model = st.selectbox("Model", GEMINI_MODELS,
+                             index=GEMINI_MODELS.index(llm.MODEL)
+                             if llm.MODEL in GEMINI_MODELS else 0)
+        replicate = st.text_input("Replicate token (avatar)", type="password",
+                                  placeholder="optional — enables the talking head")
+        new_offline = st.toggle("Offline mode (no API calls)", value=offline,
+                                help="Replays canned answers. Free, but every "
+                                     "answer is marked wrong.")
+        remember = st.checkbox("Remember in .env", value=True,
+                               help=".env is gitignored — it never reaches GitHub.")
+
+        if st.button("Apply", type="primary"):
+            saved = {}
+            if key:
+                os.environ["GEMINI_API_KEY"] = key
+                llm.API_KEY = key
+                llm._client = None            # force a client with the new key
+                saved["GEMINI_API_KEY"] = key
+            if model != llm.MODEL:
+                os.environ["AI_TEACHER_MODEL"] = model
+                llm.MODEL = model
+                saved["AI_TEACHER_MODEL"] = model
+            if replicate:
+                os.environ["REPLICATE_API_TOKEN"] = replicate
+                saved["REPLICATE_API_TOKEN"] = replicate
+            if new_offline:
+                os.environ["AI_TEACHER_MOCK"] = "mocks/fixture_mock.json"
+            else:
+                os.environ.pop("AI_TEACHER_MOCK", None)
+            llm._mock = None                  # drop the cached fixture
+            if remember and saved:
+                try:
+                    _write_env(saved)
+                except Exception as exc:
+                    st.warning(f"Could not write .env: {exc}")
+            st.success("Applied.")
+            st.rerun()
+
+        if st.button("Test key (uses 1 request)"):
+            try:
+                llm.generate_json('Reply with JSON only: {"ok": true}')
+                st.success(f"{llm.MODEL} responded.")
+            except Exception as exc:
+                st.error(_friendly(exc))
+
 
 def adaptation_panel() -> None:
     st.sidebar.header("Teacher reasoning")
@@ -167,17 +353,28 @@ def screen_setup() -> None:
         minutes = st.slider("Time I have (minutes)",
                             min_value=5, max_value=60, value=20, step=1)
 
-    if st.button("Start lesson", type="primary", disabled=not topic):
+    if st.button("Start lesson", type="primary",
+                 disabled=not topic or _busy()):
+        token = f"start:{topic}:{level}:{language}:{minutes}"
+        if not _claim(token):
+            st.info("Already starting that lesson…")
+            st.stop()
         profile = LearnerProfile(
             level=level,
             language=language,
             time_minutes=minutes,
             goal=goal or None,
         )
-        with st.spinner("Reading your material and planning the lesson…"):
-            session = orch.start_session(topic, profile, save_upload(uploaded),
-                                         student_id=st.session_state.student_id)
-            segment = orch.step(session)
+        try:
+            with st.spinner("Reading your material and planning the lesson…"):
+                session = orch.start_session(topic, profile, save_upload(uploaded),
+                                             student_id=st.session_state.student_id)
+                segment = orch.step(session)
+        except Exception as exc:
+            _release(token, completed=False)   # let them retry after fixing the key
+            st.error(_friendly(exc))
+            st.stop()
+        _release(token, completed=True)
         st.session_state.session = session
         st.session_state.segment = segment
         st.session_state.phase = "lesson"
@@ -206,8 +403,20 @@ def screen_lesson() -> None:
             # again and looking like nothing happened.
             st.info("Your report is ready — open the **Report** tab above.")
             return
-        if st.button("Finish and see my report", type="primary"):
-            st.session_state.report = orch.finish(session)
+        if st.button("Finish and see my report", type="primary",
+                     disabled=_busy()):
+            token = f"finish:{session.session_id}"
+            if not _claim(token):
+                st.info("Already building your report…")
+                st.stop()
+            try:
+                with st.spinner("Marking the lesson…"):
+                    st.session_state.report = orch.finish(session)
+            except Exception as exc:
+                _release(token, completed=False)
+                st.error(_friendly(exc))
+                st.stop()
+            _release(token, completed=True)
             st.session_state.phase = "report"
             st.rerun()
         return
@@ -246,7 +455,7 @@ def screen_lesson() -> None:
         st.info(st.session_state.last_feedback)
 
     if segment.question is None:
-        if st.button("Continue"):
+        if st.button("Continue", disabled=_busy()):
             _advance(session)
         return
 
@@ -257,13 +466,27 @@ def screen_lesson() -> None:
                              label_visibility="collapsed")
         else:
             reply = st.text_input("Your answer", label_visibility="collapsed")
-        submitted = st.form_submit_button("Answer", type="primary")
+        submitted = st.form_submit_button("Answer", type="primary",
+                                          disabled=_busy())
 
     if submitted and reply:
-        evaluation = orch.answer(
-            session,
-            StudentResponse(question_id=segment.question.id, answer=reply),
-        )
+        # Keyed on the question, so one question can only ever be answered once
+        # however many times the button is pressed.
+        token = f"answer:{session.session_id}:{segment.question.id}"
+        if not _claim(token):
+            st.info("That answer is already being marked…")
+            st.stop()
+        try:
+            with st.spinner("Marking your answer…"):
+                evaluation = orch.answer(
+                    session,
+                    StudentResponse(question_id=segment.question.id, answer=reply),
+                )
+        except Exception as exc:
+            _release(token, completed=False)
+            st.error(_friendly(exc))
+            st.stop()
+        _release(token, completed=True)
         st.session_state.last_feedback = evaluation.feedback
         _advance(session)
 
@@ -271,10 +494,20 @@ def screen_lesson() -> None:
 def _advance(session) -> None:
     """Fetch the next segment — which may be a re-explanation of this one."""
     rt = orch.runtime(session)
-    if rt.pending is not None or not orch.is_finished(session):
-        st.session_state.segment = orch.step(session)
-    else:
-        st.session_state.segment = None
+    token = f"step:{session.session_id}:{len(session.turns)}"
+    if not _claim(token):
+        st.stop()
+    try:
+        with st.spinner("Preparing the next part…"):
+            if rt.pending is not None or not orch.is_finished(session):
+                st.session_state.segment = orch.step(session)
+            else:
+                st.session_state.segment = None
+    except Exception as exc:
+        _release(token, completed=False)
+        st.error(_friendly(exc))
+        st.stop()
+    _release(token, completed=True)
     st.rerun()
 
 
@@ -350,7 +583,8 @@ def screen_report() -> None:
     st.success(report.next_topic)
 
     if st.button("Teach me something else"):
-        for key in ("phase", "session", "segment", "report", "last_feedback"):
+        for key in ("phase", "session", "segment", "report", "last_feedback",
+                    "busy", "done_tokens"):
             st.session_state.pop(key, None)
         init_state()
         st.rerun()
@@ -359,6 +593,7 @@ def screen_report() -> None:
 # ---------------------------------------------------------------------------
 
 adaptation_panel()
+api_panel()
 
 if st.session_state.phase == "setup":
     screen_setup()

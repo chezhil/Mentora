@@ -221,6 +221,28 @@ def past_reports(student_id: str = DEFAULT_STUDENT) -> list[LessonReport]:
         return []
 
 
+def _query_for(plan, concept) -> str:
+    """Build the retrieval query for a concept.
+
+    Retrieving on the bare concept name silently loses the most relevant
+    material: a single noun carries too little signal to match a 150-word
+    passage. Measured against fixtures/sample.pdf with MIN_SCORE 0.45 —
+
+        "Resistance"                  0.359  dropped
+        "Ohm's Law: Resistance"       0.662  kept
+        "Current"                     0.450  dropped
+        "Ohm's Law: Current"          0.603  kept
+
+    "Resistance" scored below an unrelated question about the French
+    Revolution (0.433). Prefixing the lesson topic restores the context the
+    embedder needs.
+    """
+    name = concept.name
+    if plan.topic.lower() in name.lower():
+        return name
+    return f"{plan.topic}: {name}"
+
+
 def start_session(topic: str, profile: LearnerProfile,
                   file_path: str | None = None,
                   student_id: str = DEFAULT_STUDENT) -> SessionState:
@@ -289,7 +311,8 @@ def step(session: SessionState) -> TeachingSegment:
 
     chunks = []
     if session.doc_id:
-        chunks = wiring.retrieve(session.doc_id, concept.name, RETRIEVE_K)
+        chunks = wiring.retrieve(session.doc_id, _query_for(session.plan, concept),
+                                 RETRIEVE_K)
 
     segment = wiring.next_segment(session.plan, trim_state(session), chunks)
 

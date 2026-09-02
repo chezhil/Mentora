@@ -37,6 +37,11 @@ def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk
 
     data = generate_json(prompt)
     data["concept_id"] = concept.id  # Enforce matching concept ID
+    # CONTRACT: "citations copied from chunks when material was used".
+    # Overwrite rather than trust the model — anything it invents here would be
+    # a hallucinated page number, which is worse than none. These are the real
+    # chunks retrieval returned.
+    data["citations"] = [c.model_dump() for c in chunks]
     return TeachingSegment.model_validate(data)
 
 def evaluate(question: Question, response: StudentResponse) -> Evaluation:

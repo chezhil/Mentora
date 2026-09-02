@@ -33,6 +33,12 @@ output/
 *.png
 !assets/**
 
+# Secrets — the repo is PUBLIC. Never commit these.
+.env
+*.env
+.envrc
+*.key
+
 # OS
 .DS_Store
 Thumbs.db

@@ -9,6 +9,12 @@ twice and everything else right, so the re-explain path, the analogy change
 and the escalation to 'simplify' all get exercised.
 """
 
+
+try:                       # load .env if present; it holds GEMINI_API_KEY
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 import orchestrator as orch
 import wiring
 from shared.models import LearnerProfile, StudentResponse

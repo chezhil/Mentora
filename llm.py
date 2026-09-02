@@ -17,7 +17,7 @@ from typing import Callable
 from google import genai
 from google.genai import types
 
-MODEL = os.environ.get("AI_TEACHER_MODEL", "gemini-2.5-flash")
+MODEL = os.environ.get("AI_TEACHER_MODEL", "gemini-3.6-flash")
 API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
 _client = None
