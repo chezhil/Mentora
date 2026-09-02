@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+$RECYCLE.BIN/
+System Volume Information/
+output/
+cache/
+voices/*.onnx
+voices/*.onnx.json
+.freebuff/

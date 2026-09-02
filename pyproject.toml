@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "freebuff-desktop"
+version = "0.1.0"
+description = "Freebuff Desktop — AI teaching video generation media pipeline"
+requires-python = ">=3.9"
+dependencies = [
+    "matplotlib>=3.8",
+    "numpy",
+    "networkx",
+    "Pygments>=2.17",
+    "piper-tts>=1.7",
+    "replicate>=0.25",
+    "imageio-ffmpeg>=0.4.9",
+    "Pillow>=10.0",
+    "PyYAML>=6.0",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+cloud-tts = [
+    "google-cloud-texttospeech>=2.14",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "mypy>=1.0",
+    "ruff>=0.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["freebuff*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
