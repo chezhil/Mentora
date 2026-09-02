@@ -35,13 +35,18 @@ def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk
     concept_id = plan.concepts[state.current_concept].id
     
     # Calculate difficulty
-    # Simple logic: positive for quick-corrects (harden), negative for simplifications
-    difficulty_score = sum(1 if eval.action == "harden" else -1 for eval in state.evaluations[-2:] if eval.action in ("harden", "simplify"))
+    # "Two wrong answers in a row -> simpler language, more basic examples."
+    # "Two quick correct answers -> harder questions, more technical depth."
     difficulty_level = "standard"
-    if difficulty_score >= 1:
-        difficulty_level = "hard"
-    elif difficulty_score <= -1:
-        difficulty_level = "simple"
+    if len(state.evaluations) >= 2:
+        last_two_actions = [e.action for e in state.evaluations[-2:]]
+        if last_two_actions == ["harden", "harden"]:
+            difficulty_level = "hard"
+        elif last_two_actions == ["simplify", "simplify"]:
+            difficulty_level = "simple"
+        elif last_two_actions == ["reexplain", "reexplain"]:
+            # two wrongs also lead to simplification according to brief
+            difficulty_level = "simple"
 
     prompt = NEXT_SEGMENT_PROMPT.format(
         level=state.profile.level,
