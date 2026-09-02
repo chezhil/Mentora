@@ -1,0 +1,22 @@
+# Environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Data stores — never commit these, they are hundreds of megabytes
+*.db
+*.sqlite3
+chroma/
+.chroma/
+models/
+.cache/
+
+# Generated media
+out/
+*.wav
+*.mp4
+!assets/**
+
+# OS
+.DS_Store
