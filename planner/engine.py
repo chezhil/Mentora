@@ -2,7 +2,18 @@ import json
 from google import genai
 from shared.models import LearnerProfile, LessonPlan, Question, LessonReport, SessionState
 from planner.prompts import PLAN_PROMPT, QUIZ_PROMPT, REPORT_PROMPT, LEARNING_PATH_PROMPT
-from teacher.engine import _clean_json_output, MODEL_ID
+
+MODEL_ID = "gemini-2.5-flash"
+
+def _clean_json_output(response_text: str) -> str:
+    text = response_text.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    if text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    return text.strip()
 
 # Initialize Gemini Client
 try:

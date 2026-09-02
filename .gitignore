@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+*.db
+*.mp4
+*.wav
+*.png
+*.sqlite3
