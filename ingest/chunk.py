@@ -1,0 +1,131 @@
+﻿"""
+U2: Semantic chunking module.
+chunk(pages: list[tuple[str, int]]) -> list[SourceChunk]
+Splits on paragraph/sentence boundaries (target 500-800 words, ~100 word overlap).
+"""
+import sys
+import re
+from pathlib import Path
+from typing import List, Tuple, Optional
+
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+from shared.models import SourceChunk
+from ingest.load import load_document
+
+
+def _split_into_sentences(text: str) -> List[str]:
+    sentence_end = re.compile(r'(?<=[.!?])\s+(?=[A-Z0-9])')
+    raw_sentences = sentence_end.split(text.strip())
+    return [s.strip() for s in raw_sentences if s.strip()]
+
+
+def chunk(pages: List[Tuple[str, Optional[int]]]) -> List[SourceChunk]:
+    """
+    Chunk document pages into semantic chunks of roughly 500-800 words.
+    - Respects sentence and paragraph boundaries (never cuts mid-sentence).
+    - Maintains ~100 words overlap between adjacent chunks.
+    - Assigns the page number where the chunk started.
+    - Sets initial score to 0.0.
+    """
+    target_min_words = 150
+    target_max_words = 800
+    target_overlap_words = 100
+
+    chunks: List[SourceChunk] = []
+    all_sentences: List[Tuple[str, Optional[int], Optional[str]]] = []
+    current_section = None
+
+    for text, page_num in pages:
+        if not text or not text.strip():
+            continue
+
+        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+        for p in paragraphs:
+            lines = p.splitlines()
+            if lines:
+                first_line = lines[0].strip()
+                if any(k in first_line.lower() for k in ["chapter", "section", "module", "unit", "part"]) or len(first_line) < 60:
+                    current_section = first_line
+
+            sents = _split_into_sentences(p)
+            for s in sents:
+                all_sentences.append((s, page_num, current_section))
+
+    if not all_sentences:
+        return []
+
+    curr_chunk_sents: List[Tuple[str, Optional[int], Optional[str]]] = []
+    curr_word_count = 0
+    chunk_start_page: Optional[int] = all_sentences[0][1]
+    chunk_section: Optional[str] = all_sentences[0][2]
+
+    i = 0
+    while i < len(all_sentences):
+        sent, page_num, section = all_sentences[i]
+        sent_words = len(sent.split())
+
+        if not curr_chunk_sents:
+            chunk_start_page = page_num
+            chunk_section = section
+
+        curr_chunk_sents.append((sent, page_num, section))
+        curr_word_count += sent_words
+
+        is_last = (i == len(all_sentences) - 1)
+        if curr_word_count >= target_min_words or is_last:
+            chunk_text = " ".join([s[0] for s in curr_chunk_sents]).strip()
+            chunks.append(
+                SourceChunk(
+                    text=chunk_text,
+                    page=chunk_start_page,
+                    section=chunk_section,
+                    score=0.0
+                )
+            )
+
+            if is_last:
+                break
+
+            overlap_sents: List[Tuple[str, Optional[int], Optional[str]]] = []
+            overlap_words = 0
+            for item in reversed(curr_chunk_sents):
+                w_cnt = len(item[0].split())
+                overlap_sents.insert(0, item)
+                overlap_words += w_cnt
+                if overlap_words >= target_overlap_words:
+                    break
+
+            curr_chunk_sents = overlap_sents
+            curr_word_count = sum(len(s[0].split()) for s in curr_chunk_sents)
+            if curr_chunk_sents:
+                chunk_start_page = curr_chunk_sents[0][1]
+                chunk_section = curr_chunk_sents[0][2]
+
+        i += 1
+
+    return chunks
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python -m ingest.chunk <path_to_pdf_or_doc>")
+        sys.exit(1)
+
+    target_doc = sys.argv[1]
+    pages_loaded = load_document(target_doc)
+    chunk_results = chunk(pages_loaded)
+
+    print(f"Generated {len(chunk_results)} chunk(s) from {target_doc}:\n")
+    for idx, c in enumerate(chunk_results, start=1):
+        words = len(c.text.split())
+        lines = [l.strip() for l in c.text.splitlines() if l.strip()]
+        first_line = lines[0] if lines else c.text[:60]
+        last_line = lines[-1] if lines else c.text[-60:]
+        print(f"Chunk {idx}: {words} words | Page {c.page} | Section: {c.section}")
+        print(f"  First sentence: {first_line[:90]}")
+        print(f"  Last sentence:  {last_line[-90:]}\n")

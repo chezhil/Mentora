@@ -1,0 +1,32 @@
+﻿[
+  {
+    "role": "system",
+    "content": "Lesson started on topic: Ohm's Law (Level: beginner, Language: en)",
+    "concept_id": null,
+    "timestamp": "2026-09-02T10:00:00"
+  },
+  {
+    "role": "teacher",
+    "content": "Welcome to Ohm's Law! Let's understand how voltage pushes current through resistance.",
+    "concept_id": "c1",
+    "timestamp": "2026-09-02T10:00:15"
+  },
+  {
+    "role": "teacher",
+    "content": "Quick check: What happens to current if resistance increases while voltage remains constant?",
+    "concept_id": "c1",
+    "timestamp": "2026-09-02T10:01:00"
+  },
+  {
+    "role": "student",
+    "content": "Current increases.",
+    "concept_id": "c1",
+    "timestamp": "2026-09-02T10:01:20"
+  },
+  {
+    "role": "teacher",
+    "content": "Incorrect. Higher resistance restricts current. Let's use the water pipe analogy.",
+    "concept_id": "c1",
+    "timestamp": "2026-09-02T10:01:30"
+  }
+]
