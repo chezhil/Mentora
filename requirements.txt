@@ -1,0 +1,2 @@
+pydantic>=2.5
+google-genai>=1.0
