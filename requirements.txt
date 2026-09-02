@@ -1,15 +1,21 @@
 # Python 3.11
+
+# Core
 pydantic>=2.6
 streamlit>=1.31
 matplotlib>=3.8
 
-# Utkarsh's half (ingest/) — uncomment as each lands
-# pymupdf>=1.24
-# python-docx>=1.1
-# python-pptx>=0.6
-# chromadb>=0.4
-# FlagEmbedding>=1.2
+# Pair A — ingest/ (Utkarsh)
+pymupdf>=1.24
+python-docx>=1.1
+python-pptx>=0.6
+chromadb>=0.4
+sentence-transformers>=2.7     # loads BAAI/bge-m3
+# FlagEmbedding>=1.2           # alternative BGE-M3 loader; ingest/ uses
+                               # sentence-transformers, so this is not needed
 
-# Pair B / Pair C
-# google-genai>=0.3          # NOT google-generativeai
-# imageio-ffmpeg>=1.4        # NOT a system ffmpeg
+# Pair B — planner/ teacher/ (Jyothi, Naman)
+google-genai>=1.0              # NOT google-generativeai
+
+# Pair C — visuals/ media/ (Santosh, Hamza)
+# imageio-ffmpeg>=1.4          # NOT a system ffmpeg

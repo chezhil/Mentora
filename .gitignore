@@ -1,13 +1,25 @@
-﻿.venv/
+# Environments
+.venv/
+venv/
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Data stores — never commit these, they are hundreds of megabytes
 *.db
 *.sqlite3
-data/
-out/
 mentora.db
+data/
 .cache/
 .pytest_cache/
+
+# Generated output
+out/
+*.wav
+*.mp4
+*.png
+!assets/**
+
+# OS
 .DS_Store
 Thumbs.db

@@ -1,0 +1,12 @@
+{
+  "topic": "Ohm's Law",
+  "profile": {
+    "level": "beginner",
+    "language": "en",
+    "time_minutes": 20,
+    "goal": "understand the relationship between voltage, current and resistance",
+    "known_concepts": [],
+    "weak_concepts": ["resistance"]
+  },
+  "doc_id": null
+}
