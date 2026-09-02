@@ -140,9 +140,13 @@ def evaluate(question: Question, response: StudentResponse) -> Evaluation:
     )
 
 
-def reexplain(concept_id: str, misconception: str,
-              attempt: int) -> TeachingSegment:
-    """MUST: a DIFFERENT ANALOGY for each value of attempt."""
+def reexplain(concept_id: str, misconception: str, attempt: int,
+              state: SessionState | None = None) -> TeachingSegment:
+    """MUST: a DIFFERENT ANALOGY for each value of attempt.
+
+    `state` was added to the contract after Pair B built against it — it lets
+    the re-explanation use what the student has already been told.
+    """
     analogy = ANALOGIES[(attempt - 1) % len(ANALOGIES)]
     return TeachingSegment(
         concept_id=concept_id,

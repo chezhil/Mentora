@@ -14,7 +14,12 @@ TWO GAPS IN CONTRACT.txt, HANDLED HERE (Chezhil to raise with the team):
      shared/models.py unilaterally, media lives in a side table keyed by
      session id — see SegmentMedia and media_for().
 
-  2. evaluate(question, response) cannot know how many times this concept has
+  2. reexplain() takes the session state as a 4th argument. CONTRACT.txt
+     originally specified three; Pair B built the four-argument version and it
+     is the better one, so the contract was amended to match. wiring.py
+     tolerates both shapes during integration.
+
+  3. evaluate(question, response) cannot know how many times this concept has
      already been re-explained, so it can never legitimately return
      "simplify" (defined as "wrong twice, go simpler"). The orchestrator
      escalates reexplain -> simplify on the second attempt and records that
@@ -302,6 +307,10 @@ def answer(session: SessionState,
         # Stop looping on one concept. A lesson that never advances is worse
         # than a lesson with a gap in it.
         session.current_concept += 1
+        # Drop any re-explanation queued by an earlier attempt. Without this
+        # the abandoned concept still gets taught, and answering it advances
+        # current_concept a SECOND time — silently skipping a concept.
+        rt.pending = None
         panel.action_taken = "moved on"
         panel.difficulty = "lowered"
         _log(session, "system",
@@ -324,6 +333,7 @@ def answer(session: SessionState,
             concept_id,
             evaluation.misconception or "an unnamed misunderstanding",
             attempt,
+            trim_state(session),
         )
         rt.pending = segment
         panel.analogy = segment.visual.caption or segment.visual.payload

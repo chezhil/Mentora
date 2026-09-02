@@ -8,16 +8,65 @@ status() reports which is which, and the app shows it in the sidebar so we
 always know what we are actually demoing.
 """
 
+import importlib
+import inspect
+
 from stubs import pair_a_ingest, pair_b, pair_c
 
 _STATUS: dict[str, bool] = {}
 
 
 def _resolve(name: str, real, stub):
-    """Prefer the real module's attribute; fall back to the stub's."""
+    """Prefer the real module's attribute; fall back to the stub's.
+
+    The callable() check matters: `planner.plan` is both a module name and a
+    function name, so getattr can hand back a MODULE. Without this, wiring
+    reports LIVE and the lesson dies later on "module object is not callable".
+    """
     fn = getattr(real, name, None) if real is not None else None
+    if not callable(fn):
+        fn = None
     _STATUS[name] = fn is not None
     return fn if fn is not None else getattr(stub, name)
+
+
+def _from_modules(name: str, *module_paths: str, stub):
+    """Find `name` in the first submodule that actually provides it.
+
+    Pair B does not re-export at package level, and final_quiz/build_report
+    live under planner/ rather than teacher/. So look where the code is,
+    not where the package index says it should be.
+    """
+    for path in module_paths:
+        try:
+            mod = importlib.import_module(path)
+        except Exception:
+            continue
+        fn = getattr(mod, name, None)
+        if callable(fn):
+            _STATUS[name] = True
+            return fn
+    _STATUS[name] = False
+    return getattr(stub, name)
+
+
+def _adapt_reexplain(fn):
+    """CONTRACT amended: reexplain now takes the session state as a 4th arg.
+
+    Tolerate both shapes so a pair mid-update never breaks the lesson.
+    """
+    try:
+        takes_state = len(inspect.signature(fn).parameters) >= 4
+    except (TypeError, ValueError):
+        takes_state = False
+
+    if takes_state:
+        return fn
+
+    def _without_state(concept_id, misconception, attempt, state=None):
+        return fn(concept_id, misconception, attempt)
+
+    return _without_state
 
 
 # --- Utkarsh: ingest/ -------------------------------------------------------
@@ -30,23 +79,18 @@ ingest = _resolve("ingest", _real_ingest, pair_a_ingest)
 retrieve = _resolve("retrieve", _real_ingest, pair_a_ingest)
 
 # --- Pair B: planner/ and teacher/ -----------------------------------------
-try:
-    import planner as _real_planner                   # type: ignore
-except Exception:
-    _real_planner = None
+# planner/__init__.py is empty and teacher/ has no __init__.py at all, so
+# nothing is exposed at package level. Resolve against the submodules.
 
-try:
-    import teacher as _real_teacher                   # type: ignore
-except Exception:
-    _real_teacher = None
-
-plan = _resolve("plan", _real_planner, pair_b)
-learning_path = _resolve("learning_path", _real_planner, pair_b)
-next_segment = _resolve("next_segment", _real_teacher, pair_b)
-evaluate = _resolve("evaluate", _real_teacher, pair_b)
-reexplain = _resolve("reexplain", _real_teacher, pair_b)
-final_quiz = _resolve("final_quiz", _real_teacher, pair_b)
-build_report = _resolve("build_report", _real_teacher, pair_b)
+plan = _from_modules("plan", "planner.plan", "planner", stub=pair_b)
+learning_path = _from_modules("learning_path", "planner.path", "planner", stub=pair_b)
+next_segment = _from_modules("next_segment", "teacher.engine", "teacher", stub=pair_b)
+evaluate = _from_modules("evaluate", "teacher.engine", "teacher", stub=pair_b)
+final_quiz = _from_modules("final_quiz", "planner.quiz", "teacher.engine", "teacher", stub=pair_b)
+build_report = _from_modules("build_report", "planner.report", "teacher.engine", "teacher", stub=pair_b)
+reexplain = _adapt_reexplain(
+    _from_modules("reexplain", "teacher.engine", "teacher", stub=pair_b)
+)
 
 # --- Pair C: visuals/ and media/ -------------------------------------------
 try:
