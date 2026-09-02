@@ -42,6 +42,7 @@ def init_state() -> None:
     st.session_state.setdefault("segment", None)
     st.session_state.setdefault("report", None)
     st.session_state.setdefault("last_feedback", None)
+    st.session_state.setdefault("student_id", "student")
 
 
 init_state()
@@ -140,6 +141,21 @@ def screen_setup() -> None:
         )
         goal = st.text_input("Your goal (optional)",
                              placeholder="pass the unit test on Friday")
+        student_id = st.text_input(
+            "Your name", value=st.session_state.get("student_id", "student"),
+            help="Used to remember what you struggled with last time.",
+        )
+        st.session_state.student_id = student_id
+
+        seen = orch.past_reports(student_id)
+        if seen:
+            weak = list(dict.fromkeys(w for r in seen for w in r.weak))[:3]
+            st.info(
+                f"Welcome back — {len(seen)} previous lesson"
+                f"{'s' if len(seen) > 1 else ''}. "
+                + (f"Last time you struggled with {', '.join(weak)}."
+                   if weak else "")
+            )
 
     with right:
         level = st.selectbox("Your level",
@@ -159,7 +175,8 @@ def screen_setup() -> None:
             goal=goal or None,
         )
         with st.spinner("Reading your material and planning the lesson…"):
-            session = orch.start_session(topic, profile, save_upload(uploaded))
+            session = orch.start_session(topic, profile, save_upload(uploaded),
+                                         student_id=st.session_state.student_id)
             segment = orch.step(session)
         st.session_state.session = session
         st.session_state.segment = segment
@@ -267,12 +284,29 @@ def _advance(session) -> None:
 
 def screen_history() -> None:
     session = st.session_state.session
-    if session is None or not session.turns:
+    if session is None:
         st.caption("Nothing yet.")
         return
 
+    # Read back from SQLite rather than from memory — if this renders, the
+    # lesson genuinely survives a restart.
+    turns = session.turns
+    source = "in memory"
+    if orch.history is not None:
+        try:
+            stored = orch.history.load_turns(session.session_id)
+            if stored:
+                turns, source = stored, "mentora.db"
+        except Exception:
+            pass
+
+    if not turns:
+        st.caption("Nothing yet.")
+        return
+    st.caption(f"{len(turns)} turns · read from {source}")
+
     icons = {"teacher": "🎓", "student": "🙋", "system": "⚙️"}
-    for turn in session.turns:
+    for turn in turns:
         stamp = turn.timestamp.strftime("%H:%M:%S")
         tag = f" · {turn.concept_id}" if turn.concept_id else ""
         st.markdown(f"{icons.get(turn.role, '•')} **{turn.role}** "

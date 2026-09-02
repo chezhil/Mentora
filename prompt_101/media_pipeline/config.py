@@ -1,5 +1,6 @@
 """Configuration for the media pipeline."""
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -30,7 +31,14 @@ DPI = 100
 TTS_PROVIDER = os.getenv("TTS_PROVIDER", "piper")
 
 # Piper settings
-PIPER_BIN = os.getenv("PIPER_BIN", "piper")
+def _default_piper() -> str:
+    """Piper ships into the venv's bin/, which is not on PATH when you run
+    .venv/bin/streamlit directly. Look next to the running interpreter."""
+    candidate = Path(sys.executable).parent / "piper"
+    return str(candidate) if candidate.exists() else "piper"
+
+
+PIPER_BIN = os.getenv("PIPER_BIN", _default_piper())
 PIPER_MODEL_DIR = os.getenv("PIPER_MODEL_DIR", str(BASE_DIR / "piper_models"))
 
 # Google Cloud TTS settings

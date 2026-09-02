@@ -17,9 +17,13 @@ data/
 cache/
 .freebuff/
 
-# Models and voices
+# Models and voices — hundreds of megabytes, never commit
 voices/*.onnx
 voices/*.onnx.json
+*.onnx
+*.onnx.json
+piper_models/
+**/piper_models/
 
 # Generated output
 out/

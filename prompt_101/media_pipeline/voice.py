@@ -24,13 +24,15 @@ from .utils import get_cached_path
 
 # Piper voice models (model_name, sample_rate)
 PIPER_VOICES = {
+    # Verified against huggingface.co/rhasspy/piper-voices on 2 Sep.
+    # The previous names (swara, dhivya, jessica, shaurya, tanmayee) do not
+    # exist, so every Indian language silently produced a silent placeholder.
     "en": ("en_US-lessac-medium", 22050),
-    "hi": ("hi_IN-swara-medium", 22050),
-    "ta": ("ta_IN-dhivya-medium", 22050),  # Tamil - test availability
-    "kn": ("kn_IN-jessica-medium", 22050),  # Kannada - test availability
-    "te": ("te_IN-shaurya-medium", 22050),  # Telugu
-    "bn": ("bn_IN-tanmayee-medium", 22050),  # Bengali
-    "mr": ("mr_IN-shaurya-medium", 22050),  # Marathi
+    "hi": ("hi_IN-pratham-medium", 22050),
+    "te": ("te_IN-maya-medium", 22050),
+    # Piper has NO voice for Tamil, Kannada or Bengali. Those languages have
+    # to go through Google Cloud TTS (see GOOGLE_VOICES below), which is the
+    # final-demo backend anyway.
 }
 
 # Google Cloud TTS voices

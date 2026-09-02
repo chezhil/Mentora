@@ -14,6 +14,28 @@ python3 -m venv .venv
 .venv/bin/streamlit run app.py
 ```
 
+### Voice models (needed for real speech)
+
+Piper voices are too big to commit. Download them once:
+
+```bash
+D=prompt_101/media_pipeline/piper_models; mkdir -p $D
+B=https://huggingface.co/rhasspy/piper-voices/resolve/main
+curl -sL -o $D/en_US-lessac-medium.onnx      $B/en/en_US/lessac/medium/en_US-lessac-medium.onnx
+curl -sL -o $D/en_US-lessac-medium.onnx.json $B/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json
+curl -sL -o $D/hi_IN-pratham-medium.onnx      $B/hi/hi_IN/pratham/medium/hi_IN-pratham-medium.onnx
+curl -sL -o $D/hi_IN-pratham-medium.onnx.json $B/hi/hi_IN/pratham/medium/hi_IN-pratham-medium.onnx.json
+```
+
+Piper has no voice for Tamil, Kannada or Bengali — those need Google Cloud TTS.
+
+### Keys
+
+| Variable | Without it |
+|---|---|
+| `GEMINI_API_KEY` | Pair B cannot run at all. `AI_TEACHER_MOCK=mocks/fixture_mock.json` replays canned answers instead. |
+| `REPLICATE_API_TOKEN` | The avatar is a still image, not a talking head. |
+
 Check the whole loop without a browser:
 
 ```bash

@@ -46,8 +46,24 @@ from shared.models import (
     StudentResponse, TeachingSegment, Turn,
 )
 
+try:
+    import history
+except Exception:          # history is Utkarsh's; never let it kill a lesson
+    history = None
+
 VISUAL_DIR = "out/visuals"
 FACE_IMAGE = "assets/teacher.jpg"
+DEFAULT_STUDENT = "default_student"
+
+
+def _persist(call, *args) -> None:
+    """Best-effort write to SQLite. A storage failure degrades to in-memory."""
+    if history is None:
+        return
+    try:
+        getattr(history, call)(*args)
+    except Exception:
+        pass
 
 
 class SegmentMedia(BaseModel):
@@ -86,6 +102,7 @@ class Runtime(BaseModel):
     panel: PanelState = PanelState()
     quiz: list[Question] = []
     finished: bool = False
+    student_id: str = DEFAULT_STUDENT
 
 
 _RUNTIME: dict[str, Runtime] = {}
@@ -110,10 +127,10 @@ def _now() -> datetime:
 
 def _log(session: SessionState, role: str, content: str,
          concept_id: str | None = None) -> None:
-    session.turns.append(
-        Turn(role=role, content=content, concept_id=concept_id,
-             timestamp=_now())
-    )
+    turn = Turn(role=role, content=content, concept_id=concept_id,
+                timestamp=_now())
+    session.turns.append(turn)
+    _persist("save_turn", session.session_id, turn)
 
 
 # ---------------------------------------------------------------------------
@@ -194,9 +211,34 @@ def _build_media(session: SessionState,
 # THE FOUR CONTRACT FUNCTIONS
 # ---------------------------------------------------------------------------
 
+def past_reports(student_id: str = DEFAULT_STUDENT) -> list[LessonReport]:
+    """Everything this student has done before. Empty if they are new."""
+    if history is None:
+        return []
+    try:
+        return history.load_history(student_id)
+    except Exception:
+        return []
+
+
 def start_session(topic: str, profile: LearnerProfile,
-                  file_path: str | None = None) -> SessionState:
-    """Ingest the file if there is one, ask Pair B for a plan, open a session."""
+                  file_path: str | None = None,
+                  student_id: str = DEFAULT_STUDENT) -> SessionState:
+    """Ingest the file if there is one, ask Pair B for a plan, open a session.
+
+    `student_id` is additive to the contract signature — existing three-argument
+    callers are unaffected. It is what makes a returning student get "last time
+    you struggled with Ohm's Law" (Section 14 of the brief).
+    """
+    # Carry forward what earlier lessons revealed, so the plan can account for
+    # it. Pair B reads profile.weak_concepts.
+    previous = past_reports(student_id)
+    if previous:
+        carried = [w for r in previous for w in r.weak]
+        profile = profile.model_copy(update={
+            "weak_concepts": list(dict.fromkeys(profile.weak_concepts + carried)),
+        })
+
     doc_id = wiring.ingest(file_path) if file_path else None
 
     plan = wiring.plan(topic, profile, doc_id)
@@ -207,12 +249,18 @@ def start_session(topic: str, profile: LearnerProfile,
         plan=plan,
         doc_id=doc_id,
     )
-    _RUNTIME[session.session_id] = Runtime()
+    _RUNTIME[session.session_id] = Runtime(student_id=student_id)
 
     source = f"from {file_path}" if file_path else "with no uploaded material"
     _log(session, "system",
          f"Session opened: {topic}, {profile.level}, {profile.language}, "
          f"{profile.time_minutes} min, {source}.")
+
+    if previous:
+        weak = ", ".join(profile.weak_concepts[:3]) or "nothing in particular"
+        _log(session, "system",
+             f"Returning student: {len(previous)} previous lesson(s). "
+             f"Last time they struggled with {weak}.")
     return session
 
 
@@ -350,6 +398,7 @@ def finish(session: SessionState) -> LessonReport:
         rt.questions[q.id] = q
 
     report = wiring.build_report(trim_state(session))
+    _persist("save_report", session.session_id, report, rt.student_id)
     rt.finished = True
     _log(session, "system", f"Lesson finished. Score {report.score}.")
     return report
