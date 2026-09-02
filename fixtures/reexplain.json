@@ -1,0 +1,21 @@
+{
+  "concept_id": "c3",
+  "misconception": "believes current and resistance are directly proportional",
+  "attempt": 2,
+  "language": "en",
+  "plan": {
+    "topic": "Electricity Basics",
+    "language": "en",
+    "total_minutes": 20,
+    "concepts": [
+      {"id": "c1", "name": "Current", "depth": "brief",
+       "minutes": 4.0, "prerequisites": []},
+      {"id": "c2", "name": "Voltage", "depth": "brief",
+       "minutes": 5.0, "prerequisites": ["c1"]},
+      {"id": "c3", "name": "Resistance", "depth": "standard",
+       "minutes": 5.0, "prerequisites": ["c1"]},
+      {"id": "c4", "name": "Ohm's Law", "depth": "standard",
+       "minutes": 6.0, "prerequisites": ["c2", "c3"]}
+    ]
+  }
+}
