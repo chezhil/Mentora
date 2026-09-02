@@ -4,6 +4,9 @@ venv/
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
 
 # Data stores — never commit these, they are hundreds of megabytes
 *.db
@@ -11,10 +14,16 @@ __pycache__/
 mentora.db
 data/
 .cache/
-.pytest_cache/
+cache/
+.freebuff/
+
+# Models and voices
+voices/*.onnx
+voices/*.onnx.json
 
 # Generated output
 out/
+output/
 *.wav
 *.mp4
 *.png
@@ -23,3 +32,5 @@ out/
 # OS
 .DS_Store
 Thumbs.db
+$RECYCLE.BIN/
+System Volume Information/

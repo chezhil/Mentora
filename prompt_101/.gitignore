@@ -1,0 +1,18 @@
+# Output files (generated, not source)
+media_pipeline/output/
+*.wav
+*.mp4
+*.png
+!media_pipeline/docs/*.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Test artifacts
+test_avatar.mp4
+test_audio.wav
+test_long.wav
+final_test.wav

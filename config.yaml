@@ -1,0 +1,19 @@
+voice:
+  engine: piper
+  output_dir: cache/voice
+  piper_voices:
+    en: en_US-lessac-medium
+    hi: hi_IN-swara-medium
+    ta: ta_IN-sarvesh
+    kn: kn_IN
+
+avatar:
+  model: cjwbw/sadtalker
+  max_duration_seconds: 60
+  output_dir: cache/avatar
+  enhancer: gfpgan
+
+composite:
+  avatar_width: 320
+  margin: 40
+  pixel_format: yuv420p
