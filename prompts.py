@@ -177,7 +177,7 @@ YOUR SINGLE JOB THIS SEGMENT
    - "none"      -> no visual needed
    Pick what genuinely helps this subject. Do not use "none" every time.
    Chapter 10 of the brief is graded on subject-aware visuals.
-3. Ask a question ONLY if <<ASK>> is true. When ASK is false, use null.
+3. Ask a question ONLY if ASK_QUESTION is <<ASK>>. Otherwise use null.
 
 RULES
 - Keep the script proportionate to <<MINUTES>> minutes.
