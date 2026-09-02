@@ -148,8 +148,8 @@ def screen_setup() -> None:
             "Teach me in", list(LANGUAGES),
             format_func=lambda code: LANGUAGES[code],
         )
-        minutes = st.select_slider("Time I have (minutes)",
-                                   options=[5, 20, 60], value=20)
+        minutes = st.slider("Time I have (minutes)",
+                            min_value=5, max_value=60, value=20, step=1)
 
     if st.button("Start lesson", type="primary", disabled=not topic):
         profile = LearnerProfile(
