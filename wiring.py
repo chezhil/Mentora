@@ -91,7 +91,8 @@ def _adapt_render(fn):
     def _render(spec, out_dir):
         os.makedirs(out_dir, exist_ok=True)
         key = hashlib.sha1(f"{spec.kind}{spec.payload}".encode()).hexdigest()[:12]
-        return fn(spec.kind, spec.payload,
+        data = {"title": spec.caption} if spec.caption else {}
+        return fn(spec.kind, spec.payload, data=data,
                   output_path=os.path.join(out_dir, f"visual_{key}.png"))
 
     return _render

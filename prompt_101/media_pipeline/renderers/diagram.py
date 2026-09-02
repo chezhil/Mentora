@@ -15,6 +15,7 @@ try:
 except ImportError:
     HAS_NETWORKX = False
 
+from .payload import enrich
 from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, TEXT_COLOR, ACCENT_COLORS
 
 
@@ -26,8 +27,9 @@ def render_diagram(content: str, subject: str, data: dict) -> str:
     - data["nodes"], data["edges"]: for networkx graphs
     - data["boxes"]: list of {"x", "y", "label", "color"} for matplotlib diagrams
     """
+    data = enrich("diagram", content, data)
     if HAS_NETWORKX and "nodes" in data:
-        return _render_networkx_diagram(content, data)
+        return _render_networkx_diagram(data.get("title") or content, data)
     return _render_matplotlib_diagram(content, subject, data)
 
 
@@ -41,7 +43,7 @@ def _render_matplotlib_diagram(content: str, subject: str, data: dict) -> str:
     ax.set_ylim(0, 10)
 
     # Title at top - large font
-    ax.text(5, 9.3, content[:50], fontsize=32, fontweight="bold",
+    ax.text(5, 9.3, (data.get("title") or content)[:50], fontsize=32, fontweight="bold",
             ha="center", va="center", color=TITLE_COLOR, fontfamily="sans-serif")
 
     # Divider

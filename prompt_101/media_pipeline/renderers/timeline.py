@@ -8,6 +8,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from .payload import enrich
 from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, TEXT_COLOR, ACCENT_COLORS
 
 
@@ -18,6 +19,7 @@ def render_timeline(content: str, subject: str, data: dict) -> str:
     Data options:
     - data["events"]: list of {"year": str, "label": str}
     """
+    data = enrich("timeline", content, data)
     fig, ax = plt.subplots(1, 1, figsize=(IMAGE_WIDTH/DPI, IMAGE_HEIGHT/DPI), dpi=DPI)
     fig.patch.set_facecolor(BG_COLOR)
     ax.set_facecolor(BG_COLOR)
@@ -26,7 +28,7 @@ def render_timeline(content: str, subject: str, data: dict) -> str:
     ax.set_ylim(0, 1)
 
     # Title at top - large
-    ax.text(0.5, 0.92, content[:50], fontsize=32, fontweight="bold",
+    ax.text(0.5, 0.92, (data.get("title") or content)[:50], fontsize=32, fontweight="bold",
             ha="center", va="center", color=TITLE_COLOR, fontfamily="sans-serif")
 
     # Divider

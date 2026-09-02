@@ -13,6 +13,7 @@ try:
 except ImportError:
     HAS_NETWORKX = False
 
+from .payload import enrich
 from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, ACCENT_COLORS
 
 
@@ -25,6 +26,7 @@ def render_concept_map(content: str, subject: str, data: dict) -> str:
     - data["related"]: list of related concept names
     - data["nodes"], data["edges"]: for networkx graphs
     """
+    data = enrich("concept_map", content, data)
     if HAS_NETWORKX and "nodes" in data:
         return _render_networkx_concept_map(content, data)
     return _render_matplotlib_concept_map(content, subject, data)
@@ -40,7 +42,7 @@ def _render_matplotlib_concept_map(content: str, subject: str, data: dict) -> st
     ax.set_ylim(0, 10)
 
     # Title at top
-    ax.text(5, 9.3, content[:50], fontsize=32, fontweight="bold",
+    ax.text(5, 9.3, (data.get("title") or content)[:50], fontsize=32, fontweight="bold",
             ha="center", va="center", color=TITLE_COLOR, fontfamily="sans-serif")
 
     # Central concept - large circle
@@ -82,8 +84,11 @@ def _render_matplotlib_concept_map(content: str, subject: str, data: dict) -> st
         # Arrow from satellite to center
         arrow_len = 0.8
         ax.annotate("",
-                    xy=(center_x + 1.5 * np.cos(angle + np.pi),
-                        center_y + 1.5 * np.sin(angle + np.pi)),
+                    # Stop at the near edge of the central ellipse. The
+                    # original used angle + pi, which put the arrow head on the
+                    # FAR side, so every arrow speared through the centre label.
+                    xy=(center_x + 1.5 * np.cos(angle),
+                        center_y + 1.5 * np.sin(angle)),
                     xytext=(x - arrow_len * np.cos(angle),
                             y - arrow_len * np.sin(angle)),
                     arrowprops=dict(arrowstyle="-|>", color="#555555",

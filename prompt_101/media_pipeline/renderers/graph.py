@@ -8,6 +8,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from .payload import enrich
 from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, ACCENT_COLORS
 
 
@@ -22,6 +23,7 @@ def render_graph(content: str, subject: str, data: dict) -> str:
     - data["title"]: custom title
     - data["x_label"], data["y_label"]: axis labels
     """
+    data = enrich("graph", content, data)
     fig, ax = plt.subplots(1, 1, figsize=(IMAGE_WIDTH/DPI, IMAGE_HEIGHT/DPI), dpi=DPI)
     ax.set_facecolor(BG_COLOR)
     fig.patch.set_facecolor(BG_COLOR)
@@ -60,12 +62,17 @@ def render_graph(content: str, subject: str, data: dict) -> str:
                     transform=ax.transAxes, ha="center", va="center",
                     fontsize=24, color="#e74c3c")
 
-    # Default: show content as a demo sine wave
+    # Nothing plottable. Say so — do NOT draw an unrelated curve under a title
+    # naming a different function. A sine wave labelled "y = 1/x" reads as the
+    # system inventing content, which is worse than showing no graph at all.
     if not plotted:
-        x = np.linspace(0, 2 * np.pi, 200)
-        y = np.sin(x)
-        ax.plot(x, y, color=ACCENT_COLORS[0], linewidth=3)
-        ax.set_title(f"Graph: {content[:40]}", fontsize=title_size, color=TITLE_COLOR, pad=20)
+        ax.axis("off")
+        ax.text(0.5, 0.62, content[:70], transform=ax.transAxes, ha="center",
+                va="center", fontsize=title_size, fontweight="bold",
+                color=TITLE_COLOR, wrap=True)
+        ax.text(0.5, 0.38, "no plottable expression in this payload",
+                transform=ax.transAxes, ha="center", va="center",
+                fontsize=tick_size, color="#999999")
 
     # Style: large grid, thick spines
     ax.grid(True, alpha=0.3, linewidth=1.5)
