@@ -1,0 +1,13 @@
+{
+  "question": {
+    "id": "q1",
+    "concept_id": "c1",
+    "kind": "short",
+    "prompt": "What happens to current if resistance increases while voltage stays constant?",
+    "expected": "Current decreases because they are inversely proportional (I = V/R)."
+  },
+  "response": {
+    "question_id": "q1",
+    "answer": "Current increases."
+  }
+}
