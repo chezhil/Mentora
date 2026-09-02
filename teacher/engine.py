@@ -1,38 +1,14 @@
 import json
-import os
-from google import genai
 from shared.models import (
     LessonPlan, SessionState, SourceChunk, TeachingSegment, 
     Question, StudentResponse, Evaluation, Turn
 )
-from teacher.prompts import NEXT_SEGMENT_PROMPT, EVALUATE_PROMPT, REEXPLAIN_PROMPT
-
-# Initialize Gemini Client
-# Assumes GEMINI_API_KEY is set in the environment
-try:
-    client = genai.Client()
-except Exception:
-    client = None # For testing purposes if API key is not set
-
-MODEL_ID = "gemini-2.5-flash"
-
-def _clean_json_output(response_text: str) -> str:
-    """Strip markdown backticks if Gemini includes them despite instructions."""
-    text = response_text.strip()
-    if text.startswith("```json"):
-        text = text[7:]
-    if text.startswith("```"):
-        text = text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
-    return text.strip()
+from prompts import SEGMENT_PROMPT, EVALUATE_PROMPT, REEXPLAIN_PROMPT
+from llm import generate_json
 
 def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk]) -> TeachingSegment:
     """Generates the next teaching segment based on the plan and current state."""
-    if not client:
-        raise ValueError("Gemini client is not initialized. Please set GEMINI_API_KEY.")
-
-    concept_id = plan.concepts[state.current_concept].id
+    concept = plan.concepts[state.current_concept]
     
     # Calculate difficulty
     # "Two wrong answers in a row -> simpler language, more basic examples."
@@ -41,90 +17,69 @@ def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk
     if len(state.evaluations) >= 2:
         last_two_actions = [e.action for e in state.evaluations[-2:]]
         if last_two_actions == ["harden", "harden"]:
-            difficulty_level = "hard"
-        elif last_two_actions == ["simplify", "simplify"]:
-            difficulty_level = "simple"
-        elif last_two_actions == ["reexplain", "reexplain"]:
-            # two wrongs also lead to simplification according to brief
-            difficulty_level = "simple"
+            difficulty_level = "harden"
+        elif last_two_actions == ["simplify", "simplify"] or last_two_actions == ["reexplain", "reexplain"]:
+            difficulty_level = "simplify"
 
-    prompt = NEXT_SEGMENT_PROMPT.format(
-        level=state.profile.level,
-        language=state.profile.language,
-        topic=plan.topic,
-        plan_context=plan.model_dump_json(indent=2),
-        chunks_text=json.dumps([c.model_dump() for c in chunks], indent=2) if chunks else "None",
-        history_text=json.dumps([t.model_dump() for t in state.turns[-5:]], indent=2) if state.turns else "None",
-        difficulty=difficulty_level
-    )
+    history_str = "\n".join([f"{t.role}: {t.content}" for t in state.turns[-5:]]) if state.turns else "No history yet."
+    chunks_str = json.dumps([c.model_dump() for c in chunks], indent=2) if chunks else "No chunks."
 
-    response = client.models.generate_content(
-        model=MODEL_ID,
-        contents=prompt
-    )
-    
-    cleaned_json = _clean_json_output(response.text)
-    
-    try:
-        segment_data = json.loads(cleaned_json)
-        # Ensure concept_id matches current state
-        segment_data["concept_id"] = concept_id
-        return TeachingSegment.model_validate(segment_data)
-    except Exception as e:
-        # Simple retry logic could go here; raising for simplicity in first pass
-        raise RuntimeError(f"Failed to parse Gemini output as TeachingSegment: {e}\nRaw Output: {response.text}")
+    prompt = SEGMENT_PROMPT \
+        .replace("<<TOPIC>>", plan.topic) \
+        .replace("<<LANGUAGE>>", state.profile.language) \
+        .replace("<<DIFFICULTY>>", difficulty_level) \
+        .replace("<<CONCEPT>>", concept.name) \
+        .replace("<<MINUTES>>", str(concept.minutes)) \
+        .replace("<<HISTORY>>", history_str) \
+        .replace("<<CHUNKS>>", chunks_str) \
+        .replace("<<ASK>>", "True") \
+        .replace("<<CONCEPT_ID>>", concept.id)
 
+    data = generate_json(prompt)
+    data["concept_id"] = concept.id  # Enforce matching concept ID
+    return TeachingSegment.model_validate(data)
 
 def evaluate(question: Question, response: StudentResponse) -> Evaluation:
     """Evaluates a student's answer and determines the misconception and next pedagogical action."""
-    if not client:
-        raise ValueError("Gemini client is not initialized. Please set GEMINI_API_KEY.")
-
-    prompt = EVALUATE_PROMPT.format(
-        question_prompt=question.prompt,
-        expected_answer=question.expected,
-        student_answer=response.answer
-    )
-
-    result = client.models.generate_content(
-        model=MODEL_ID,
-        contents=prompt
-    )
-    
-    cleaned_json = _clean_json_output(result.text)
-    
-    try:
-        eval_data = json.loads(cleaned_json)
-        return Evaluation.model_validate(eval_data)
-    except Exception as e:
-        raise RuntimeError(f"Failed to parse Gemini output as Evaluation: {e}\nRaw Output: {result.text}")
-
+    prompt = EVALUATE_PROMPT \
+        .replace("<<PROMPT>>", question.prompt) \
+        .replace("<<KIND>>", question.kind) \
+        .replace("<<OPTIONS>>", json.dumps(question.options) if question.options else "None") \
+        .replace("<<EXPECTED>>", question.expected) \
+        .replace("<<ANSWER>>", response.answer)
+        
+    data = generate_json(prompt)
+    return Evaluation.model_validate(data)
 
 def reexplain(concept_id: str, misconception: str, attempt: int, state: SessionState) -> TeachingSegment:
-    """Generates a new teaching segment tackling a specific misconception with a fresh analogy based on attempt count."""
-    if not client:
-        raise ValueError("Gemini client is not initialized. Please set GEMINI_API_KEY.")
-
-    concept_name = next((c.name for c in state.plan.concepts if c.id == concept_id), concept_id)
-
-    prompt = REEXPLAIN_PROMPT.format(
-        level=state.profile.level,
-        language=state.profile.language,
-        concept_name=concept_name,
-        misconception=misconception,
-        attempt=attempt
-    )
-
-    result = client.models.generate_content(
-        model=MODEL_ID,
-        contents=prompt
-    )
+    """Generates a new teaching segment tackling a specific misconception with a fresh analogy."""
+    concept = next((c for c in state.plan.concepts if c.id == concept_id), None)
+    concept_name = concept.name if concept else concept_id
+    depth = concept.depth if concept else "standard"
     
-    cleaned_json = _clean_json_output(result.text)
+    # Force genuinely different analogies based on attempt number
+    analogies = [
+        "water flowing through a pipe", 
+        "a crowd squeezing through a doorway", 
+        "traffic on a narrowing road", 
+        "heat flowing through a window"
+    ]
+    new_analogy = analogies[(attempt - 1) % len(analogies)]
+    used_analogies = "\n".join(analogies[:max(0, attempt - 1)]) or "None"
     
-    try:
-        segment_data = json.loads(cleaned_json)
-        segment_data["concept_id"] = concept_id
-        return TeachingSegment.model_validate(segment_data)
-    except Exception as e:
-        raise RuntimeError(f"Failed to parse Gemini output as TeachingSegment: {e}\nRaw Output: {result.text}")
+    history_str = "\n".join([f"{t.role}: {t.content}" for t in state.turns[-5:]]) if state.turns else "None"
+    
+    prompt = REEXPLAIN_PROMPT \
+        .replace("<<ATTEMPT>>", str(attempt)) \
+        .replace("<<CONCEPT_NAME>>", concept_name) \
+        .replace("<<DEPTH>>", depth) \
+        .replace("<<MISCONCEPTION>>", misconception) \
+        .replace("<<LANGUAGE>>", state.profile.language) \
+        .replace("<<ANALOGY>>", new_analogy) \
+        .replace("<<USED_ANALOGIES>>", used_analogies) \
+        .replace("<<HISTORY>>", history_str) \
+        .replace("<<CONCEPT_ID>>", concept_id)
+        
+    data = generate_json(prompt)
+    data["concept_id"] = concept_id
+    return TeachingSegment.model_validate(data)
