@@ -17,5 +17,7 @@ sentence-transformers>=2.7     # loads BAAI/bge-m3
 # Pair B — planner/ teacher/ (Jyothi, Naman)
 google-genai>=1.0              # NOT google-generativeai
 
-# Pair C — visuals/ media/ (Santosh, Hamza)
-# imageio-ffmpeg>=1.4          # NOT a system ffmpeg
+# Pair C — prompt_101/media_pipeline (Santosh, Hamza)
+imageio-ffmpeg>=1.4            # NOT a system ffmpeg
+# piper-tts                    # real voice; without it speak() is silent
+# REPLICATE_API_TOKEN env var  # real avatar; without it it is a still image

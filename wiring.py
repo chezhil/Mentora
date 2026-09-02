@@ -8,8 +8,10 @@ status() reports which is which, and the app shows it in the sidebar so we
 always know what we are actually demoing.
 """
 
+import hashlib
 import importlib
 import inspect
+import os
 
 from stubs import pair_a_ingest, pair_b, pair_c
 
@@ -69,6 +71,47 @@ def _adapt_reexplain(fn):
     return _without_state
 
 
+def _first_param(fn) -> str:
+    try:
+        return next(iter(inspect.signature(fn).parameters))
+    except (TypeError, ValueError, StopIteration):
+        return ""
+
+
+def _adapt_render(fn):
+    """CONTRACT: render(spec: VisualSpec, out_dir: str) -> png path.
+
+    Pair C's is render(kind, content, subject="", data=None, output_path=None)
+    — it never takes a VisualSpec. Unpack the spec for them rather than making
+    them rewrite against shared/models.py mid-week.
+    """
+    if _first_param(fn) == "spec":
+        return fn
+
+    def _render(spec, out_dir):
+        os.makedirs(out_dir, exist_ok=True)
+        key = hashlib.sha1(f"{spec.kind}{spec.payload}".encode()).hexdigest()[:12]
+        return fn(spec.kind, spec.payload,
+                  output_path=os.path.join(out_dir, f"visual_{key}.png"))
+
+    return _render
+
+
+def _adapt_compose(fn):
+    """CONTRACT: compose(avatar_mp4, visual_png, audio_wav).
+
+    Pair C's is compose(visual_path, audio_path, avatar_path, ...) — same
+    three inputs, different order. Reorder rather than guess at call sites.
+    """
+    if _first_param(fn) == "avatar_mp4":
+        return fn
+
+    def _compose(avatar_mp4, visual_png, audio_wav):
+        return fn(visual_png, audio_wav or None, avatar_mp4 or None)
+
+    return _compose
+
+
 # --- Utkarsh: ingest/ -------------------------------------------------------
 try:
     from ingest import pipeline as _real_ingest       # type: ignore
@@ -93,25 +136,23 @@ reexplain = _adapt_reexplain(
 )
 
 # --- Pair C: visuals/ and media/ -------------------------------------------
+# Their work landed in prompt_101/media_pipeline rather than visuals/ and
+# media/, so look there too. visuals/ and media/ come first in case they ever
+# move it to where the contract says.
+_PAIR_C = ("visuals", "media", "prompt_101.media_pipeline")
+
+render = _adapt_render(_from_modules("render", *_PAIR_C, stub=pair_c))
+choose_visual = _from_modules("choose_visual", *_PAIR_C, stub=pair_c)
+speak = _from_modules("speak", *_PAIR_C, stub=pair_c)
+render_avatar = _from_modules("render_avatar", *_PAIR_C, stub=pair_c)
+compose = _adapt_compose(_from_modules("compose", *_PAIR_C, stub=pair_c))
+stitch = _from_modules("stitch", *_PAIR_C, stub=pair_c)
+
+# Length check before we pay for an avatar render. Theirs is named differently.
 try:
-    import visuals as _real_visuals                   # type: ignore
+    from prompt_101.media_pipeline.utils import get_audio_duration as audio_seconds
 except Exception:
-    _real_visuals = None
-
-try:
-    import media as _real_media                       # type: ignore
-except Exception:
-    _real_media = None
-
-render = _resolve("render", _real_visuals, pair_c)
-choose_visual = _resolve("choose_visual", _real_visuals, pair_c)
-speak = _resolve("speak", _real_media, pair_c)
-render_avatar = _resolve("render_avatar", _real_media, pair_c)
-compose = _resolve("compose", _real_media, pair_c)
-stitch = _resolve("stitch", _real_media, pair_c)
-
-# audio_seconds is a stub-only helper; the real media module may not have it.
-audio_seconds = getattr(_real_media, "audio_seconds", pair_c.audio_seconds)
+    audio_seconds = pair_c.audio_seconds
 
 
 def status() -> dict[str, str]:
