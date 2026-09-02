@@ -11,6 +11,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict, deque
+import re
 
 from shared.models import Concept, LearnerProfile, LessonPlan
 from prompts import PLAN_PROMPT, fill
@@ -34,22 +35,30 @@ def _clean_depth(value: str, level: str) -> str:
 
 def _resequence(raw_concepts: list[dict], level: str) -> list[Concept]:
     """Renumber ids, drop bad prerequisites, and topologically sort so every
-    concept comes after its prerequisites."""
+    concept comes after its prerequisites. Gemini is asked to write
+    prerequisites as ids of ITS OWN listing order (its 'c1' = its first
+    concept), which we map onto listing positions before renumbering."""
     names = [str(c.get("name", "")).strip() for c in raw_concepts]
     idx_by_name = {name: i for i, name in enumerate(names) if name}
-    order_by_name: dict[int, set[int]] = defaultdict(set)
+    id_to_pos = {f"c{i + 1}": i for i in range(len(raw_concepts))}
+
+    parents: dict[int, set[int]] = defaultdict(set)
     for i, c in enumerate(raw_concepts):
         for prereq in c.get("prerequisites") or []:
-            target = idx_by_name.get(prereq) if isinstance(prereq, str) else None
-            if target is None:
+            if not isinstance(prereq, str):
                 continue
-            if target != i and names[target] != names[i]:
-                order_by_name[i].add(target)
+            if re.fullmatch(r"c\d+", prereq):
+                target = id_to_pos.get(prereq)
+            else:
+                target = idx_by_name.get(prereq)
+            if target is None or target == i or names[target] == names[i]:
+                continue
+            parents[i].add(target)
 
-    indegree = {i: len(order_by_name[i]) for i in range(len(names))}
+    indegree = {i: len(parents[i]) for i in range(len(names))}
     children: dict[int, list[int]] = defaultdict(list)
-    for node, parents in order_by_name.items():
-        for p in parents:
+    for node, ps in parents.items():
+        for p in ps:
             children[p].append(node)
     queue = deque(i for i in range(len(names)) if indegree[i] == 0)
     ordered: list[int] = []
@@ -63,29 +72,24 @@ def _resequence(raw_concepts: list[dict], level: str) -> list[Concept]:
     if len(ordered) != len(names):
         ordered = list(range(len(names)))
 
+    new_id_of_old = {old: f"c{i + 1}" for i, old in enumerate(ordered)}
     concepts: list[Concept] = []
-    for new_pos, old_pos in enumerate(ordered):
-        raw = raw_concepts[old_pos]
-        deps = {names[p] for p in order_by_name[old_pos]}
-        c = Concept(
-            id=f"c{new_pos + 1}",
-            name=names[old_pos] or f"Concept {new_pos + 1}",
-            depth=_clean_depth(str(raw.get("depth", "")), level),
-            minutes=float(raw.get("minutes", 0.0)),
+    for new_pos, old in enumerate(ordered):
+        raw = raw_concepts[old]
+        prereqs = sorted(
+            ({new_id_of_old[p] for p in parents[old]}),
+            key=lambda x: int(x[1:]),
         )
-        # prerequisites resolved only from concepts placed earlier
-        c.prerequisites = _prereq_ids(concepts, deps)
-        concepts.append(c)
+        concepts.append(
+            Concept(
+                id=f"c{new_pos + 1}",
+                name=names[old] or f"Concept {new_pos + 1}",
+                depth=_clean_depth(str(raw.get("depth", "")), level),
+                minutes=float(raw.get("minutes", 0.0)),
+                prerequisites=prereqs,
+            )
+        )
     return concepts
-
-
-def _ids_by_name(concepts: list[Concept]) -> dict[str, str]:
-    return {c.name: c.id for c in concepts}
-
-
-def _prereq_ids(concepts: list[Concept], deps: set[str]) -> list[str]:
-    ids = _ids_by_name(concepts)
-    return [ids[d] for d in deps if d in ids]
 
 
 def _fit_budget(concepts: list[Concept], target: int) -> list[Concept]:
