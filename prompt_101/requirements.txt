@@ -1,0 +1,25 @@
+# Core dependencies
+matplotlib>=3.7.0
+numpy>=1.24.0
+networkx>=3.1
+Pillow>=10.0.0
+
+# Syntax highlighting
+Pygments>=2.16.0
+
+# TTS - Piper (local, free)
+# Install Piper separately: https://github.com/rhasspy/piper
+
+# TTS - Google Cloud (for final demo)
+# pip install google-cloud-texttospeech
+# google-cloud-texttospeech>=2.14.0
+
+# Avatar - Replicate
+replicate>=0.15.0
+requests>=2.31.0
+
+# Video processing
+imageio-ffmpeg>=0.4.9
+
+# Utilities
+python-dotenv>=1.0.0
