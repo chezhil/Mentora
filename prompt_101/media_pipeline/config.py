@@ -27,8 +27,10 @@ IMAGE_HEIGHT = 720
 DPI = 100
 
 # ── TTS Settings ──
-# Provider: "piper" for development, "google" for final demo
-TTS_PROVIDER = os.getenv("TTS_PROVIDER", "piper")
+# Provider: "auto" (default) picks piper where available, google otherwise
+#           "piper" forces piper for all languages
+#           "google" forces google for all languages
+TTS_PROVIDER = os.getenv("TTS_PROVIDER", "auto")
 
 # Piper settings
 def _default_piper() -> str:
@@ -68,7 +70,7 @@ class PipelineConfig:
     Pass an instance to pipeline functions for testability.
     """
     output_dir: Path = field(default_factory=lambda: Path(__file__).parent / "output")
-    tts_provider: str = "piper"  # 'piper' or 'google'
+    tts_provider: str = "auto"  # 'auto', 'piper', or 'google'
     avatar_provider: str = "replicate"  # 'replicate' or 'none'
     max_segment_duration: int = 60
     image_width: int = 1280
