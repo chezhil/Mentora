@@ -14,17 +14,16 @@ import os
 import streamlit as st
 
 import orchestrator as orch
+from shared import languages
 from shared.models import StudentResponse
 import ui
 ui.apply_theme()
 
-LANGUAGES = {
-    "en": "English",
-    "hi": "हिन्दी / Hindi",
-    "ta": "தமிழ் / Tamil",
-    "kn": "ಕನ್ನಡ / Kannada",
-    "hinglish": "Hinglish",
-}
+# One source of truth for the language list — see shared/languages.py. The
+# literal dict that used to live here offered five languages while app.py
+# offered eight and the voice service supported more still, so which languages
+# existed depended on which screen you asked.
+LANGUAGES = {code: languages.label(code) for code in languages.codes()}
 
 # ---------------------------------------------------------------------------
 # Concurrency guards. Two layers, because alone neither is enough:

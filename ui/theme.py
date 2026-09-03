@@ -11,14 +11,29 @@ import streamlit as st
 CSS_PATH = Path(__file__).resolve().parent / "style.css"
 
 
-def apply_theme(lang: str = "en") -> None:
-    """Inject ui/style.css. Silently does nothing if the file is absent."""
+def apply_theme(lang: str = "en", hide_nav: bool = False) -> None:
+    """Inject ui/style.css. Silently does nothing if the file is absent.
+
+    `hide_nav` hides Streamlit's automatic multipage navigation. There are two
+    entry points in this repo — app.py, the single-page demo, and app_v2.py,
+    the multipage UI in pages/ — and Streamlit discovers a pages/ directory
+    from the location of whichever script is running. Both live in the repo
+    root, so running app.py raised a nav to app_v2's five pages above the
+    adaptation panel: a second, half-built copy of the app, one click away,
+    during the demo. app.py passes hide_nav=True; app_v2.py must not, or it
+    loses the navigation it is built around.
+    """
     try:
         css = CSS_PATH.read_text(encoding="utf-8")
     except Exception:
         return
     if css.strip():
         st.markdown(f"<style>\n{css}\n</style>", unsafe_allow_html=True)
+    if hide_nav:
+        st.markdown(
+            '<style>[data-testid="stSidebarNav"]{display:none;}</style>',
+            unsafe_allow_html=True,
+        )
     _set_direction(lang)
 
 

@@ -1,5 +1,6 @@
 import streamlit as st
 import orchestrator as orch
+from shared import languages
 from shared.models import LearnerProfile
 import os
 import tempfile
@@ -25,7 +26,12 @@ with st.form("setup_form"):
     col1, col2 = st.columns(2)
     with col1:
         level = st.selectbox("Your current level", ["beginner", "intermediate", "advanced"])
-        language = st.selectbox("Language", ["en", "hi", "ta", "kn", "te", "bn", "hinglish"])
+        # From shared/languages.py, not a literal list: this page and app.py
+        # were offering different sets, and the shorter one here was the stale
+        # copy — it had no Malayalam, Gujarati, Urdu or any of the
+        # international languages, all of which have working voices.
+        language = st.selectbox(
+            "Language", languages.codes(), format_func=languages.label)
     with col2:
         time_minutes = st.selectbox("Time available (minutes)", [5, 20, 60], index=1)
         goal = st.text_input("Specific Goal (optional)", placeholder="e.g. Pass my exam tomorrow")

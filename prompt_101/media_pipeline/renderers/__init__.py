@@ -84,6 +84,15 @@ def _register_fonts() -> None:
     plt.rcParams["font.sans-serif"] = FONT_STACK
     plt.rcParams["axes.unicode_minus"] = False
 
+    # Quieten one specific, harmless message. The Noto script fonts are
+    # variable fonts that register a single weight, so every bold string makes
+    # matplotlib log "Failed to find font weight bold" once per fallback family
+    # — six lines per figure, hundreds per lesson, hiding real warnings. The
+    # text still renders bold: DejaVu Sans leads the stack and has a bold face,
+    # and the fallback families are only consulted for glyphs DejaVu lacks.
+    import logging
+    logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
+
 
 _register_fonts()
 

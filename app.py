@@ -100,7 +100,7 @@ init_state()
 # Urdu and Arabic get dir="rtl" — Streamlit has no right-to-left mode of its
 # own, and an Arabic interface laid out left-to-right is not an Arabic
 # interface.
-ui.apply_theme(_lang())
+ui.apply_theme(_lang(), hide_nav=True)
 
 
 # ---------------------------------------------------------------------------
@@ -439,11 +439,17 @@ def screen_setup() -> None:
     # the way down before finding the control that would have translated it.
     role_col, lang_col = st.columns([1, 1])
     with role_col:
+        # No `key=` here, and none on the language picker below. A Streamlit
+        # widget given both a key and an index takes its value from the key
+        # and ignores the index — so when the language switch rerun redrew
+        # this radio, it came back with NOTHING selected while
+        # st.session_state.role still said "student". The control and the app
+        # disagreed, visibly. Index-only keeps session state the single source
+        # of truth for both.
         role = st.radio(
             _t("setup.role"), ROLES, horizontal=True,
             format_func=lambda r: _t(f"role.{r}"),
             index=ROLES.index(st.session_state.get("role", "student")),
-            key="role_picker",
         )
         if role != st.session_state.get("role"):
             st.session_state.role = role
@@ -473,7 +479,6 @@ def _interface_language() -> None:
         _t("setup.language"), codes,
         index=codes.index(current) if current in codes else 0,
         format_func=languages.label,
-        key="setup_language",
     )
     if chosen != current:
         _set_language(chosen)

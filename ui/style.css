@@ -98,13 +98,22 @@
     border-right: 4px solid var(--ink);
 }
 
+/* Streamlit wraps heading text in a <span> inside the <h2>, and the body-copy
+   rule above colours every span. Colouring only the h2 gave black text on a
+   black bar. The descendant selector is the fix, not extra specificity. */
 [data-testid="stSidebar"] h2,
 [data-testid="stSidebar"] h3 {
     background: var(--ink);
-    color: var(--paper) !important;
     padding: 0.45rem 0.7rem;
     font-size: 1rem;
     letter-spacing: 0.02em;
+}
+
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] h2 *,
+[data-testid="stSidebar"] h3 * {
+    color: var(--paper) !important;
 }
 
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
@@ -194,17 +203,27 @@
 }
 
 /* Labels above every field. Small, uppercase, and black, so the form reads as
-   a form rather than as grey suggestions. */
-.stTextInput label,
-.stSelectbox label,
-.stSlider label,
-.stRadio label,
-.stFileUploader label {
+   a form rather than as grey suggestions.
+
+   stWidgetLabel, NOT `label`. A radio's options are labels too, so the broad
+   selector uppercased the answers themselves — a student was choosing between
+   "THE RATE OF FLOW OF ELECTRIC CHARGE" and three other shouted options. Never
+   restyle content; only chrome. */
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] label {
     font-weight: 800 !important;
     text-transform: uppercase;
     letter-spacing: 0.07em;
     font-size: 0.72rem !important;
     color: var(--ink) !important;
+}
+
+/* Answer text is content: normal case, normal weight, comfortable size. */
+[data-testid="stRadioOption"] p {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
 }
 
 [data-testid="stFileUploaderDropzone"] {
@@ -213,16 +232,23 @@
     background: var(--panel);
 }
 
-/* Answer options. These are what a student actually clicks, several times a
-   lesson, so they get to be targets rather than radio dots. */
+/* Radio options become buttons rather than dots — they are what a student
+   actually clicks, several times a lesson. */
 [data-testid="stRadio"] [role="radiogroup"] > label {
     border: var(--line);
     background: var(--panel);
     box-shadow: var(--drop-sm);
     padding: 0.55rem 0.8rem;
     margin-bottom: 0.55rem;
-    width: 100%;
     transition: transform 0.06s ease, box-shadow 0.06s ease, background 0.06s ease;
+}
+
+/* Full width ONLY inside a form. Answer options and quiz options live in
+   st.form and want to be wide targets; the horizontal role picker on the setup
+   screen does not, and stretching it to 100% made horizontal=True stack into
+   a column. */
+[data-testid="stForm"] [data-testid="stRadio"] [role="radiogroup"] > label {
+    width: 100%;
 }
 
 [data-testid="stRadio"] [role="radiogroup"] > label:hover {
@@ -244,13 +270,18 @@
 
 /* --- Tabs --------------------------------------------------------------- */
 
-.stTabs [data-baseweb="tab-list"] {
+/* Streamlit 1.63 dropped the data-baseweb attributes these used to be written
+   against, so the old .stTabs [data-baseweb="tab"] rules matched nothing and
+   the tab bar rendered as plain grey text. Target the testid and the ARIA
+   roles, which are what the current DOM exposes. */
+
+.stTabs [role="tablist"] {
     gap: 0.5rem;
     border-bottom: 4px solid var(--ink);
     padding-bottom: 0;
 }
 
-.stTabs [data-baseweb="tab"] {
+.stTabs [data-testid="stTab"] {
     border: var(--line);
     border-bottom: none;
     background: var(--panel);
@@ -258,16 +289,17 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     font-size: 0.82rem;
-    padding: 0.5rem 1rem;
+    padding: 0.45rem 1rem;
     margin-bottom: -4px;
 }
 
-.stTabs [data-baseweb="tab"][aria-selected="true"] {
+.stTabs [data-testid="stTab"][aria-selected="true"] {
     background: var(--yellow);
 }
 
-.stTabs [data-baseweb="tab-highlight"],
-.stTabs [data-baseweb="tab-border"] {
+/* Streamlit's own sliding underline, which has nowhere to sit now that each
+   tab is a keylined chip. */
+.stTabs [role="tablist"] > div:last-child:not([data-testid]) {
     display: none;
 }
 
@@ -333,17 +365,28 @@
     width: 100%;
 }
 
-.stProgress > div > div {
+/* The track only. `.stProgress > div > div` also matched the progress bar's
+   TEXT label, which Streamlit renders as a sibling markdown container — so the
+   caption "Ohm's Law — concept 1 of 5" came out inside a keylined box of its
+   own, above a second empty box. */
+[data-testid="stProgressBarTrack"] {
     border: var(--line);
     border-radius: 0;
     background: var(--panel);
-    height: 20px;
+    height: 18px;
 }
 
-.stProgress > div > div > div {
+[data-testid="stProgressBarTrack"] > div {
     background: var(--yellow);
     border-radius: 0;
     height: 100%;
+}
+
+.stProgress [data-testid="stMarkdownContainer"] p {
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.75rem;
 }
 
 
