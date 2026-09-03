@@ -128,7 +128,35 @@ def _speak_edge(text: str, lang: str, output_path: Path) -> Path:
             text, voice, rate=SPEECH_RATE, pitch=SPEECH_PITCH
         ).save(str(mp3_path))
 
-    asyncio.run(_run())
+    # asyncio.run() refuses to start a loop inside a running one, and under
+    # uvicorn there always is one. That raised
+    #     asyncio.run() cannot be called from a running event loop
+    # for every segment, so the FastAPI server silently fell through to Piper
+    # — fine for en, hi and te, and SILENT for the other fifteen languages.
+    # Streamlit never hit it because it has no loop of its own.
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(_run())                  # no loop here: the normal path
+    else:
+        # A loop is already running. Give the coroutine a thread with a loop
+        # of its own and wait for it; speak() is synchronous by contract and
+        # every caller depends on that.
+        import threading
+
+        failure: list[BaseException] = []
+
+        def _worker() -> None:
+            try:
+                asyncio.run(_run())
+            except BaseException as exc:     # re-raised on the calling thread
+                failure.append(exc)
+
+        thread = threading.Thread(target=_worker, daemon=True)
+        thread.start()
+        thread.join()
+        if failure:
+            raise failure[0]
 
     # 22050 mono is what Wav2Lip and the compositor both expect.
     subprocess.run(

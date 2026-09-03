@@ -303,7 +303,10 @@ def _parse_json(text: str) -> dict:
 # Both used to end the lesson identically, and the message said "daily quota
 # exhausted" either way — so a four-second hiccup mid-demo looked like the key
 # was spent for the day. Wait out the short ones; surface the long ones at once.
-_RETRY_AFTER = re.compile(r"try again in ([\d.]+)\s*s", re.I)
+# Groq writes the wait in whichever unit is shortest: "82.499999ms" as
+# readily as "22.44s". Matching only seconds meant an 82-MILLISECOND throttle
+# ended the lesson.
+_RETRY_AFTER = re.compile(r"(?:retry|try again) in ([\d.]+)\s*(ms|s)\b", re.I)
 # 30, because Groq's tokens-per-minute throttle asks for up to ~23s in
 # practice and a 20s ceiling declined to wait for exactly the case this
 # exists to absorb. Capped at two waits, so a genuinely stuck provider
@@ -323,6 +326,8 @@ def _retry_delay(exc: Exception) -> float | None:
     if not found:
         return None
     delay = float(found.group(1))
+    if found.group(2).lower() == "ms":
+        delay /= 1000.0
     return delay + 0.5 if delay <= MAX_RATE_WAIT else None
 
 
