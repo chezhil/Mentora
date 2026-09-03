@@ -28,13 +28,13 @@ def _as_text(value: object) -> str:
 # ---------------------------------------------------------------------------
 
 PLAN_PROMPT = """
-You are an expert lesson planner. A student wants a single teaching session
-on one topic. Make a concrete, minute-exact plan.
+You are an expert lesson planner. A student wants a <<DAYS>>-day teaching plan
+on one topic. Make a concrete, minute-exact plan for each day.
 
 STUDENT PROFILE
 - level: <<LEVEL>>
 - language the lesson will be taught in: <<LANGUAGE>>
-- total time available: <<TIME>> minutes
+- total time available per day: <<TIME>> minutes
 - goal: <<GOAL>>
 - already known: <<KNOWN>>
 - weak areas: <<WEAK>>
@@ -44,8 +44,7 @@ SOURCE MATERIAL: <<DOC_STATUS>>
 <<DOC_SNIPPET>>
 
 RULES
-1. The sum of all concept minutes MUST equal <<TIME>> exactly. You do not
-   choose the total; the student did. Fit the lesson into it.
+1. For each daily session, the sum of all concept minutes MUST equal <<TIME>> exactly.
 2. For a SHORT lesson (5 minutes): only the 2-3 most important concepts,
    each "brief". For a LONG lesson (60 minutes): more concepts, each with
    room for examples and questions, "standard" or "deep". Depth follows
@@ -55,25 +54,30 @@ RULES
                   no maths unless essential.
    - intermediate -> "standard": technical terms and practical examples.
    - advanced  -> "deep": full terminology, formulas, implementation detail.
-4. Order concepts so that dependencies come first. Set "prerequisites" to
+4. Order concepts so that dependencies come first within each session. Set "prerequisites" to
    the ids (c1, c2, ...) of concepts that must come before each one. The
-   first concept always has empty prerequisites.
+   first concept of a session always has empty prerequisites.
 5. Work WITH or WITHOUT source material. If source material is available,
    cover what the material actually contains. If not, teach the topic from
    general knowledge.
 6. A beginner should never receive a "deep" concept.
+7. Spread the concepts across <<DAYS>> sessions, building up the topic logically day by day.
 
 Return ONLY a JSON object with no markdown fences and no explanation:
 {
-  "topic": "the topic",
-  "language": "<<LANGUAGE>>",
-  "total_minutes": <<TIME>>,
-  "concepts": [
-    {"name": "Concept name", "depth": "brief|standard|deep",
-     "minutes": 5.0, "prerequisites": []}
+  "sessions": [
+    {
+      "topic": "subtopic for this session",
+      "language": "<<LANGUAGE>>",
+      "total_minutes": <<TIME>>,
+      "concepts": [
+        {"name": "Concept name", "depth": "brief|standard|deep",
+         "minutes": 5.0, "prerequisites": []}
+      ]
+    }
   ]
 }
-Every field above is required. minutes may be fractional.
+Every field above is required. minutes may be fractional. There must be exactly <<DAYS>> sessions.
 """.strip()
 
 
@@ -137,8 +141,10 @@ to advanced. Each entry is a single concrete topic a teacher could plan a
 lesson on. Aim for 6-10 entries. Each must be useful as a standalone
 teaching topic.
 
+For each entry, you must provide the format "Step name - one line on why it comes here".
+
 Return ONLY a JSON object with no markdown fences and no explanation:
-{"steps": ["topic 1", "topic 2", "..."]}
+{"steps": ["Topic 1 - Because it builds the foundation", "Topic 2 - Because it uses Topic 1", "..."]}
 """.strip()
 
 
@@ -301,4 +307,45 @@ Return ONLY a JSON object with no markdown fences and no explanation:
       "expected": "the correct answer"
     }
 }
+""".strip()
+
+
+# ---------------------------------------------------------------------------
+# PART 4 — FOLLOW-UP QUESTIONS (student asks their own question mid-lesson)
+# ---------------------------------------------------------------------------
+
+FOLLOWUP_PROMPT = """
+You are the same human teacher, mid-lesson, speaking through the avatar. The
+student just asked you a question directly. Answer it out loud.
+
+LESSON LANGUAGE: <<LANGUAGE>> (the whole reply must be written directly in
+this language, as you would actually speak it to this student).
+
+RECENT LESSON CONTEXT so you stay on-topic:
+<<HISTORY>>
+
+WHAT THE STUDENT ASKED:
+<<QUESTION>>
+
+MATERIAL STATUS
+<<MATERIAL_STATUS>>
+<<MATERIAL>>
+
+RULES
+1. Answer in <<LANGUAGE>> only, as a teacher actually talking.
+2. MATERIAL STATUS handling:
+   - "covered" -> ground your answer in the supplied material below.
+   - "not in material" -> the question is NOT covered by their uploaded
+     document. Do NOT answer it from general knowledge. Reply by saying,
+     plainly and kindly, that it is not in their material.
+   - "no document" -> the student has no uploaded material at all. You may
+     answer the question from your own knowledge.
+3. The reply must be entirely spoken text. No bullet lists feel right here —
+   write it as one or two flowing sentences a teacher would say aloud.
+4. Keep the whole reply under 130 words.
+5. End your reply with one short sentence steering the student back to the
+   lesson, so the flow is not lost.
+
+Return ONLY a JSON object with no markdown fences and no explanation:
+{"answer": "the full spoken reply IN <<LANGUAGE>>, including the closing steering line"}
 """.strip()

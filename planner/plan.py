@@ -113,12 +113,14 @@ def plan(
     topic: str,
     profile: LearnerProfile,
     doc_id: str | None = None,
-) -> LessonPlan:
-    """Build a LessonPlan. doc_id=None means topic-only teaching."""
+    days: int = 1,
+) -> LessonPlan | list[LessonPlan]:
+    """Build a LessonPlan or multiple plans if days > 1. doc_id=None means topic-only teaching."""
     if not isinstance(profile, LearnerProfile):
         profile = LearnerProfile.model_validate(profile)
     prompt = fill(
         PLAN_PROMPT,
+        DAYS=days,
         LEVEL=profile.level,
         LANGUAGE=profile.language,
         TIME=profile.time_minutes,
@@ -132,22 +134,33 @@ def plan(
     )
     data = llm.generate_json(prompt)
 
-    raw_concepts = data.get("concepts") or []
-    if not raw_concepts:
-        raise llm.LLMError("Lesson planner returned no concepts.")
+    sessions_data = data.get("sessions")
+    if not sessions_data:
+        # fallback if model ignores sessions format
+        sessions_data = [data]
 
-    concepts = _resequence(raw_concepts, profile.level)
-    concepts = _fit_budget(concepts, profile.time_minutes)
-    if not concepts:
-        raise llm.LLMError("Lesson planner returned an empty plan.")
+    plans = []
+    for s_data in sessions_data:
+        raw_concepts = s_data.get("concepts") or []
+        if not raw_concepts:
+            raise llm.LLMError("Lesson planner returned no concepts in a session.")
 
-    plan = LessonPlan(
-        topic=str(data.get("topic") or topic),
-        language=str(data.get("language") or profile.language),
-        total_minutes=profile.time_minutes,
-        concepts=concepts,
-    )
-    return plan
+        concepts = _resequence(raw_concepts, profile.level)
+        concepts = _fit_budget(concepts, profile.time_minutes)
+        if not concepts:
+            raise llm.LLMError("Lesson planner returned an empty plan.")
+
+        plan_obj = LessonPlan(
+            topic=str(s_data.get("topic") or topic),
+            language=str(s_data.get("language") or profile.language),
+            total_minutes=profile.time_minutes,
+            concepts=concepts,
+        )
+        plans.append(plan_obj)
+    
+    if days == 1 and len(plans) == 1:
+        return plans[0]
+    return plans
 
 
 def _main() -> None:
