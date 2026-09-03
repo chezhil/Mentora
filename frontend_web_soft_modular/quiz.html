@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MENTORA - FINAL QUIZ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button id="hamburger-btn" class="brutal-btn hamburger">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </button>
+                <div class="logo">MENTORA</div>
+            </div>
+            <div class="header-right">
+                <div class="user-profile">USR // NAMAN</div>
+                <button id="theme-toggle" class="brutal-btn theme-btn">DARK MODE</button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar" id="sidebar">
+                <nav class="nav-menu">
+                    <div class="nav-header">SYSTEM MODULES</div>
+                    <a href="index.html" class="nav-btn ">SETUP LESSON</a>
+                    <a href="lesson.html" class="nav-btn ">ACTIVE LESSON</a>
+                    <a href="quiz.html" class="nav-btn active">FINAL QUIZ</a>
+                    <a href="progress.html" class="nav-btn ">PROGRESS & ANALYTICS</a>
+                    <a href="report.html" class="nav-btn ">LESSON REPORT</a>
+                </nav>
+
+                <div class="progress-widgets">
+                    <div class="widget">
+                        <div class="widget-title">TOKENS USED</div>
+                        <div class="widget-data">45,892</div>
+                    </div>
+                    <div class="widget">
+                        <div class="widget-title">TOPICS MASTERED</div>
+                        <div class="widget-data">14</div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Features Area -->
+            <main class="content-area">
+
+                <div class="panel">
+                    <h2 class="panel-title">FINAL ASSESSMENT</h2>
+                    <div class="panel-box">
+                        <p><strong>Q1:</strong> If resistance increases, what happens to current?</p>
+                        <textarea class="brutal-input" placeholder="ENTER ANSWER..." style="height: 100px;"></textarea>
+                        <button class="brutal-btn action-btn" style="margin-top: 20px;">SUBMIT QUIZ</button>
+                    </div>
+                </div>
+        
+            </main>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

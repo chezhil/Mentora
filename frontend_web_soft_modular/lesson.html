@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MENTORA - ACTIVE LESSON</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button id="hamburger-btn" class="brutal-btn hamburger">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </button>
+                <div class="logo">MENTORA</div>
+            </div>
+            <div class="header-right">
+                <div class="user-profile">USR // NAMAN</div>
+                <button id="theme-toggle" class="brutal-btn theme-btn">DARK MODE</button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar" id="sidebar">
+                <nav class="nav-menu">
+                    <div class="nav-header">SYSTEM MODULES</div>
+                    <a href="index.html" class="nav-btn ">SETUP LESSON</a>
+                    <a href="lesson.html" class="nav-btn active">ACTIVE LESSON</a>
+                    <a href="quiz.html" class="nav-btn ">FINAL QUIZ</a>
+                    <a href="progress.html" class="nav-btn ">PROGRESS & ANALYTICS</a>
+                    <a href="report.html" class="nav-btn ">LESSON REPORT</a>
+                </nav>
+
+                <div class="progress-widgets">
+                    <div class="widget">
+                        <div class="widget-title">TOKENS USED</div>
+                        <div class="widget-data">45,892</div>
+                    </div>
+                    <div class="widget">
+                        <div class="widget-title">TOPICS MASTERED</div>
+                        <div class="widget-data">14</div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Features Area -->
+            <main class="content-area">
+
+                <div class="panel chat-interface">
+                    <div class="lesson-layout">
+                        <div class="video-container">
+                            <div class="video-placeholder">AVATAR FEED [OFFLINE]</div>
+                            <div class="visual-placeholder">DIAGRAM / EQUATION VIEWER</div>
+                        </div>
+                        <div class="chat-history" id="chat-history">
+                            <div class="message system">
+                                <strong>SYS:</strong> TEACHING SEGMENT 1: VOLTAGE & CURRENT.
+                            </div>
+                            <div class="message ai">
+                                <strong>MENTORA:</strong> Voltage is the push that moves the charge, like pressure in a hose. Does that make sense?
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="input-area">
+                        <textarea id="prompt-input" placeholder="ASK A FOLLOW-UP QUESTION..."></textarea>
+                        <button id="send-btn" class="brutal-btn action-btn">SEND</button>
+                    </div>
+                </div>
+        
+            </main>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
