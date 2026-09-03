@@ -12,7 +12,7 @@ Public API:
 from .visual import render, choose_visual
 from .voice import speak
 from .avatar import render_avatar
-from .compositor import compose, stitch
+from .compositor import compose, stitch, build_lesson_video
 
 __all__ = [
     "render",
@@ -21,6 +21,7 @@ __all__ = [
     "render_avatar",
     "compose",
     "stitch",
+    "build_lesson_video",
 ]
 
 # Version

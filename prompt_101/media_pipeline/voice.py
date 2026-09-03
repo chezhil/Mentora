@@ -35,6 +35,9 @@ PIPER_VOICES = {
     # final-demo backend anyway.
 }
 
+# Languages that require Google Cloud TTS (no Piper model available)
+GOOGLE_ONLY_LANGUAGES = {"ta", "kn", "bn", "mr"}
+
 # Google Cloud TTS voices
 GOOGLE_VOICES = {
     "en": "en-US-Wavenet-D",
@@ -45,6 +48,24 @@ GOOGLE_VOICES = {
     "bn": "bn-IN-Wavenet-A",
     "mr": "mr-IN-Wavenet-A",
 }
+
+
+def _resolve_provider(lang: str) -> str:
+    """Determine the TTS provider for a language.
+    
+    When TTS_PROVIDER is "auto" (default):
+      - Languages with Piper models use "piper"
+      - Languages without Piper models (ta, kn) use "google"
+    When TTS_PROVIDER is "piper" or "google", that provider is forced.
+    
+    Returns:
+        "piper" or "google"
+    """
+    if TTS_PROVIDER == "auto":
+        if lang in GOOGLE_ONLY_LANGUAGES or lang not in PIPER_VOICES:
+            return "google"
+        return "piper"
+    return TTS_PROVIDER
 
 
 def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str:
@@ -71,13 +92,16 @@ def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str
     if cache_path.exists():
         return str(cache_path)
     
+    # Resolve which provider to use for this language
+    provider = _resolve_provider(lang)
+    
     # Generate speech
-    if TTS_PROVIDER == "piper":
+    if provider == "piper":
         path = _speak_piper(text, lang, cache_path)
-    elif TTS_PROVIDER == "google":
+    elif provider == "google":
         path = _speak_google(text, lang, cache_path)
     else:
-        raise ValueError(f"Unknown TTS provider: {TTS_PROVIDER}")
+        raise ValueError(f"Unknown TTS provider: {provider}")
     
     return str(path)
 
@@ -85,45 +109,64 @@ def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str
 # ── Piper Implementation ──
 
 def _speak_piper(text: str, lang: str, output_path: Path) -> Path:
-    """Generate speech using Piper TTS (local, free)."""
+    """Generate speech using Piper TTS (local, free).
+    
+    Uses the piper-tts Python API (PiperVoice.load + synthesize)
+    instead of the subprocess CLI, which is more portable.
+    """
+    import wave as wave_mod
+    
     voice_name, sample_rate = PIPER_VOICES.get(lang, PIPER_VOICES["en"])
     
-    # Check if Piper is available
-    piper_path = Path(PIPER_BIN)
-    if not piper_path.exists():
-        print(f"[voice] Warning: Piper not found at {PIPER_BIN}. Using placeholder.")
-        return _generate_placeholder_wav(text, output_path)
-    
-    # Build model path
     model_path = Path(PIPER_MODEL_DIR) / f"{voice_name}.onnx"
     if not model_path.exists():
-        print(f"[voice] Warning: Piper model {voice_name} not found. Using placeholder.")
-        return _generate_placeholder_wav(text, output_path)
-    
-    # Run Piper
-    try:
-        cmd = [
-            str(piper_path),
-            "--model", str(model_path),
-            "--output_file", str(output_path),
-        ]
-        
-        # Piper reads text from stdin
-        result = subprocess.run(
-            cmd, input=text.encode("utf-8"),
-            capture_output=True, check=True, timeout=60
-        )
-        
-        if output_path.exists():
-            return output_path
+        alt_path = Path(PIPER_MODEL_DIR) / voice_name / f"{voice_name}.onnx"
+        if alt_path.exists():
+            model_path = alt_path
         else:
-            raise RuntimeError("Piper did not create output file")
-            
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("Piper timed out after 60 seconds")
+            print(f"[voice] Warning: Piper model {voice_name} not found at {model_path}. Using placeholder.")
+            return _generate_placeholder_wav(text, output_path)
+    
+    # Method 1: Python API (preferred)
+    try:
+        from piper import PiperVoice
+        
+        voice = PiperVoice.load(str(model_path))
+        audio_chunks = list(voice.synthesize(text))
+        
+        with wave_mod.open(str(output_path), "w") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(voice.config.sample_rate)
+            for chunk in audio_chunks:
+                wav_file.writeframes(chunk.audio_int16_bytes)
+        
+        if output_path.exists() and output_path.stat().st_size > 44:
+            return output_path
+        raise RuntimeError("Piper Python API produced empty output")
+    except ImportError:
+        print("[voice] Warning: piper Python package not installed.")
     except Exception as e:
-        print(f"[voice] Piper error: {e}. Using placeholder.")
-        return _generate_placeholder_wav(text, output_path)
+        print(f"[voice] Piper Python API error: {e}")
+    
+    # Method 2: CLI subprocess (fallback)
+    import subprocess
+    piper_path = Path(PIPER_BIN)
+    if piper_path.exists():
+        try:
+            cmd = [str(piper_path), "--model", str(model_path),
+                   "--output_file", str(output_path)]
+            result = subprocess.run(
+                cmd, input=text.encode("utf-8"),
+                capture_output=True, check=True, timeout=60
+            )
+            if output_path.exists():
+                return output_path
+        except Exception as e:
+            print(f"[voice] Piper CLI error: {e}")
+    
+    print(f"[voice] All Piper methods failed for {lang}. Using placeholder.")
+    return _generate_placeholder_wav(text, output_path)
 
 
 # ── Google Cloud TTS Implementation ──

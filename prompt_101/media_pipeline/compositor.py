@@ -4,6 +4,11 @@ Assembles visual slides, avatar video, and audio into segment MP4s,
 then stitches segments into final video.
 
 Uses imageio-ffmpeg for cross-platform ffmpeg binary.
+
+Public API:
+    compose()             - Visual + audio + optional avatar → segment MP4
+    stitch()              - Concatenate segments → final MP4
+    build_lesson_video()  - Title card + segments + closing card → lesson MP4
 """
 import subprocess
 from pathlib import Path
@@ -115,6 +120,134 @@ def _compose_visual_only(
     ]
     _run_ffmpeg(cmd)
     return output_path
+
+
+def build_lesson_video(
+    segment_paths: List[str],
+    title: str = "",
+    output_path: Optional[str] = None,
+) -> str:
+    """Build a complete lesson video from segment MP4s.
+    
+    Prepends a title card and appends a closing card, then stitches
+    everything into a single MP4. The single entry point for producing
+    the final lesson video.
+    
+    Args:
+        segment_paths: List of segment MP4 paths in order
+        title: Lesson title for the opening card (empty = no title card)
+        output_path: Optional custom output path
+    
+    Returns:
+        Path to the final lesson MP4, or "" if segment_paths is empty.
+    """
+    if not segment_paths:
+        return ""
+    
+    if output_path is None:
+        output_path = str(COMPOSE_OUTPUT_DIR / "lesson_video.mp4")
+    
+    # Build the full sequence: title card + segments + closing card
+    all_parts: List[str] = []
+    temp_files: List[Path] = []
+    
+    try:
+        # Title card
+        if title:
+            title_card = _make_text_card(
+                title, "AI Teacher", duration=4.0,
+                bg_color="#1a1a2e", text_color="#ffffff",
+            )
+            all_parts.append(title_card)
+            temp_files.append(Path(title_card))
+        
+        # Lesson segments
+        all_parts.extend(segment_paths)
+        
+        # Closing card
+        closing_card = _make_text_card(
+            "Thank You", "End of Lesson",
+            duration=3.0, bg_color="#1a1a2e", text_color="#ffffff",
+        )
+        all_parts.append(closing_card)
+        temp_files.append(Path(closing_card))
+        
+        # Stitch all parts together
+        return stitch(all_parts, output_path)
+    finally:
+        # Clean up temporary title/closing card videos
+        for f in temp_files:
+            if f.exists():
+                f.unlink(missing_ok=True)
+
+
+def _make_text_card(
+    heading: str, subtext: str = "",
+    duration: float = 3.0,
+    bg_color: str = "#1a1a2e",
+    text_color: str = "#ffffff",
+) -> str:
+    """Create a title/closing card as a short MP4.
+    
+    Renders a PNG with matplotlib, then wraps it in a silent video.
+    
+    Returns:
+        Path to the temporary MP4 card file.
+    """
+    import uuid
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    
+    # Render card as PNG
+    png_path = COMPOSE_OUTPUT_DIR / f"card_{uuid.uuid4().hex[:8]}.png"
+    fig, ax = plt.subplots(1, 1, figsize=(12.8, 7.2), dpi=100)
+    ax.set_facecolor(bg_color)
+    fig.patch.set_facecolor(bg_color)
+    ax.axis("off")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    
+    # Heading
+    ax.text(0.5, 0.58, heading, fontsize=48, fontweight="bold",
+            ha="center", va="center", color=text_color,
+            fontfamily="sans-serif")
+    
+    # Subtext
+    if subtext:
+        ax.text(0.5, 0.38, subtext, fontsize=24,
+                ha="center", va="center", color="#aaaaaa",
+                fontfamily="sans-serif")
+    
+    # Accent line
+    ax.plot([0.3, 0.7], [0.48, 0.48], color="#667eea",
+            linewidth=3, alpha=0.8, transform=ax.transAxes)
+    
+    fig.savefig(str(png_path), dpi=100, facecolor=fig.get_facecolor(),
+                edgecolor="none", bbox_inches="tight")
+    plt.close(fig)
+    
+    # Wrap PNG into a silent MP4 of specified duration
+    mp4_path = str(COMPOSE_OUTPUT_DIR / f"card_{uuid.uuid4().hex[:8]}.mp4")
+    silent = create_silent_audio(duration, COMPOSE_OUTPUT_DIR)
+    
+    ffmpeg_exe = get_ffmpeg_exe()
+    cmd = [
+        ffmpeg_exe, "-y",
+        "-loop", "1", "-i", str(png_path),
+        "-i", silent,
+        "-c:v", "libx264", "-t", str(duration),
+        "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+        "-shortest",
+        mp4_path,
+    ]
+    _run_ffmpeg(cmd)
+    
+    # Clean up intermediate files
+    png_path.unlink(missing_ok=True)
+    Path(silent).unlink(missing_ok=True)
+    
+    return mp4_path
 
 
 def stitch(segments: List[str], output_path: Optional[str] = None) -> str:
