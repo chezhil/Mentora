@@ -144,17 +144,28 @@ def _friendly(exc: Exception) -> str:
     st.session_state.api_panel_open = True
 
     if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
-        retry = re.search(r"retry in ([\d.]+)s", msg)
-        when = f" Google suggests retrying in {float(retry.group(1)):.0f}s." if retry else ""
-        per_day = "PerDay" in msg or "free_tier_requests" in msg
+        per_day = ("PerDay" in msg or "free_tier_requests" in msg
+                   or "per day" in msg.lower())
+        retry = re.search(r"(?:retry|try again) in ([\d.]+)\s*s", msg, re.I)
+
+        # A per-minute limit and a per-day cap are both 429 and want opposite
+        # advice. Saying "your daily quota is gone, swap keys" over a
+        # four-second throttle sends someone hunting for a new API key in the
+        # middle of a demo that would have recovered on its own.
+        if not per_day and retry:
+            return (
+                f"**Rate limited for {float(retry.group(1)):.0f} seconds** — "
+                f"this is a per-minute limit, not your daily quota. Press the "
+                f"button again in a moment and it will go through."
+            )
         return (
-            "**Gemini quota exhausted.**"
-            + (" This is the *daily* free-tier cap (20 requests/day), which "
-               "resets at midnight US Pacific — not in a few seconds."
-               if per_day else when)
+            "**Quota exhausted.**"
+            + (" This is the *daily* free-tier cap (Gemini allows 20 "
+               "requests/day), which resets at midnight US Pacific — not in a "
+               "few seconds." if per_day else "")
             + "\n\nOne lesson costs 10-15 requests. Fix it in **⚙️ APIs** in the "
-              "sidebar: paste another team member's key, or switch on "
-              "*Offline mode* to keep working for free."
+              "sidebar: paste another team member's key, switch provider to "
+              "Groq (thousands/day, free), or switch on *Offline mode*."
         )
     if "API key not valid" in msg or "API_KEY_INVALID" in msg or "PERMISSION_DENIED" in msg:
         return ("**Gemini rejected that API key.** Paste a valid one in "

@@ -295,14 +295,60 @@ def _parse_json(text: str) -> dict:
         raise LLMError(f"Could not parse model output as JSON: {exc}") from exc
 
 
+# A 429 is two completely different problems wearing the same number.
+#
+#   Groq, tokens-per-minute:  "Please try again in 4.24s"   -> waiting works
+#   Gemini, requests-per-day: resets at midnight US Pacific -> waiting is futile
+#
+# Both used to end the lesson identically, and the message said "daily quota
+# exhausted" either way — so a four-second hiccup mid-demo looked like the key
+# was spent for the day. Wait out the short ones; surface the long ones at once.
+_RETRY_AFTER = re.compile(r"try again in ([\d.]+)\s*s", re.I)
+# 30, because Groq's tokens-per-minute throttle asks for up to ~23s in
+# practice and a 20s ceiling declined to wait for exactly the case this
+# exists to absorb. Capped at two waits, so a genuinely stuck provider
+# still surfaces rather than hanging the lesson.
+MAX_RATE_WAIT = float(os.environ.get("AI_TEACHER_MAX_RATE_WAIT", "30"))
+
+
+def _retry_delay(exc: Exception) -> float | None:
+    """Seconds to wait, or None if waiting will not help."""
+    message = str(exc)
+    if "429" not in message and "RESOURCE_EXHAUSTED" not in message:
+        return None
+    # A daily cap does not recover, however long we sit here.
+    if "PerDay" in message or "free_tier_requests" in message or "per day" in message.lower():
+        return None
+    found = _RETRY_AFTER.search(message)
+    if not found:
+        return None
+    delay = float(found.group(1))
+    return delay + 0.5 if delay <= MAX_RATE_WAIT else None
+
+
 def generate_json(prompt: str, tries: int = 2) -> dict:
-    """Ask Gemini for a JSON object. Retries once if the output is bad."""
-    last: LLMError | None = None
-    for attempt in range(tries):
+    """Ask the model for a JSON object.
+
+    Retries once on unparseable output, and separately waits out a
+    per-minute rate limit, which is a different failure with a different fix.
+    """
+    import time
+
+    last: Exception | None = None
+    rate_waits = 0
+    attempt = 0
+    while attempt < tries:
         try:
             text = _complete(prompt)
             return _parse_json(text)
         except LLMError as exc:
             last = exc
+            attempt += 1
+        except Exception as exc:
+            delay = _retry_delay(exc)
+            if delay is None or rate_waits >= 2:
+                raise
+            rate_waits += 1
+            time.sleep(delay)          # does not count as an attempt
     assert last is not None
     raise last

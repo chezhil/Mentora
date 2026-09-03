@@ -120,6 +120,7 @@ ENGLISH: dict[str, str] = {
     "teacher.students": "Students",
     "teacher.no_students": "No lessons taught yet. A student's report appears here once they finish one.",
     "teacher.avg": "Class average",
+    "teacher.lessons": "Lessons taught",
     "teacher.common_gaps": "Where the class is struggling",
     "teacher.preview": "Preview this lesson as a student",
 }
@@ -131,6 +132,7 @@ ENGLISH: dict[str, str] = {
 # word on one screen.
 TRANSLATIONS: dict[str, dict[str, str]] = {
     "hi": {
+        "teacher.lessons": "पढ़ाए गए पाठ",
         "app.tagline": "अपनी सामग्री अपलोड करें, या बस कोई विषय बताएं। फिर बताएं कि आप कैसे सीखना चाहते हैं।",
         "nav.lesson": "पाठ", "nav.history": "इतिहास", "nav.quiz": "प्रश्नोत्तरी",
         "nav.path": "मार्ग", "nav.report": "रिपोर्ट", "nav.classroom": "कक्षा",
@@ -186,6 +188,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.preview": "छात्र के रूप में देखें",
     },
     "mr": {
+        "teacher.lessons": "शिकवलेले धडे",
         "app.tagline": "तुमची सामग्री अपलोड करा, किंवा फक्त एक विषय सांगा. मग सांगा तुम्हाला कसे शिकायचे आहे.",
         "setup.topic_ph": "ओहमचा नियम, किंवा प्रकरण ४",
         "setup.goal_ph": "शुक्रवारची परीक्षा पास होणे",
@@ -244,6 +247,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "वर्गाची सरासरी",
     },
     "bn": {
+        "teacher.lessons": "পড়ানো পাঠ",
         "app.tagline": "আপনার উপকরণ আপলোড করুন, বা শুধু একটি বিষয় বলুন। তারপর বলুন কীভাবে শিখতে চান।",
         "setup.topic_ph": "ওহমের সূত্র, বা অধ্যায় ৪",
         "setup.goal_ph": "শুক্রবারের পরীক্ষায় পাস করা",
@@ -302,6 +306,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "শ্রেণির গড়",
     },
     "ta": {
+        "teacher.lessons": "கற்பித்த பாடங்கள்",
         "app.tagline": "உங்கள் பொருளைப் பதிவேற்றுங்கள், அல்லது ஒரு தலைப்பைச் சொல்லுங்கள். பிறகு எப்படிக் கற்க விரும்புகிறீர்கள் என்று சொல்லுங்கள்.",
         "setup.topic_ph": "ஓம் விதி, அல்லது அத்தியாயம் 4",
         "setup.goal_ph": "வெள்ளிக்கிழமை தேர்வில் தேர்ச்சி பெற",
@@ -360,6 +365,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "வகுப்புச் சராசரி",
     },
     "te": {
+        "teacher.lessons": "బోధించిన పాఠాలు",
         "app.tagline": "మీ సామగ్రిని అప్‌లోడ్ చేయండి, లేదా ఒక అంశం చెప్పండి. తర్వాత ఎలా నేర్చుకోవాలో చెప్పండి.",
         "setup.topic_ph": "ఓమ్ నియమం, లేదా అధ్యాయం 4",
         "setup.goal_ph": "శుక్రవారం పరీక్ష పాస్ కావడం",
@@ -418,6 +424,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "తరగతి సగటు",
     },
     "kn": {
+        "teacher.lessons": "ಕಲಿಸಿದ ಪಾಠಗಳು",
         "app.tagline": "ನಿಮ್ಮ ಸಾಮಗ್ರಿಯನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ, ಅಥವಾ ಒಂದು ವಿಷಯ ಹೇಳಿ. ನಂತರ ಹೇಗೆ ಕಲಿಯಬೇಕೆಂದು ಹೇಳಿ.",
         "setup.topic_ph": "ಓಮ್ ನಿಯಮ, ಅಥವಾ ಅಧ್ಯಾಯ 4",
         "setup.goal_ph": "ಶುಕ್ರವಾರದ ಪರೀಕ್ಷೆ ಪಾಸ್ ಆಗುವುದು",
@@ -476,6 +483,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "ತರಗತಿಯ ಸರಾಸರಿ",
     },
     "ml": {
+        "teacher.lessons": "പഠിപ്പിച്ച പാഠങ്ങൾ",
         "app.tagline": "നിങ്ങളുടെ സാമഗ്രി അപ്‌ലോഡ് ചെയ്യൂ, അല്ലെങ്കിൽ ഒരു വിഷയം പറയൂ. പിന്നെ എങ്ങനെ പഠിക്കണമെന്ന് പറയൂ.",
         "setup.topic_ph": "ഓമിന്റെ നിയമം, അല്ലെങ്കിൽ അധ്യായം 4",
         "setup.goal_ph": "വെള്ളിയാഴ്ചത്തെ പരീക്ഷ പാസാകാൻ",
@@ -534,6 +542,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "ക്ലാസ്സ് ശരാശരി",
     },
     "gu": {
+        "teacher.lessons": "શીખવેલા પાઠ",
         "app.tagline": "તમારી સામગ્રી અપલોડ કરો, અથવા ફક્ત એક વિષય કહો. પછી કહો કે તમે કેવી રીતે શીખવા માંગો છો.",
         "setup.topic_ph": "ઓહ્મનો નિયમ, અથવા પ્રકરણ 4",
         "setup.goal_ph": "શુક્રવારની પરીક્ષા પાસ કરવી",
@@ -592,6 +601,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "વર્ગની સરેરાશ",
     },
     "ur": {
+        "teacher.lessons": "پڑھائے گئے اسباق",
         "app.tagline": "اپنا مواد اپ لوڈ کریں، یا صرف ایک موضوع بتائیں۔ پھر بتائیں کہ آپ کیسے سیکھنا چاہتے ہیں۔",
         "setup.topic_ph": "اوہم کا قانون، یا باب 4",
         "setup.goal_ph": "جمعہ کا امتحان پاس کرنا",
@@ -650,6 +660,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "کلاس کا اوسط",
     },
     "ar": {
+        "teacher.lessons": "الدروس المُدرَّسة",
         "app.tagline": "ارفع موادك، أو اذكر موضوعًا فقط. ثم قل كيف تريد أن تتعلم.",
         "setup.topic_ph": "قانون أوم، أو الفصل 4",
         "setup.goal_ph": "النجاح في اختبار الجمعة",
@@ -708,6 +719,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "متوسط الفصل",
     },
     "es": {
+        "teacher.lessons": "Lecciones dadas",
         "app.tagline": "Sube tu material, o simplemente di un tema. Luego di cómo quieres que te enseñen.",
         "setup.topic_ph": "La ley de Ohm, o el capítulo 4",
         "setup.goal_ph": "aprobar el examen del viernes",
@@ -766,6 +778,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "Media de la clase",
     },
     "fr": {
+        "teacher.lessons": "Leçons données",
         "app.tagline": "Importez vos documents, ou nommez simplement un sujet. Puis dites comment vous voulez apprendre.",
         "setup.topic_ph": "La loi d'Ohm, ou le chapitre 4",
         "setup.goal_ph": "réussir le contrôle de vendredi",
@@ -824,6 +837,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "Moyenne de la classe",
     },
     "de": {
+        "teacher.lessons": "Gehaltene Lektionen",
         "app.tagline": "Lade dein Material hoch oder nenne einfach ein Thema. Sag dann, wie du lernen möchtest.",
         "setup.topic_ph": "Das ohmsche Gesetz, oder Kapitel 4",
         "setup.goal_ph": "die Arbeit am Freitag bestehen",
@@ -882,6 +896,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "Klassendurchschnitt",
     },
     "pt": {
+        "teacher.lessons": "Aulas dadas",
         "app.tagline": "Envie o seu material, ou diga apenas um tema. Depois diga como quer aprender.",
         "setup.topic_ph": "A lei de Ohm, ou o capítulo 4",
         "setup.goal_ph": "passar no teste de sexta-feira",
@@ -940,6 +955,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "Média da turma",
     },
     "ru": {
+        "teacher.lessons": "Проведено уроков",
         "app.tagline": "Загрузите свои материалы или просто назовите тему. Затем скажите, как вы хотите учиться.",
         "setup.topic_ph": "Закон Ома, или глава 4",
         "setup.goal_ph": "сдать контрольную в пятницу",
@@ -998,6 +1014,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "teacher.avg": "Средний балл класса",
     },
     "id": {
+        "teacher.lessons": "Pelajaran diajarkan",
         "app.tagline": "Unggah materi Anda, atau cukup sebutkan sebuah topik. Lalu katakan bagaimana Anda ingin diajari.",
         "setup.topic_ph": "Hukum Ohm, atau Bab 4",
         "setup.goal_ph": "lulus ujian hari Jumat",
@@ -1062,6 +1079,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 # nouns. Transliterating every label into Devanagari would be a different
 # language from the one the student picked.
 TRANSLATIONS["hinglish"] = {
+    "teacher.lessons": "Lessons padhaye",
     "lesson.planning": "Aapka material padh ke lesson plan kar rahe hain…",
     "lesson.marking": "Aapka answer check kar rahe hain…",
     "lesson.preparing": "Agla part ready kar rahe hain…",

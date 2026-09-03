@@ -1,143 +1,99 @@
-# Avatar Module
+# Avatar
 
-Audio-driven face animation via Replicate, with cost controls and caching.
-
-## Quick Start
+`local_avatar/wav2lip.py` — `render_avatar(audio_path, face_image) -> mp4`.
 
 ```python
-from freebuff.avatar import render_avatar
+import local_avatar
 
-# Animate a teacher photo with audio
-mp4_path = render_avatar("teacher.wav", "teacher.jpg")
+mp4 = local_avatar.render_avatar("narration.wav", "assets/teacher.jpg")
 ```
 
-## The 60-Second Guard
+> This file previously documented `freebuff.avatar`, a Replicate-hosted
+> LivePortrait call at roughly $0.40 per 60-second render. That path still
+> exists in `prompt_101/media_pipeline/avatar.py` and `wiring.py` will fall
+> back to it, but it is no longer what runs: Wav2Lip on this machine does the
+> same job for nothing. `MENTORA_LOCAL_AVATAR=0` forces the paid path.
 
-```python
-from freebuff.avatar.render_avatar import render_avatar
+## What it does
 
-render_avatar("3_minute_lesson.wav", "teacher.jpg")
-# Raises ValueError: Audio is 180.0s -- must be <= 60s
+One still photograph in, one talking head out. The face is detected once and
+every frame reuses that box, which is what makes it fast enough on a laptop
+(~18s per segment on an M-series Mac, and renders are cached).
+
+Device order is MPS, then CUDA, then CPU.
+
+## The crop is the whole problem
+
+This is the part that decides whether the lips look attached to the face, and
+it is worth stating precisely because getting it wrong is not obvious from the
+code — only from the output.
+
+Wav2Lip is trained on square crops in which the face sits at a fixed place:
+eyes about a third of the way down, mouth about seven tenths. Everything it
+generates is drawn at those coordinates. Hand it a crop framed differently and
+it still draws a mouth at 70% of the crop — which lands on the chin, or on the
+nose, and the face reads as sliding around.
+
+The first version padded YuNet's detector box by 25% horizontally and 35%
+vertically and resized the result to 96×96. On `assets/teacher.jpg` that gave
+a **267×429** crop — squashed 1.6× vertically into a square, with the mouth at
+62% instead of 72%.
+
+It is now built from the landmarks YuNet returns for free:
+
+```
+span  = distance(eye centre, mouth centre)
+side  = 2.6 * span                     # square
+top   = mouth_y - 0.72 * side          # mouth at 72% of the crop
 ```
 
-**Why this exists:**
+which gives a **236×236** square on the same photograph.
 
-| Duration | Cost | Quality |
-|----------|------|---------|
-| 60 seconds | ~$0.40 | Stable face, good lip sync |
-| 20 minutes | ~$5-8 | Face drifts, mouth artifacts |
+## Paste-back
 
-Two serious problems with long renders:
+The model returns a whole 96×96 face, but only the mouth is really generated;
+the rest is its reconstruction of the input, softer and slightly off-colour.
 
-1. **Money.** One careless call spends the entire project budget.
-2. **Quality.** Models drift on long clips — the face stops looking
-   like the same person and mouth artifacts accumulate.
+So only an ellipse over the mouth and jaw is blended back, feathered so it
+never reaches the crop edge, after a colour correction measured from the top
+half of the prediction (which should equal the original, so whatever it
+differs by up there is the shift to remove). The real eyes and hair stay
+sharp, and there is no seam.
 
-**Solution:** Split long audio before rendering:
+A rectangular mask was tried first and left a bright vertical band down each
+cheek exactly where the crop edge fell — the mask ramp turned the model's
+colour shift into a visible stripe.
 
-```python
-from freebuff.voice.speak import split_audio
-from freebuff.avatar import render_avatar
+## Head motion
 
-chunks = split_audio("long_lesson.wav", max_seconds=60)
-for chunk in chunks:
-    render_avatar(chunk, "teacher.jpg")
-```
+Wav2Lip animates the mouth and nothing else, so the raw output is a photograph
+with a moving mouth: technically correct and slightly unsettling. A slow
+affine drift of the whole frame reads as a person holding still instead.
 
-## How It Works
+Deliberately subtle — anything you consciously notice looks worse than no
+motion. The four periods are mutually incommensurate so the loop never
+visibly repeats, and the amplitude follows the speech envelope, so the head
+settles when the teacher stops talking. `MENTORA_HEAD_MOTION=0` turns it off.
 
-### render_avatar(audio_path, photo_path, backend_name)
+## Requirements
 
-1. Checks cache — same audio+photo never re-rendered
-2. Validates audio duration ≤ 60 seconds
-3. Dispatches to the configured avatar backend
-4. Caches the result MP4
-5. Returns path to cached MP4
+- A **real, front-facing photograph** at `assets/teacher.jpg`. A drawn or
+  stylised avatar will not register with the detector, and `render_avatar`
+  raises rather than producing something wrong. `MENTORA_FACE_BOX="x1,y1,x2,y2"`
+  skips detection for a stylised face or a photo with two people in it.
+- Weights: `models/wav2lip_gan.pth` (436MB) and
+  `models/face_detection_yunet.onnx` (230KB). Neither is in git.
+  `python setup_assets.py` fetches both.
 
-**Caching:** SHA-256 hash of `audio_path:photo_path` determines the
-cache key. Same inputs = same MP4, no second API call.
+`local_avatar.available()` reports whether they are present; `wiring.py` falls
+back to the placeholder rather than crashing when they are not, and the
+sidebar says so.
 
-### Backend Interface
+## The 60-second guard
 
-All avatar backends implement the same interface:
-
-```python
-class AvatarBackend(ABC):
-    @abstractmethod
-    def animate(self, photo_path, audio_path) -> str:
-        """Animate photo with audio. Returns path to MP4."""
-        ...
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        """Human-readable name."""
-        ...
-```
-
-### SadTalker (Default)
-
-Model: `cjwbw/sadtalker` on Replicate
-Cost: ~$0.01/second of audio
-Quality: Proven (180K+ runs), uses GFPGAN face enhancement
-
-```yaml
-# config.yaml
-avatar:
-  model: cjwbw/sadtalker
-  enhancer: gfpgan
-```
-
-Requires `REPLICATE_API_TOKEN` environment variable.
-
-## Swapping Models
-
-To use a different avatar model:
-
-1. Create `freebuff/avatar/models/my_model.py`:
-```python
-from freebuff.avatar.models.base import AvatarBackend
-
-class MyModelBackend(AvatarBackend):
-    @property
-    def name(self):
-        return "MyModel"
-
-    def animate(self, photo_path, audio_path):
-        # Your API call here
-        return output_path
-```
-
-2. Register in `render_avatar.py`:
-```python
-def _get_backend(name=None):
-    if "mymodel" in model.lower():
-        from freebuff.avatar.models.my_model import MyModelBackend
-        return MyModelBackend()
-```
-
-3. Set in config:
-```yaml
-avatar:
-  model: mymodel
-```
-
-## Photo Requirements
-
-The source photo matters more than the model:
-
-- **Front-facing** — face clearly visible
-- **Evenly lit** — no harsh shadows
-- **High resolution** — at least 512x512
-- **Neutral expression** — slight smile is fine
-
-A bad photo makes every model look bad.
-
-## Configuration
-
-| Key | Default | Description |
-|-----|---------|-------------|
-| `model` | `cjwbw/sadtalker` | Replicate model identifier |
-| `max_duration_seconds` | `60` | Hard limit on audio length |
-| `output_dir` | `cache/avatar` | Cache directory for MP4s |
-| `enhancer` | `gfpgan` | Face enhancement (`gfpgan` or none) |
+`shared/config.MAX_AVATAR_SECONDS` caps a segment. Longer narration means a
+longer render and a face that drifts, and on the paid path it also means real
+money. `teacher/engine.fit_script` trims narration to roughly 85% of that
+budget before it ever reaches here, because asking the model nicely was not
+enough — with a real key it produced scripts of 74 to 114 seconds and every
+segment came back with no video.

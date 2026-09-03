@@ -60,7 +60,7 @@ def _headline(rows: list[dict], lang: str) -> None:
     left, middle, right = st.columns(3)
     left.metric(t("teacher.students", lang), len(rows))
     middle.metric(t("teacher.avg", lang), f"{average:.0f}%")
-    right.metric(t("nav.lesson", lang), lessons)
+    right.metric(t("teacher.lessons", lang), lessons)
 
 
 def _reteach_list(rows: list[dict], lang: str) -> None:

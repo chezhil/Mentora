@@ -14,9 +14,48 @@ python3 -m venv .venv
 .venv/bin/streamlit run app.py
 ```
 
-### Voice models (needed for real speech)
+## Two roles
 
-Piper voices are too big to commit. Download them once:
+The setup screen asks who you are before it asks anything else.
+
+**Student** — upload material or name a topic, get taught, get questioned,
+get a report.
+
+**Teacher** — opens on the classroom: how the class scored, which
+misconceptions more than one student holds (the reteach list), and a row per
+student so nobody disappears inside the average. Underneath it is the same
+setup form, so a teacher can preview exactly the lesson the class will get.
+Every number is counted from reports in `mentora.db`; nothing is generated.
+
+## Languages
+
+Eighteen, defined once in `shared/languages.py` — voice, font and script
+direction together, so a language cannot be added that speaks but cannot draw
+its own alphabet.
+
+**Indian:** Hindi, Hinglish, Bengali, Marathi, Tamil, Telugu, Kannada,
+Malayalam, Gujarati, Urdu
+**Other:** English, Arabic, Spanish, French, German, Portuguese, Russian,
+Indonesian
+
+Picking one changes **the whole interface**, on the same click, not just the
+teaching — `ui/i18n.py` holds all 83 strings in all 18. Urdu and Arabic render
+right-to-left. The picker also works mid-lesson: the interface changes
+immediately and the teaching follows from the next segment.
+
+### Voice
+
+Two backends, both free, no key anywhere:
+
+| Backend | Covers | Notes |
+|---|---|---|
+| edge-tts | all 18 | Neural voices. Leads everywhere. Needs a network connection. |
+| Piper | en, hi, te | Local and offline. The fallback, for when the network is not there. |
+
+`MENTORA_VOICE=male` switches voice, `TTS_PROVIDER=piper` forces offline. If
+both fail the lesson continues with a silent placeholder rather than stopping.
+
+Piper voices are too big to commit; `setup_assets.py` fetches them, or:
 
 ```bash
 D=prompt_101/media_pipeline/piper_models; mkdir -p $D
@@ -26,19 +65,6 @@ curl -sL -o $D/en_US-lessac-medium.onnx.json $B/en/en_US/lessac/medium/en_US-les
 curl -sL -o $D/hi_IN-pratham-medium.onnx      $B/hi/hi_IN/pratham/medium/hi_IN-pratham-medium.onnx
 curl -sL -o $D/hi_IN-pratham-medium.onnx.json $B/hi/hi_IN/pratham/medium/hi_IN-pratham-medium.onnx.json
 ```
-
-Two backends, both free, no keys anywhere:
-
-| Languages | Backend | Notes |
-|---|---|---|
-| en, hi, te | Piper | local, offline, needs the voice models below |
-| ta, kn, bn, mr | edge-tts | free neural voices, needs a network connection |
-
-Piper leads where it has a voice because it works offline; edge-tts covers the
-rest and backs up the others. If both fail the lesson continues with a silent
-placeholder rather than stopping.
-
-Verified real speech in all seven: en, hi, ta, kn, te, bn, mr.
 
 ### Downloads (required for video and voice)
 
@@ -104,11 +130,25 @@ Check the whole loop without a browser:
 | `ingest/` (rest) | Utkarsh | Loading, chunking, embedding, retrieval |
 | `history/` | Utkarsh | SQLite persistence |
 | `orchestrator.py` | Chezhil | `start_session` `step` `answer` `finish` |
-| `app.py` | Chezhil | Streamlit — 4 screens + the adaptation panel |
+| `app.py` | Chezhil | Streamlit — the demo app, tabs + the adaptation panel |
 | `wiring.py` | Chezhil | Picks the real module or the stub, per function |
 | `stubs/` | Chezhil | Fake Pair B / Pair C / ingest, so nobody is blocked |
 | `planner/` `teacher/` | Pair B | Jyothi + Naman |
 | `visuals/` `media/` | Pair C | Santosh + Hamza |
+| `shared/languages.py` | — | Every language: voice, font, direction. One place. |
+| `ui/i18n.py` | — | The interface in 18 languages |
+| `ui/style.css` | Frontend | The brutalist styling. Read the rules at the top. |
+| `screens/classroom.py` | — | The teacher's view of the class |
+| `prompt_101/media_pipeline/renderers/design.py` | — | The house style the visuals are drawn in |
+
+### Two entry points
+
+`app.py` is the demo. `app_v2.py` plus `pages/` is the frontend team's
+multipage rebuild — run that one with `streamlit run app_v2.py`. Streamlit
+finds a `pages/` directory from wherever the running script lives, and both
+scripts are in the repo root, so `app.py` passes `hide_nav=True` to
+`ui.apply_theme()` to keep app_v2's navigation out of its sidebar. `app_v2.py`
+must not pass it.
 
 ## How the stubs work
 
