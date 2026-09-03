@@ -22,14 +22,16 @@ def store_chunks(doc_id: str, chunks: List[Dict[str, Any]]):
 
     ids = [f"{doc_id}_chunk_{i}" for i in range(len(chunks))]
     documents = [c["text"] for c in chunks]
-    metadatas = [
-        {
-            "page": int(c.get("page") or 1),
-            "section": str(c.get("section") or ""),
-            "doc_id": doc_id
-        }
-        for c in chunks
-    ]
+    # Chroma metadata cannot hold None, which is why page used to be coerced
+    # to 1 — but load.py returns None for DOCX and TXT, which genuinely have no
+    # pages, so every citation from those claimed "page 1". Omit the key
+    # instead; query_chunks reads it back as None.
+    metadatas = []
+    for c in chunks:
+        meta = {"section": str(c.get("section") or ""), "doc_id": doc_id}
+        if c.get("page") is not None:
+            meta["page"] = int(c["page"])
+        metadatas.append(meta)
     embeddings = embedder.embed_documents(documents)
 
     collection.upsert(

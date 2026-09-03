@@ -2,7 +2,7 @@
 import sys
 import json
 from pathlib import Path
-from ingest.pipeline import retrieve
+from ingest.pipeline import ingest, retrieve
 from ingest.config import MIN_SCORE
 
 if __name__ == "__main__":
@@ -18,7 +18,14 @@ if __name__ == "__main__":
     with open(fixture_path, "r", encoding="utf-8-sig") as f:
         data = json.load(f)
 
+    # A fixture may name a source file; ingest it and use the id we get back.
+    # Hardcoding a doc_id can never work: ingest() mints a random one per run,
+    # so the fixture always returned [] and looked like correct off-topic
+    # behaviour.
     target_doc_id = data.get("doc_id")
+    if data.get("file"):
+        target_doc_id = ingest(data["file"])
+        print(f"ingested {data['file']} -> {target_doc_id}")
     target_query = data.get("query")
     top_k = data.get("k", 4)
 

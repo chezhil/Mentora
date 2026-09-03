@@ -17,6 +17,33 @@ if sys.platform == "win32":
 from shared.models import SourceChunk
 from ingest.load import load_document
 
+# Chunk sizing — measured, not guessed.
+#
+# The PAIR_A brief said 500-800 words with ~100 words overlap. That was written
+# before anyone measured it, and it is wrong for this corpus: a long passage
+# matches every query mediocrely, so on-topic scores fall while off-topic ones
+# hold up. Separation between the lowest on-topic and highest off-topic query
+# over fixtures/sample.pdf (7 on-topic incl. Hindi, 8 off-topic):
+#
+#     min_words   chunks   mean   separation
+#           120       26    136       +0.074
+#           200        6    204       +0.064   <- chosen
+#           150       11    159       +0.056
+#           300        3    293       +0.036
+#           500        2    388       +0.006   <- the spec; barely separable
+#
+# 120 separates marginally better but produces 26 chunks on a 10-page extract,
+# where a 100-word overlap is most of each chunk and top-k fills with
+# near-duplicates. 200 keeps almost all the separation with a fifth of the
+# chunks. Overlap scales with the chunk (20%) rather than staying at the 100
+# the brief specified for much larger chunks.
+#
+# Re-run scratchpad sweep against the real textbook before the demo — the
+# right number is corpus-dependent.
+CHUNK_MIN_WORDS = 200
+CHUNK_MAX_WORDS = 500
+CHUNK_OVERLAP_WORDS = 40
+
 
 def _split_into_sentences(text: str) -> List[str]:
     sentence_end = re.compile(r'(?<=[.!?])\s+(?=[A-Z0-9])')
@@ -32,9 +59,9 @@ def chunk(pages: List[Tuple[str, Optional[int]]]) -> List[SourceChunk]:
     - Assigns the page number where the chunk started.
     - Sets initial score to 0.0.
     """
-    target_min_words = 150
-    target_max_words = 800
-    target_overlap_words = 100
+    target_min_words = CHUNK_MIN_WORDS
+    target_max_words = CHUNK_MAX_WORDS
+    target_overlap_words = CHUNK_OVERLAP_WORDS
 
     chunks: List[SourceChunk] = []
     all_sentences: List[Tuple[str, Optional[int], Optional[str]]] = []
@@ -77,7 +104,7 @@ def chunk(pages: List[Tuple[str, Optional[int]]]) -> List[SourceChunk]:
         curr_word_count += sent_words
 
         is_last = (i == len(all_sentences) - 1)
-        if curr_word_count >= target_min_words or is_last:
+        if curr_word_count >= target_min_words or curr_word_count >= target_max_words or is_last:
             chunk_text = " ".join([s[0] for s in curr_chunk_sents]).strip()
             chunks.append(
                 SourceChunk(
