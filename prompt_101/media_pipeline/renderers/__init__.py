@@ -10,10 +10,14 @@ import uuid
 IMAGE_WIDTH = 1280
 IMAGE_HEIGHT = 720
 DPI = 100
-BG_COLOR = "#f8f9fa"
-TITLE_COLOR = "#1a1a2e"
-TEXT_COLOR = "#333333"
-ACCENT_COLORS = ["#667eea", "#764ba2", "#43b581", "#f5a623", "#e74c3c"]
+# Colour lives in design.py. These names are kept because the older renderers
+# import them, but they now resolve to the same palette everything else uses —
+# a lesson that moves from a graph to a diagram to a code listing should not
+# change colour scheme on the way.
+from .design import ACCENTS as ACCENT_COLORS      # noqa: E402
+from .design import INK as TITLE_COLOR            # noqa: E402
+from .design import INK as TEXT_COLOR             # noqa: E402
+from .design import PAPER as BG_COLOR             # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -35,14 +39,24 @@ FONT_DIR = Path(__file__).resolve().parents[3] / "assets" / "fonts"
 
 # DejaVu stays first for Latin (it is what the design was built around);
 # matplotlib falls through this list per glyph for anything it cannot draw.
-FONT_STACK = [
-    "DejaVu Sans",
-    "Noto Sans Devanagari",   # Hindi, Marathi
-    "Noto Sans Bengali",
-    "Noto Sans Tamil",
-    "Noto Sans Telugu",
-    "Noto Sans Kannada",
-]
+# The list is derived from shared/languages.py so a new language cannot be
+# added with speech but without a font — which is how Hindi diagrams once
+# rendered as rows of empty boxes.
+try:
+    from shared.languages import font_stack
+    FONT_STACK = font_stack()
+except Exception:                       # renderers must import standalone
+    FONT_STACK = [
+        "DejaVu Sans",
+        "Noto Sans Devanagari",
+        "Noto Sans Bengali",
+        "Noto Sans Tamil",
+        "Noto Sans Telugu",
+        "Noto Sans Kannada",
+        "Noto Sans Malayalam",
+        "Noto Sans Gujarati",
+        "Noto Sans Arabic",
+    ]
 
 
 def _register_fonts() -> None:

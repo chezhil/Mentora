@@ -1,24 +1,28 @@
-# Streamlit theme. OWNED BY THE FRONTEND TEAM.
+# Streamlit theme.
 #
-# Changing values here restyles the whole app with no Python at all. Streamlit
-# picks this up on restart. Start here before writing any CSS — most of what a
-# judge notices (colour, contrast, font) is on this page.
+# This sets the base colours; ui/style.css does the rest (keylines, hard
+# shadows, square corners — see the notes at the top of that file). The two
+# have to agree: Streamlit paints some chrome before any CSS loads, and a dark
+# base flashing behind a light page on every rerun is very visible on a
+# recording.
 #
 # Full reference: https://docs.streamlit.io/develop/api-reference/configuration/config.toml
 
 [theme]
-base = "dark"
+base = "light"
 
-# The accent used for buttons, sliders, progress bars, active tabs.
-primaryColor = "#e34a3a"
+# Yellow is the accent throughout — buttons, the progress fill, the selected
+# tab, the score. It is the same yellow the rendered visuals use, so a diagram
+# on screen belongs to the page around it.
+primaryColor = "#FFD400"
 
-# Page and panel backgrounds. secondary is the sidebar and input fields.
-backgroundColor = "#12141a"
-secondaryBackgroundColor = "#1c1f27"
+# Warm off-white rather than pure white: white blooms under video compression
+# and is harsh next to a black keyline.
+backgroundColor = "#F5F1E8"
+secondaryBackgroundColor = "#FFFFFF"
 
-textColor = "#e8eaed"
+textColor = "#12100E"
 
-# Any font installed on the machine, or a Google Font name Streamlit knows.
 font = "sans serif"
 
 [server]

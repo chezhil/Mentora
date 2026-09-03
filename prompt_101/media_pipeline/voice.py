@@ -1,15 +1,29 @@
-"""Voice synthesis service with hash-based caching.
+"""Voice synthesis, with hash-based caching.
 
-Supports two providers:
-- Piper: Local CPU-based TTS for development (free, unlimited, Indian language voices)
-- edge-tts: free neural voices, no key, for everything Piper cannot speak
+Two backends, both free, no key anywhere:
 
-Both go behind the same speak() function. Provider is controlled by config.
+    edge-tts   Microsoft's neural voices. Leads everywhere, because the
+               quality gap is not subtle — Piper's medium models are clearly
+               synthetic, and a teacher who sounds like a train announcement
+               is a teacher nobody listens to. Needs a network connection.
+    piper      Local, offline, and instant. Covers en, hi and te. Used when
+               edge is unreachable, which is the case the demo has to survive.
+
+That order is the opposite of what it used to be. Piper led because it works
+offline; the result was that the three most-used languages had the worst
+narration in the app while five better voices sat unused.
+
+Every voice comes from shared/languages.py, so adding a language is one edit
+in one file.
+
+MENTORA_VOICE=male picks the male voice, TTS_PROVIDER=piper forces offline.
 """
 import os
 import subprocess
 from pathlib import Path
 from typing import Optional
+
+from shared import languages
 
 from .config import (
     TTS_OUTPUT_DIR,
@@ -20,35 +34,27 @@ from .config import (
 from .utils import get_cached_path
 
 
-# ── Language to Voice Mapping ──
+# Delivery. A teacher explaining something new speaks a little below
+# conversational pace; the default rate reads as rushed against a diagram the
+# student is still taking in. -8% is enough to hear and not enough to drag.
+SPEECH_RATE = os.getenv("MENTORA_SPEECH_RATE", "-8%")
+SPEECH_PITCH = os.getenv("MENTORA_SPEECH_PITCH", "+0Hz")
 
-# Piper voice models (model_name, sample_rate)
-PIPER_VOICES = {
-    # Verified against huggingface.co/rhasspy/piper-voices on 2 Sep.
-    # The previous names (swara, dhivya, jessica, shaurya, tanmayee) do not
-    # exist, so every Indian language silently produced a silent placeholder.
-    "en": ("en_US-lessac-medium", 22050),
-    "hi": ("hi_IN-pratham-medium", 22050),
-    "te": ("te_IN-maya-medium", 22050),
-    # Piper has NO voice for Tamil, Kannada or Bengali. Those languages have
-    # to go through edge-tts, which is free and needs no key.
-}
+
+def _gender() -> str:
+    return "male" if os.getenv("MENTORA_VOICE", "female").lower() == "male" else "female"
+
 
 def _provider_order(lang: str) -> list[str]:
     """Which backends to try, best first.
 
-    Piper is local and needs no network, so it leads wherever it has a voice
-    installed (en, hi, te). Edge is free, needs no key, and covers every
-    language we offer, so it takes the rest and backs up the others.
-
-    There is no third option. Google Cloud TTS was wired in but needs a paid
-    account we do not have, and selecting Tamil used to raise ImportError in
-    the middle of a lesson. Dead paths that can only fail are worse than no
-    path at all.
+    Edge leads on quality and covers every language we offer. Piper backs it
+    up for the three languages it has voices for, so a lesson still narrates
+    with the network unplugged.
     """
     if TTS_PROVIDER != "auto":
         return [TTS_PROVIDER, "edge", "piper"]
-    return (["piper", "edge"] if lang in PIPER_VOICES else ["edge"])
+    return ["edge", "piper"] if languages.get(lang).piper else ["edge"]
 
 
 def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str:
@@ -58,7 +64,7 @@ def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str
     
     Args:
         text: The text to speak
-        lang: Language code (en, hi, ta, kn, te, bn, mr)
+        lang: Language code — any key in shared/languages.py
         output_path: Optional custom output path; if None, uses cache
     
     Returns:
@@ -68,8 +74,10 @@ def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str
         raise ValueError("Cannot speak empty text")
     
     # Check cache first
+    # The gender is part of the key: without it, switching voice replays the
+    # previous one out of cache and looks like the setting does nothing.
     cache_path = get_cached_path(
-        Path(TTS_OUTPUT_DIR), "tts", ".wav", text, lang
+        Path(TTS_OUTPUT_DIR), "tts", ".wav", text, f"{lang}:{_gender()}"
     )
     
     if cache_path.exists():
@@ -97,47 +105,32 @@ def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str
 
 # ── Edge TTS ─────────────────────────────────────────────────────────────────
 #
-# Piper has no voices for Tamil or Kannada — I checked rhasspy/piper-voices
-# directly, those language directories do not exist. The routing sent them to
-# Google Cloud TTS, which needed a paid account we do not have, so selecting
-# Tamil raised ImportError in the middle of a lesson. That path is gone.
+# Microsoft Edge's neural voices. Free, no key, no account, and a voice for
+# every language in shared/languages.py — including Tamil, Kannada, Malayalam
+# and Gujarati, which Piper has no model for at all.
 #
-# Microsoft Edge's TTS is free, needs no key or account, and has neural voices
-# for every language we offer. It is used for anything Piper cannot speak, and
-# as the fallback whenever a local Piper voice is missing.
-#
-# The only cost is that it needs a network connection, where Piper does not.
-# That is why Piper still wins for the languages it covers.
-
-EDGE_VOICES = {
-    "en": "en-IN-NeerjaNeural",       # Indian English suits the audience
-    "hi": "hi-IN-SwaraNeural",
-    "ta": "ta-IN-PallaviNeural",
-    "kn": "kn-IN-SapnaNeural",
-    "te": "te-IN-ShrutiNeural",
-    "bn": "bn-IN-TanishaaNeural",
-    "mr": "mr-IN-AarohiNeural",
-    "hinglish": "hi-IN-SwaraNeural",
-}
-
+# The only cost is a network connection. That is the whole reason Piper is
+# still here as the fallback.
 
 def _speak_edge(text: str, lang: str, output_path: Path) -> Path:
     """Free neural TTS via Edge. Returns a WAV so the rest of the pipeline
-    (duration checks, ffmpeg mux) is unchanged."""
+    (duration checks, ffmpeg mux, Wav2Lip) is unchanged."""
     import asyncio
-    import subprocess
 
     import edge_tts
     import imageio_ffmpeg
 
-    voice = EDGE_VOICES.get(lang, EDGE_VOICES["en"])
+    voice = languages.voice(lang, _gender())
     mp3_path = output_path.with_suffix(".edge.mp3")
 
     async def _run() -> None:
-        await edge_tts.Communicate(text, voice).save(str(mp3_path))
+        await edge_tts.Communicate(
+            text, voice, rate=SPEECH_RATE, pitch=SPEECH_PITCH
+        ).save(str(mp3_path))
 
     asyncio.run(_run())
 
+    # 22050 mono is what Wav2Lip and the compositor both expect.
     subprocess.run(
         [imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error",
          "-i", str(mp3_path), "-ar", "22050", "-ac", "1", str(output_path)],
@@ -157,7 +150,7 @@ def _speak_piper(text: str, lang: str, output_path: Path) -> Path:
     """
     import wave as wave_mod
     
-    voice_name, sample_rate = PIPER_VOICES.get(lang, PIPER_VOICES["en"])
+    voice_name = languages.get(lang).piper or languages.get("en").piper
     
     model_path = Path(PIPER_MODEL_DIR) / f"{voice_name}.onnx"
     if not model_path.exists():

@@ -86,8 +86,15 @@ You are an exam setter. A student has just finished this lesson plan:
 <<PLAN>>
 
 Make 1-2 questions per concept. Vary the kinds: some multiple choice,
-some short answer, some problem solving. For MCQ provide exactly 4 options.
-The "expected" field must contain the correct answer.
+some short answer, some problem solving.
+
+QUESTION RULES (checked; a question that breaks them is thrown away)
+- Do NOT write an "id" field. The system assigns question ids.
+- kind "mcq" REQUIRES an "options" list of exactly 4 plausible answers, and
+  "expected" MUST be one of those four strings copied EXACTLY, character for
+  character. Not "A", not "option B", not a paraphrase — the string itself.
+- Do not letter the options. Write "30 ohms", never "B) 30 ohms".
+- For any other kind, "options" MUST be null.
 
 Return ONLY a JSON object with no markdown fences and no explanation:
 {
@@ -190,6 +197,15 @@ YOUR SINGLE JOB THIS SEGMENT
    the largest single category on the rubric.
    If ASK_QUESTION is False, set "question" to null.
 
+QUESTION RULES (these are checked, and a question that breaks them is thrown away)
+- Do NOT write an "id" field. The system assigns question ids; anything you
+  put there is discarded.
+- kind "mcq" REQUIRES an "options" list of exactly 4 plausible answers, and
+  "expected" MUST be one of those four strings copied EXACTLY, character for
+  character. Not "A", not "option B", not a paraphrase — the string itself.
+- Do not letter the options. Write "30 ohms", never "B) 30 ohms".
+- For any other kind, "options" MUST be null.
+
 RULES
 - HARD LIMIT: the script must be AT MOST 130 words. This is not a style
   preference — the avatar renderer refuses any narration over 60 seconds, and
@@ -210,7 +226,6 @@ Return ONLY a JSON object with no markdown fences and no explanation:
   "visual": {"kind": "equation|graph|diagram|timeline|code|concept_map|none",
              "payload": "...", "caption": "one-line caption or null"},
   "question": {
-      "id": "q__AUX__",
       "concept_id": "<<CONCEPT_ID>>",
       "kind": "mcq|short|explain|problem",
       "prompt": "the question, IN <<LANGUAGE>>",
@@ -294,8 +309,16 @@ DO
    renderer refuses the segment, so no video is produced.
 2. Visual: pick one that supports this re-explanation (equation, graph,
    diagram, timeline, code, concept_map, or none).
-3. End with ONE new question (""q"" id) that checks the same understanding
-   in a different way. This re-evaluates them (step 6 of the adaptation).
+3. End with ONE new question that checks the same understanding in a
+   different way. This re-evaluates them (step 6 of the adaptation).
+QUESTION RULES (these are checked, and a question that breaks them is thrown away)
+- Do NOT write an "id" field. The system assigns question ids; anything you
+  put there is discarded.
+- kind "mcq" REQUIRES an "options" list of exactly 4 plausible answers, and
+  "expected" MUST be one of those four strings copied EXACTLY, character for
+  character. Not "A", not "option B", not a paraphrase — the string itself.
+- Do not letter the options. Write "30 ohms", never "B) 30 ohms".
+- For any other kind, "options" MUST be null.
 
 Return ONLY a JSON object with no markdown fences and no explanation:
 {
@@ -304,11 +327,10 @@ Return ONLY a JSON object with no markdown fences and no explanation:
   "visual": {"kind": "equation|graph|diagram|timeline|code|concept_map|none",
              "payload": "...", "caption": "one-line caption or null"},
   "question": {
-      "id": "q__AUX__",
       "concept_id": "<<CONCEPT_ID>>",
       "kind": "mcq|short|explain|problem",
       "prompt": "the new question, IN <<LANGUAGE>>",
-      "options": null,
+      "options": ["..."] or null,
       "expected": "the correct answer"
     }
 }

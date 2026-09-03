@@ -43,6 +43,23 @@ MEL_STEP = 16
 FACE_SIZE = 96          # Wav2Lip is trained at 96x96
 BATCH = 64
 
+# Crop geometry — see _detect_face. Measured against the proportions of the
+# LRS2 crops Wav2Lip was trained on: the square is about 2.6 eye-to-mouth
+# distances on a side, with the mouth centre 72% of the way down it.
+CROP_SCALE = 2.6
+MOUTH_AT = 0.72
+
+# Paste-back blend. The model returns the whole 96x96 face but only the mouth
+# is really generated; everything else is its reconstruction of the input,
+# softer and slightly off-colour. So only an ellipse over the mouth and jaw is
+# blended back, and it is feathered hard enough never to reach the crop edge.
+#
+# A rectangular mask was tried first and left a bright vertical band down each
+# cheek exactly where the crop edge fell — the mask ramp made the model's
+# colour shift into a visible stripe.
+MOUTH_CX, MOUTH_CY = 0.50, 0.70     # ellipse centre, as fractions of the crop
+MOUTH_RX, MOUTH_RY = 0.40, 0.30     # radii
+
 _model = None
 
 
@@ -89,7 +106,27 @@ def _face_box_override() -> tuple[int, int, int, int] | None:
 
 
 def _detect_face(image: np.ndarray) -> tuple[int, int, int, int]:
-    """One face box for the whole render — the source is a still photo."""
+    """One SQUARE face crop for the whole render, placed off the landmarks.
+
+    This is the single thing that decides whether the lips look attached to
+    the face, so it is worth the detail.
+
+    Wav2Lip is trained on square crops in which the face sits at a fixed
+    place: eyes about a third of the way down, mouth about seven tenths.
+    Everything it generates is drawn at those coordinates. Hand it a crop
+    framed differently and it still draws a mouth at 70% of the crop — which
+    lands on the chin, or on the nose, and the whole face reads as sliding
+    around.
+
+    The previous version padded the detector box by 25% horizontally and 35%
+    vertically and resized that to 96x96. On assets/teacher.jpg that produced
+    a 267x429 crop — squashed 1.6x vertically into a square, with the mouth at
+    62% instead of 70%. Hence lips that neither line up nor move like a mouth.
+
+    So: measure the face from the eyes and the mouth, which is what YuNet
+    gives us for free, and build a square crop around them at the proportions
+    the model expects.
+    """
     override = _face_box_override()
     if override:
         return override
@@ -105,13 +142,34 @@ def _detect_face(image: np.ndarray) -> tuple[int, int, int, int]:
             "front-facing photograph — a drawn or stylised avatar will not "
             "register."
         )
-    x, y, fw, fh = faces[0][:4].astype(int)
-    # Wav2Lip expects chin and mouth well inside the crop; pad generously and
-    # clamp to the image.
-    pad_x, pad_y = int(fw * 0.25), int(fh * 0.35)
-    x1, y1 = max(0, x - pad_x), max(0, y - pad_y)
-    x2, y2 = min(w, x + fw + pad_x), min(h, y + fh + pad_y)
-    return x1, y1, x2, y2
+
+    # Biggest face, in case the photo has someone in the background.
+    face = max(faces, key=lambda f: float(f[2]) * float(f[3]))
+    fx, fy, fw, fh = face[:4]
+    # YuNet's five landmarks: right eye, left eye, nose, right mouth corner,
+    # left mouth corner.
+    points = face[4:14].reshape(5, 2)
+    eye = (points[0] + points[1]) / 2.0
+    mouth = (points[3] + points[4]) / 2.0
+
+    span = float(np.hypot(*(mouth - eye)))          # eye centre to mouth centre
+    if span < 4:                                     # degenerate landmarks
+        span = float(fh) / 2.9
+
+    side = CROP_SCALE * span
+    cx = float((eye[0] + mouth[0]) / 2.0)
+    top = float(mouth[1]) - MOUTH_AT * side
+
+    # Keep it square and inside the image: shrink first, then slide.
+    side = min(side, float(w), float(h))
+    x1 = cx - side / 2.0
+    y1 = top
+    x1 = min(max(x1, 0.0), w - side)
+    y1 = min(max(y1, 0.0), h - side)
+
+    x1, y1 = int(round(x1)), int(round(y1))
+    edge = int(round(side))
+    return x1, y1, min(w, x1 + edge), min(h, y1 + edge)
 
 
 def _mel_chunks(wav_path: str) -> list[np.ndarray]:
@@ -200,6 +258,86 @@ def _head_motion(frame: np.ndarray, i: int, amp: float,
                           borderMode=cv2.BORDER_REPLICATE)
 
 
+# ---------------------------------------------------------------------------
+# Paste-back
+#
+# The old code did `frame[y1:y2, x1:x2] = resize(prediction)`, which replaces
+# the WHOLE crop with a 96x96 upsample. Two visible costs: the eyes and hair
+# inside the box go soft, and the crop edge is a hard rectangular seam that
+# the head motion then slides around the frame.
+#
+# Only the mouth is actually generated, so only the mouth is blended back, on
+# a mask that fades in vertically across the nose and out at the sides.
+# ---------------------------------------------------------------------------
+
+_MASK_CACHE: dict[tuple[int, int], np.ndarray] = {}
+
+
+def _blend_mask(width: int, height: int) -> np.ndarray:
+    """Feathered ellipse over the mouth and jaw, 0 everywhere else."""
+    cached = _MASK_CACHE.get((width, height))
+    if cached is not None:
+        return cached
+
+    ys = np.linspace(0.0, 1.0, height, dtype=np.float32)[:, None]
+    xs = np.linspace(0.0, 1.0, width, dtype=np.float32)[None, :]
+    radius = np.sqrt(((xs - MOUTH_CX) / MOUTH_RX) ** 2
+                     + ((ys - MOUTH_CY) / MOUTH_RY) ** 2)
+
+    # 1 inside, falling to 0 at the ellipse edge. Smoothstep so the ramp has
+    # no visible start or end.
+    mask = np.clip(1.0 - radius, 0.0, 1.0)
+    mask = mask * mask * (3.0 - 2.0 * mask)
+
+    blur = max(5, (int(min(width, height) * 0.09) | 1))
+    mask = cv2.GaussianBlur(mask, (blur, blur), 0)
+    mask = mask[:, :, None].astype(np.float32)
+    _MASK_CACHE[(width, height)] = mask
+    return mask
+
+
+def _colour_match(generated: np.ndarray, original: np.ndarray) -> np.ndarray:
+    """Remove the model's global colour shift before blending.
+
+    The top half of the prediction is a reconstruction of the unmasked
+    reference face, so whatever it differs from the original by up there is
+    exactly the shift applied to the mouth as well. Correcting by that
+    difference is what stops the blended patch reading as a lighter rectangle.
+    """
+    half = max(1, generated.shape[0] // 2)
+    offset = (original[:half].reshape(-1, 3).mean(axis=0)
+              - generated[:half].reshape(-1, 3).mean(axis=0))
+    return np.clip(generated.astype(np.float32) + offset, 0, 255)
+
+
+def _sharpen(patch: np.ndarray) -> np.ndarray:
+    """Mild unsharp mask on the generated mouth.
+
+    Wav2Lip works at 96x96 and our crop is 2-3x that, so the mouth arrives
+    upscaled and soft next to a sharp photograph. A light unsharp brings it
+    back into the same focus without the crunchy halo a stronger one gives.
+    """
+    blurred = cv2.GaussianBlur(patch, (0, 0), 1.6)
+    return cv2.addWeighted(patch, 1.35, blurred, -0.35, 0)
+
+
+def _paste_face(frame: np.ndarray, mouth: np.ndarray,
+                box: tuple[int, int, int, int]) -> np.ndarray:
+    """Blend one generated face back into its frame."""
+    x1, y1, x2, y2 = box
+    width, height = x2 - x1, y2 - y1
+    region = frame[y1:y2, x1:x2]
+
+    generated = cv2.resize(mouth, (width, height), interpolation=cv2.INTER_CUBIC)
+    generated = _colour_match(generated, region.astype(np.float32))
+    generated = _sharpen(generated.astype(np.uint8)).astype(np.float32)
+
+    mask = _blend_mask(width, height)
+    merged = generated * mask + region.astype(np.float32) * (1.0 - mask)
+    frame[y1:y2, x1:x2] = np.clip(merged, 0, 255).astype(np.uint8)
+    return frame
+
+
 def render_avatar(audio_path: str, face_image: str) -> str:
     """CONTRACT: path to a WAV and a photo, returns a talking-head MP4."""
     if not available():
@@ -254,8 +392,7 @@ def render_avatar(audio_path: str, face_image: str) -> str:
 
             pred = (pred.cpu().numpy().transpose(0, 2, 3, 1) * 255.0)
             for j, mouth in enumerate(pred.astype(np.uint8)):
-                out = frame.copy()
-                out[y1:y2, x1:x2] = cv2.resize(mouth, (x2 - x1, y2 - y1))
+                out = _paste_face(frame.copy(), mouth, (x1, y1, x2, y2))
                 if envelope is not None:
                     idx = start + j
                     out = _head_motion(

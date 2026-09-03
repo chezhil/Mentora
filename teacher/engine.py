@@ -1,4 +1,7 @@
+import itertools
 import json
+import re
+
 from shared.models import (
     LessonPlan, SessionState, SourceChunk, TeachingSegment, 
     Question, StudentResponse, Evaluation, Turn
@@ -31,6 +34,114 @@ def fit_script(script: str, limit: int = MAX_SCRIPT_WORDS) -> str:
         if cut > len(clipped) * 0.5:
             return clipped[: cut + 1]
     return clipped.rstrip(",;:") + "..."
+
+# ---------------------------------------------------------------------------
+# Question hygiene
+#
+# Two bugs lived here, and both looked like "the buttons stopped working".
+#
+# 1. IDS.  The prompt's example JSON literally contains "id": "q__AUX__", so
+#    the model copies it verbatim into every single question. app.py keys its
+#    double-click guard on answer:<session>:<question.id>, so once the first
+#    question is answered the token is spent and EVERY later Answer and Skip
+#    button silently does nothing. Ids are assigned here now, not by the model.
+#
+# 2. OPTIONS.  A question can come back kind="mcq" with options null (the
+#    re-explain prompt actively asks for that), or with four options and
+#    kind="short". Either way the student gets the wrong widget. Kind and
+#    options are reconciled against each other, and `expected` is snapped onto
+#    a real option so marking a click can succeed.
+# ---------------------------------------------------------------------------
+
+_QUESTION_SEQ = itertools.count(1)
+
+# "b) 30 ohms", "(B) 30 ohms", "B. 30 ohms" -> the letter, and the rest.
+_LETTERED = re.compile(r"^\s*[\(\[]?([A-Da-d])[\)\].:-]\s*(.+)$")
+
+
+def _fresh_question_id(concept_id: str) -> str:
+    return f"q{next(_QUESTION_SEQ)}_{concept_id}"
+
+
+def _match_option(expected: str, options: list[str]) -> str | None:
+    """Find the option `expected` refers to, tolerating how models write it."""
+    want = (expected or "").strip()
+    if not want:
+        return None
+
+    lowered = [o.strip().lower() for o in options]
+    if want.lower() in lowered:
+        return options[lowered.index(want.lower())]
+
+    # A bare letter, or a letter with the text after it.
+    letter = None
+    if len(want) == 1 and want.upper() in "ABCD":
+        letter = want.upper()
+    else:
+        m = _LETTERED.match(want)
+        if m:
+            letter = m.group(1).upper()
+            tail = m.group(2).strip().lower()
+            if tail in lowered:
+                return options[lowered.index(tail)]
+    if letter is not None:
+        i = ord(letter) - ord("A")
+        if 0 <= i < len(options):
+            return options[i]
+
+    # Last resort: the option that contains the expected answer, or vice versa.
+    for option, low in zip(options, lowered):
+        if want.lower() in low or low in want.lower():
+            return option
+    return None
+
+
+def normalise_question(raw: dict | None, concept_id: str) -> dict | None:
+    """Give the question a unique id and make kind agree with options."""
+    if not isinstance(raw, dict):
+        return None
+    if not str(raw.get("prompt", "")).strip():
+        return None
+
+    raw = dict(raw)
+    raw["id"] = _fresh_question_id(concept_id)
+    raw["concept_id"] = concept_id
+
+    options = raw.get("options")
+    if isinstance(options, list):
+        # Strip "A) " prefixes so the radio reads as answers, not a lettered
+        # list the student then has to type a letter for.
+        cleaned = []
+        for option in options:
+            text = str(option).strip()
+            m = _LETTERED.match(text)
+            cleaned.append(m.group(2).strip() if m else text)
+        options = [o for o in dict.fromkeys(cleaned) if o]
+    else:
+        options = None
+
+    if options and len(options) >= 2:
+        raw["kind"] = "mcq"
+        raw["options"] = options
+        snapped = _match_option(str(raw.get("expected", "")), options)
+        # An mcq whose correct answer is not one of the options cannot be
+        # marked by clicking, so it stops being an mcq.
+        if snapped is None:
+            raw["kind"] = "short"
+            raw["options"] = None
+        else:
+            raw["expected"] = snapped
+    else:
+        raw["options"] = None
+        if raw.get("kind") == "mcq":
+            raw["kind"] = "short"
+
+    if raw.get("kind") not in ("mcq", "short", "explain", "problem"):
+        raw["kind"] = "short"
+    if not str(raw.get("expected", "")).strip():
+        raw["expected"] = "(open answer — mark on understanding)"
+    return raw
+
 
 def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk]) -> TeachingSegment:
     """Generates the next teaching segment based on the plan and current state."""
@@ -69,6 +180,7 @@ def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk
     # chunks retrieval returned.
     data["citations"] = [c.model_dump() for c in chunks]
     data["script"] = fit_script(data.get("script", ""))
+    data["question"] = normalise_question(data.get("question"), concept.id)
     return TeachingSegment.model_validate(data)
 
 def evaluate(question: Question, response: StudentResponse) -> Evaluation:
@@ -115,4 +227,5 @@ def reexplain(concept_id: str, misconception: str, attempt: int, state: SessionS
     data = generate_json(prompt)
     data["concept_id"] = concept_id
     data["script"] = fit_script(data.get("script", ""))
+    data["question"] = normalise_question(data.get("question"), concept_id)
     return TeachingSegment.model_validate(data)

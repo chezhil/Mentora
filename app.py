@@ -24,25 +24,22 @@ except Exception:
 import orchestrator as orch
 import ui
 import wiring
+from screens import classroom as classroom_screen
 from screens import path as path_screen
 from screens import quiz as quiz_screen
+from shared import languages
 from shared.models import LearnerProfile, StudentResponse
+from ui.i18n import t
 
 UPLOAD_DIR = "out/uploads"
 
-# Every language here is verified end to end: real speech, and a font that can
-# draw its script on the visuals. Do not add one without checking both — a
-# language that renders as empty boxes is worse than one we do not offer.
-LANGUAGES = {
-    "en": "English",
-    "hi": "हिन्दी / Hindi",
-    "ta": "தமிழ் / Tamil",
-    "te": "తెలుగు / Telugu",
-    "kn": "ಕನ್ನಡ / Kannada",
-    "bn": "বাংলা / Bengali",
-    "mr": "मराठी / Marathi",
-    "hinglish": "Hinglish",
-}
+# Every language Mentora offers is defined in shared/languages.py — one place
+# holding its voice, its font and its script direction, because a language
+# added to only two of those three is how we shipped Tamil that rendered as
+# empty boxes and Kannada that narrated in silence.
+LANGUAGES = {code: languages.label(code) for code in languages.codes()}
+
+ROLES = ("student", "teacher")
 
 st.set_page_config(
     page_title="Mentora — AI Teacher", page_icon="🎓", layout="wide",
@@ -54,9 +51,26 @@ st.set_page_config(
     },
 )
 
-# Frontend team styles the app through ui/style.css and .streamlit/config.toml.
-# This is the only line joining presentation to the rest of app.py.
-ui.apply_theme()
+
+
+def _lang() -> str:
+    """The language the interface is currently drawn in."""
+    return st.session_state.get("ui_lang", languages.DEFAULT)
+
+
+def _t(key: str) -> str:
+    return t(key, _lang())
+
+
+def _set_language(code: str) -> None:
+    """Switch the interface, everywhere, on the next frame.
+
+    Streamlit reruns this whole file on every interaction, so there is nothing
+    to re-render by hand: writing the code into session state is enough, and
+    the rerun below draws the entire app in the new language. That is what
+    makes the switch feel instant rather than like a page load.
+    """
+    st.session_state.ui_lang = code
 
 
 # ---------------------------------------------------------------------------
@@ -70,12 +84,23 @@ def init_state() -> None:
     st.session_state.setdefault("report", None)
     st.session_state.setdefault("last_feedback", None)
     st.session_state.setdefault("student_id", "student")
+    # The interface language, which is separate from the teaching language
+    # only until the student picks one — see _set_language().
+    st.session_state.setdefault("ui_lang", languages.DEFAULT)
+    st.session_state.setdefault("role", "student")
     st.session_state.setdefault("busy", None)
     st.session_state.setdefault("last_followup", None)
     st.session_state.setdefault("done_tokens", set())
 
 
 init_state()
+
+# Styling comes from ui/style.css and .streamlit/config.toml; this is the only
+# line joining presentation to the rest of app.py. The language goes with it so
+# Urdu and Arabic get dir="rtl" — Streamlit has no right-to-left mode of its
+# own, and an Arabic interface laid out left-to-right is not an Arabic
+# interface.
+ui.apply_theme(_lang())
 
 
 # ---------------------------------------------------------------------------
@@ -316,50 +341,49 @@ def api_panel() -> None:
 
 
 def adaptation_panel() -> None:
-    st.sidebar.header("Teacher reasoning")
+    st.sidebar.header(_t("panel.title"))
 
     session = st.session_state.session
     if session is None:
-        st.sidebar.caption("Starts once the lesson does.")
+        st.sidebar.caption(_t("panel.starts_with_lesson"))
         return
 
     panel = orch.runtime(session).panel
 
     if panel.concept_name:
-        st.sidebar.caption("Now teaching")
+        st.sidebar.caption(_t("panel.now_teaching"))
         st.sidebar.write(f"**{panel.concept_name}**")
 
     if panel.retrieved:
         pages = ", ".join(str(p) for p in panel.grounded_pages) or "—"
-        st.sidebar.caption("Grounding")
+        st.sidebar.caption(_t("panel.grounding"))
         st.sidebar.write(f"{panel.retrieved} chunks · pages {pages}")
     elif session.doc_id:
-        st.sidebar.caption("Grounding")
+        st.sidebar.caption(_t("panel.grounding"))
         st.sidebar.write("nothing relevant in the document")
 
     st.sidebar.divider()
 
     if not panel.answered:
-        st.sidebar.caption("Waiting for the first answer.")
+        st.sidebar.caption(_t("panel.waiting"))
     else:
-        st.sidebar.write(
-            f"**Answer:** {'correct' if panel.correct else 'incorrect'}"
-        )
+        verdict = _t("panel.correct") if panel.correct else _t("panel.incorrect")
+        st.sidebar.write(f"**{_t('panel.answer')}:** {verdict}")
         if panel.misconception:
-            st.sidebar.write("**Misconception**")
+            st.sidebar.write(f"**{_t('panel.misconception')}**")
             st.sidebar.warning(panel.misconception)
         if panel.action_taken:
-            line = f"**Action:** {panel.action_taken}"
+            line = f"**{_t('panel.action')}:** {panel.action_taken}"
             if panel.escalated:
                 line += f"  \n_(Pair B said {panel.action_from_pair_b}; "
                 line += f"escalated on attempt {panel.attempt})_"
             st.sidebar.write(line)
         if panel.analogy:
-            st.sidebar.write(f"**Analogy:** {panel.analogy}")
+            st.sidebar.write(f"**{_t('panel.analogy')}:** {panel.analogy}")
         if panel.difficulty:
-            st.sidebar.write(f"**Difficulty:** {panel.difficulty}")
+            st.sidebar.write(f"**{_t('panel.difficulty')}:** {panel.difficulty}")
         if panel.attempt:
-            st.sidebar.write(f"**Attempt:** {panel.attempt}")
+            st.sidebar.write(f"**{_t('panel.attempt')}:** {panel.attempt}")
 
     st.sidebar.divider()
     st.sidebar.caption("Module status")
@@ -406,25 +430,74 @@ def _asset_warning() -> None:
 # ---------------------------------------------------------------------------
 
 def screen_setup() -> None:
-    st.title("🎓 Mentora")
-    st.write("Upload your material, or just name a topic. Then say how you "
-             "want to be taught.")
+    st.title("Mentora")
+    st.write(_t("app.tagline"))
 
+    # Role and language first, above everything else, because both change what
+    # the rest of this screen says. The language one in particular: leaving it
+    # in the right-hand column meant a Tamil student read an English form all
+    # the way down before finding the control that would have translated it.
+    role_col, lang_col = st.columns([1, 1])
+    with role_col:
+        role = st.radio(
+            _t("setup.role"), ROLES, horizontal=True,
+            format_func=lambda r: _t(f"role.{r}"),
+            index=ROLES.index(st.session_state.get("role", "student")),
+            key="role_picker",
+        )
+        if role != st.session_state.get("role"):
+            st.session_state.role = role
+            st.rerun()
+    with lang_col:
+        _interface_language()
+
+    if st.session_state.role == "teacher":
+        _teacher_setup()
+        return
+
+    _student_setup()
+
+
+def _interface_language() -> None:
+    """The language picker. Changes the whole interface on the same click.
+
+    There is deliberately only ONE language control, not an interface language
+    and a teaching language. A student who reads Tamil wants to be taught in
+    Tamil; asking them to set the same thing twice is a settings screen
+    pretending to be a feature. The lesson can still be switched mid-flow from
+    the lesson screen, and that moves the interface with it.
+    """
+    codes = languages.codes()
+    current = _lang()
+    chosen = st.selectbox(
+        _t("setup.language"), codes,
+        index=codes.index(current) if current in codes else 0,
+        format_func=languages.label,
+        key="setup_language",
+    )
+    if chosen != current:
+        _set_language(chosen)
+        st.rerun()
+
+    from ui.i18n import coverage
+    done = coverage().get(chosen, 0)
+    if done < 100:
+        # Say so rather than letting a half-translated screen look like a bug.
+        st.caption(f"Interface {done}% translated — the rest falls back to English. "
+                   f"The lesson itself is fully in {languages.get(chosen).english_name}.")
+
+
+def _student_setup() -> None:
     left, right = st.columns([3, 2])
 
     with left:
         uploaded = st.file_uploader(
-            "Your material (optional)",
-            type=["pdf", "docx", "pptx", "txt"],
+            _t("setup.material"), type=["pdf", "docx", "pptx", "txt"],
         )
-        topic = st.text_input(
-            "What do you want to learn?",
-            placeholder="Ohm's Law, or Chapter 4, or React hooks",
-        )
-        goal = st.text_input("Your goal (optional)",
-                             placeholder="pass the unit test on Friday")
+        topic = st.text_input(_t("setup.topic"), placeholder=_t("setup.topic_ph"))
+        goal = st.text_input(_t("setup.goal"), placeholder=_t("setup.goal_ph"))
         student_id = st.text_input(
-            "Your name", value=st.session_state.get("student_id", "student"),
+            _t("setup.name"), value=st.session_state.get("student_id", "student"),
             help="Used to remember what you struggled with last time.",
         )
         st.session_state.student_id = student_id
@@ -433,48 +506,87 @@ def screen_setup() -> None:
         if seen:
             weak = list(dict.fromkeys(w for r in seen for w in r.weak))[:3]
             st.info(
-                f"Welcome back — {len(seen)} previous lesson"
+                f"{_t('setup.welcome_back')} — {len(seen)} previous lesson"
                 f"{'s' if len(seen) > 1 else ''}. "
                 + (f"Last time you struggled with {', '.join(weak)}."
                    if weak else "")
             )
 
     with right:
-        level = st.selectbox("Your level",
-                             ["beginner", "intermediate", "advanced"])
-        language = st.selectbox(
-            "Teach me in", list(LANGUAGES),
-            format_func=lambda code: LANGUAGES[code],
-        )
-        minutes = st.slider("Time I have (minutes)",
-                            min_value=5, max_value=60, value=20, step=1)
+        levels = ["beginner", "intermediate", "advanced"]
+        level = st.selectbox(_t("setup.level"), levels,
+                             format_func=lambda v: _t(f"level.{v}"))
+        minutes = st.slider(_t("setup.time"), min_value=5, max_value=60,
+                            value=20, step=1)
 
-    if st.button("Start lesson", type="primary",
+    if st.button(_t("setup.start"), type="primary",
                  disabled=not topic or _busy()):
-        token = f"start:{topic}:{level}:{language}:{minutes}"
-        if not _claim(token):
-            st.info("Already starting that lesson…")
-            st.stop()
-        profile = LearnerProfile(
-            level=level,
-            language=language,
-            time_minutes=minutes,
-            goal=goal or None,
-        )
-        try:
-            with st.spinner("Reading your material and planning the lesson…"):
-                session = orch.start_session(topic, profile, save_upload(uploaded),
-                                             student_id=st.session_state.student_id)
-                segment = orch.step(session)
-        except Exception as exc:
-            _release(token, completed=False)   # let them retry after fixing the key
-            st.error(_friendly(exc))
-            st.stop()
-        _release(token, completed=True)
-        st.session_state.session = session
-        st.session_state.segment = segment
-        st.session_state.phase = "lesson"
-        st.rerun()
+        _begin_lesson(topic, level, minutes, goal, uploaded)
+
+
+def _begin_lesson(topic, level, minutes, goal, uploaded) -> None:
+    """Plan the lesson and open it. Shared by the student and teacher setups."""
+    language = _lang()
+    token = f"start:{topic}:{level}:{language}:{minutes}"
+    if not _claim(token):
+        st.info("Already starting that lesson…")
+        st.stop()
+    profile = LearnerProfile(
+        level=level, language=language, time_minutes=minutes,
+        goal=goal or None,
+    )
+    try:
+        with st.spinner(_t("lesson.planning")):
+            session = orch.start_session(
+                topic, profile, save_upload(uploaded),
+                student_id=st.session_state.student_id)
+            segment = orch.step(session)
+    except Exception as exc:
+        _release(token, completed=False)   # let them retry after fixing the key
+        st.error(_friendly(exc))
+        st.stop()
+    _release(token, completed=True)
+    st.session_state.session = session
+    st.session_state.segment = segment
+    st.session_state.phase = "lesson"
+    st.rerun()
+
+
+def _teacher_setup() -> None:
+    """The teacher gets the classroom first, and lesson-building second.
+
+    Deliberate ordering. A teacher opening this app mid-term wants to know how
+    the class did, not to build another lesson; a teacher building a lesson
+    knows they are doing it and will scroll. The student's setup form is the
+    same one underneath — a teacher previewing a lesson should see exactly what
+    the class will see, not a teacher-flavoured approximation of it.
+    """
+    classroom_screen.render_classroom(_lang())
+
+    st.divider()
+    st.markdown(f"### {_t('teacher.preview')}")
+
+    left, right = st.columns([3, 2])
+    with left:
+        uploaded = st.file_uploader(
+            _t("setup.material"), type=["pdf", "docx", "pptx", "txt"],
+            key="teacher_upload")
+        topic = st.text_input(_t("setup.topic"), key="teacher_topic",
+                              placeholder=_t("setup.topic_ph"))
+    with right:
+        levels = ["beginner", "intermediate", "advanced"]
+        level = st.selectbox(_t("setup.level"), levels, key="teacher_level",
+                             format_func=lambda v: _t(f"level.{v}"))
+        minutes = st.slider(_t("setup.time"), min_value=5, max_value=60,
+                            value=20, step=1, key="teacher_minutes")
+
+    # The teacher previews as a named test student so their run does not land
+    # in the class average as if a real student had sat it.
+    st.session_state.student_id = "teacher preview"
+
+    if st.button(_t("setup.start"), type="primary",
+                 disabled=not topic or _busy(), key="teacher_start"):
+        _begin_lesson(topic, level, minutes, None, uploaded)
 
 
 # ---------------------------------------------------------------------------
@@ -487,28 +599,35 @@ def _language_switch(session) -> None:
     The brief asks for this explicitly — "now explain it in English" mid
     conversation — and the lesson has to survive it: same plan, same progress,
     same history. Pair B reads state.profile.language on every call, and
-    speak() is passed it per segment, so changing it here is enough. It takes
-    effect on the next segment rather than re-rendering the current one, which
-    would cost a Gemini call and a re-render for something the student can
-    just read.
+    speak() is passed it per segment, so changing it here is enough for the
+    teaching. It takes effect on the next segment rather than re-rendering the
+    current one, which would cost an LLM call and a re-render for something
+    the student can already read.
+
+    The INTERFACE moves at once, though, on this same click — buttons, tabs,
+    the panel, all of it. There is no reason to make someone wait a segment to
+    be able to read the Answer button.
     """
-    codes = list(LANGUAGES)
+    codes = languages.codes()
     current = session.profile.language
     index = codes.index(current) if current in codes else 0
 
     chosen = st.selectbox(
-        "Language", codes, index=index,
-        format_func=lambda c: LANGUAGES[c],
+        _t("setup.language"), codes, index=index,
+        format_func=languages.label,
         key=f"lang_switch_{session.session_id}",
         label_visibility="collapsed",
-        help="Switch mid-lesson. Applies from the next part onwards.",
+        help="Switch mid-lesson. The interface changes now; the teaching "
+             "changes from the next part onwards.",
     )
     if chosen != current:
         session.profile.language = chosen
+        _set_language(chosen)
         orch.note(session,
-                  f"Student switched the teaching language to {LANGUAGES[chosen]}.")
+                  f"Student switched the teaching language to "
+                  f"{languages.get(chosen).english_name}.")
         st.session_state.lang_note = (
-            f"Switched to {LANGUAGES[chosen]} — from the next part onwards."
+            f"{languages.label(chosen)} — from the next part onwards."
         )
         st.rerun()
 
@@ -520,12 +639,13 @@ def _followup_box(session) -> None:
     orchestrator.ask() does the retrieval, the logging and the failure
     handling; this is only the input and the reply.
     """
-    with st.expander("Ask me something about this"):
+    with st.expander(_t("lesson.ask")):
         with st.form(f"followup_{session.session_id}", clear_on_submit=True):
             question = st.text_input(
-                "Your question", label_visibility="collapsed",
-                placeholder="e.g. why does the water pipe analogy work?")
-            asked = st.form_submit_button("Ask", disabled=_busy())
+                _t("lesson.ask"), label_visibility="collapsed",
+                placeholder=_t("lesson.ask_ph"))
+            asked = st.form_submit_button(_t("lesson.ask_button"),
+                                          disabled=_busy())
 
         if asked and question.strip():
             token = f"ask:{session.session_id}:{len(session.turns)}"
@@ -533,7 +653,7 @@ def _followup_box(session) -> None:
                 st.info("Still answering your last question…")
                 st.stop()
             try:
-                with st.spinner("Thinking…"):
+                with st.spinner(_t("lesson.thinking")):
                     reply = orch.ask(session, question)
             except Exception as exc:
                 _release(token, completed=False)
@@ -546,7 +666,7 @@ def _followup_box(session) -> None:
         asked_before = st.session_state.get("last_followup")
         if asked_before:
             q, a = asked_before
-            st.caption(f"You asked: {q}")
+            st.caption(f"{_t('lesson.you_asked')}: {q}")
             st.info(a)
 
 
@@ -560,28 +680,27 @@ def screen_lesson() -> None:
     bar, lang_col = st.columns([4, 1])
     with bar:
         st.progress(done / len(plan.concepts),
-                    text=f"{plan.topic} — concept "
+                    text=f"{plan.topic} — {_t('lesson.concept')} "
                          f"{min(done + 1, len(plan.concepts))} "
-                         f"of {len(plan.concepts)}")
+                         f"{_t('lesson.of')} {len(plan.concepts)}")
     with lang_col:
         _language_switch(session)
 
     if segment is None:
-        st.success("That's the whole lesson.")
+        st.success(_t("lesson.complete"))
         if st.session_state.report is not None:
             # Already finished. Streamlit cannot switch tabs for the student,
             # so say where the report went rather than offering the button
             # again and looking like nothing happened.
-            st.info("Your report is ready — open the **Report** tab above.")
+            st.info(_t("lesson.report_ready"))
             return
-        if st.button("Finish and see my report", type="primary",
-                     disabled=_busy()):
+        if st.button(_t("lesson.finish"), type="primary", disabled=_busy()):
             token = f"finish:{session.session_id}"
             if not _claim(token):
                 st.info("Already building your report…")
                 st.stop()
             try:
-                with st.spinner("Marking the lesson…"):
+                with st.spinner(_t("lesson.marking")):
                     st.session_state.report = orch.finish(session)
             except Exception as exc:
                 _release(token, completed=False)
@@ -599,7 +718,7 @@ def screen_lesson() -> None:
         if media.video_mp4 and os.path.exists(media.video_mp4):
             st.video(media.video_mp4)
         else:
-            st.info("Avatar video pending (Pair C) — teaching as text for now.")
+            st.info(_t("lesson.no_video"))
         st.write(segment.script)
         if media.audio_wav and os.path.exists(media.audio_wav):
             st.audio(media.audio_wav)
@@ -613,14 +732,14 @@ def screen_lesson() -> None:
             st.caption(f"⚠️ {note}")
 
     if segment.citations:
-        with st.expander(f"From your material ({len(segment.citations)} passages)"):
+        with st.expander(f"{_t('lesson.from_material')} "
+                         f"({len(segment.citations)})"):
             for c in segment.citations:
                 where = f"page {c.page}" if c.page else "unknown page"
                 st.markdown(f"**{where}** · relevance {c.score:.2f}")
                 st.caption(c.text)
     elif session.doc_id:
-        st.caption("Nothing in your material covers this — taught from "
-                   "general knowledge.")
+        st.caption(_t("lesson.not_in_material"))
 
     if st.session_state.get("lang_note"):
         st.success(st.session_state.pop("lang_note"))
@@ -631,23 +750,35 @@ def screen_lesson() -> None:
         st.info(st.session_state.last_feedback)
 
     if segment.question is None:
-        if st.button("Continue", disabled=_busy()):
+        if st.button(_t("lesson.continue"), disabled=_busy()):
             _advance(session)
         return
 
-    with st.form("answer_form", clear_on_submit=True):
+    # Keyed on the question id, not a fixed string. Two questions with the
+    # same options otherwise share one widget, and the second arrives with the
+    # first one's answer already selected.
+    qid = segment.question.id
+    with st.form(f"answer_form_{qid}", clear_on_submit=True):
         st.write(f"**{segment.question.prompt}**")
         if segment.question.kind == "mcq" and segment.question.options:
-            reply = st.radio("Your answer", segment.question.options,
+            # index=None so nothing is pre-selected. With the default, pressing
+            # Answer without choosing silently submits the first option and the
+            # student is marked on a choice they never made.
+            reply = st.radio(_t("lesson.your_answer"), segment.question.options,
+                             index=None, key=f"opt_{qid}",
                              label_visibility="collapsed")
         else:
-            reply = st.text_input("Your answer", label_visibility="collapsed")
+            reply = st.text_input(_t("lesson.your_answer"), key=f"txt_{qid}",
+                                  label_visibility="collapsed")
         col_a, col_s = st.columns([1, 1])
         with col_a:
-            submitted = st.form_submit_button("Answer", type="primary",
-                                              disabled=_busy())
+            submitted = st.form_submit_button(_t("lesson.answer"),
+                                              type="primary", disabled=_busy())
         with col_s:
-            skipped = st.form_submit_button("Skip question", disabled=_busy())
+            skipped = st.form_submit_button(_t("lesson.skip"), disabled=_busy())
+
+    if submitted and not reply:
+        st.warning(_t("lesson.pick_first"))
 
     if skipped:
         token = f"skip:{session.session_id}:{segment.question.id}"
@@ -665,7 +796,7 @@ def screen_lesson() -> None:
             st.info("That answer is already being marked…")
             st.stop()
         try:
-            with st.spinner("Marking your answer…"):
+            with st.spinner(_t("lesson.marking")):
                 evaluation = orch.answer(
                     session,
                     StudentResponse(question_id=segment.question.id, answer=reply),
@@ -686,7 +817,7 @@ def _advance(session) -> None:
     if not _claim(token):
         st.stop()
     try:
-        with st.spinner("Preparing the next part…"):
+        with st.spinner(_t("lesson.preparing")):
             if rt.pending is not None or not orch.is_finished(session):
                 st.session_state.segment = orch.step(session)
             else:
@@ -706,7 +837,7 @@ def _advance(session) -> None:
 def screen_history() -> None:
     session = st.session_state.session
     if session is None:
-        st.caption("Nothing yet.")
+        st.caption(_t("history.empty"))
         return
 
     # Read back from SQLite rather than from memory — if this renders, the
@@ -722,9 +853,9 @@ def screen_history() -> None:
             pass
 
     if not turns:
-        st.caption("Nothing yet.")
+        st.caption(_t("history.empty"))
         return
-    st.caption(f"{len(turns)} turns · read from {source}")
+    st.caption(f"{len(turns)} {_t('history.turns')} · {source}")
 
     icons = {"teacher": "🎓", "student": "🙋", "system": "⚙️"}
     for turn in turns:
@@ -743,41 +874,42 @@ def screen_history() -> None:
 def screen_report() -> None:
     report = st.session_state.report
     if report is None:
-        st.caption("Finish the lesson to see your report.")
+        st.caption(_t("report.locked"))
         return
 
-    st.metric("Score", f"{report.score:.0f}%")
+    st.metric(_t("report.score"), f"{report.score:.0f}%")
 
     video = orch.lesson_video(st.session_state.session)
     if video and os.path.exists(video):
-        st.subheader("Your lesson")
+        st.subheader(_t("report.your_lesson"))
         st.video(video)
 
     left, right = st.columns(2)
     with left:
-        st.subheader("Strong")
+        st.subheader(_t("report.strong"))
         for item in report.strong or ["—"]:
             st.write(f"✅ {item}")
     with right:
-        st.subheader("Needs work")
+        st.subheader(_t("report.weak"))
         for item in report.weak or ["—"]:
             st.write(f"🔁 {item}")
 
     if report.misconceptions:
-        st.subheader("What tripped you up")
+        st.subheader(_t("report.misconceptions"))
         for item in dict.fromkeys(report.misconceptions):
             st.warning(item)
 
-    st.subheader("Revise")
+    st.subheader(_t("report.revise"))
     for item in report.revise or ["—"]:
         st.write(f"• {item}")
 
-    st.subheader("Next")
+    st.subheader(_t("report.next"))
     st.success(report.next_topic)
 
-    if st.button("Teach me something else"):
+    if st.button(_t("report.again")):
         for key in ("phase", "session", "segment", "report", "last_feedback",
-                    "busy", "done_tokens", "last_followup", "lang_note"):
+                    "busy", "done_tokens", "last_followup", "lang_note",
+                    "quiz_report"):
             st.session_state.pop(key, None)
         init_state()
         st.rerun()
@@ -794,16 +926,26 @@ else:
     # Screens live in screens/ so several people can build them at once
     # without editing this file. Each takes the session and renders; none of
     # them touch st.session_state.
-    lesson_tab, history_tab, quiz_tab, path_tab, report_tab = st.tabs(
-        ["Lesson", "History", "Quiz", "Path", "Report"]
-    )
-    with lesson_tab:
+    #
+    # The teacher gets one extra tab. It is added rather than substituted: a
+    # teacher previewing a lesson needs to see exactly the lesson the class
+    # will see, so every student tab stays exactly where it was.
+    names = ["nav.lesson", "nav.history", "nav.quiz", "nav.path", "nav.report"]
+    if st.session_state.get("role") == "teacher":
+        names.append("nav.classroom")
+
+    tabs = dict(zip(names, st.tabs([_t(n) for n in names])))
+
+    with tabs["nav.lesson"]:
         screen_lesson()
-    with history_tab:
+    with tabs["nav.history"]:
         screen_history()
-    with quiz_tab:
-        quiz_screen.render_quiz(st.session_state.session)
-    with path_tab:
-        path_screen.render_path(st.session_state.session)
-    with report_tab:
+    with tabs["nav.quiz"]:
+        quiz_screen.render_quiz(st.session_state.session, _lang())
+    with tabs["nav.path"]:
+        path_screen.render_path(st.session_state.session, _lang())
+    with tabs["nav.report"]:
         screen_report()
+    if "nav.classroom" in tabs:
+        with tabs["nav.classroom"]:
+            classroom_screen.render_classroom(_lang())

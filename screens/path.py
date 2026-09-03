@@ -1,21 +1,23 @@
-﻿"""Learning path screen. OWNER: Utkarsh. Nobody else edits this file.
+"""Learning path screen. OWNER: Utkarsh. Nobody else edits this file.
 
 Section 15 of the brief: AI-Generated Learning Path.
 Renders an ordered curriculum path for the student.
 """
 
 import streamlit as st
+
 import orchestrator as orch
+from ui.i18n import t
 
 
-def render_path(session) -> None:
+def render_path(session, lang: str = "en") -> None:
     topic = session.plan.topic if session is not None else None
     if not topic:
-        st.info("💡 Start a lesson to view the personalized learning path.")
+        st.info(t("path.locked", lang))
         return
 
-    st.subheader(f"🗺️ Learning Path: Where '{topic}' Leads")
-    st.caption("A structured step-by-step roadmap tailored to build deep subject mastery.")
+    st.subheader(f"{t('path.title', lang)}: {topic}")
+    st.caption("Foundations first, then what each step makes possible.")
 
     steps = orch.learning_path_for(topic)
     if not steps:
@@ -35,24 +37,24 @@ def render_path(session) -> None:
         is_current = (topic.lower() in title.lower() or title.lower() in topic.lower())
         
         with st.container():
-            if is_current:
-                st.markdown(
-                    f"""
-                    <div style="background-color: #0c4a6e; border-left: 5px solid #38bdf8; padding: 12px 16px; border-radius: 6px; margin-bottom: 12px;">
-                        <span style="background-color: #38bdf8; color: #082f49; font-weight: bold; padding: 2px 8px; border-radius: 12px; font-size: 0.85rem;">ACTIVE LESSON</span>
-                        <h4 style="margin: 6px 0 2px 0; color: #f0f9ff;">Step {idx}: {title}</h4>
-                        <p style="margin: 0; color: #bae6fd; font-size: 0.95rem;">{desc}</p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-            else:
-                st.markdown(
-                    f"""
-                    <div style="background-color: #1e293b; border-left: 4px solid #64748b; padding: 10px 14px; border-radius: 6px; margin-bottom: 10px;">
-                        <h4 style="margin: 0 0 2px 0; color: #f8fafc;">Step {idx}: {title}</h4>
-                        <p style="margin: 0; color: #94a3b8; font-size: 0.92rem;">{desc}</p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+            # Colours match ui/style.css: yellow marks where the student is,
+            # white for everything else, black keyline and hard shadow on both.
+            fill = "#FFD400" if is_current else "#FFFFFF"
+            here = ("<span style=\"background:#12100E;color:#F5F1E8;"
+                    "font-weight:800;padding:2px 8px;font-size:.7rem;"
+                    "letter-spacing:.08em;\">YOU ARE HERE</span><br>"
+                    if is_current else "")
+            st.markdown(
+                f"""
+                <div style="background:{fill};border:3px solid #12100E;
+                            box-shadow:5px 5px 0 #12100E;padding:12px 16px;
+                            margin-bottom:16px;">
+                    {here}
+                    <h4 style="margin:4px 0 2px 0;color:#12100E;
+                               text-transform:uppercase;letter-spacing:-0.02em;">
+                        {idx}. {title}</h4>
+                    <p style="margin:0;color:#12100E;font-size:0.95rem;">{desc}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )

@@ -42,7 +42,7 @@ def main():
     print(f"  Lang:  {lang}")
     print(f"  Hash:  {key[:16]}...")
     print(f"  Path:  {path}")
-
+    #TODO: Easter Egg haha
     key2 = make_cache_key(text, "hi")
     print(f'\n  Same text, Hindi:  hash={key2[:16]}...  (different!)')
 

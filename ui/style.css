@@ -1,109 +1,413 @@
 /* ===========================================================================
-   Mentora — visual polish.  OWNED BY THE FRONTEND TEAM.
+   Mentora — neo-brutalist interface.
    ===========================================================================
 
-   This file is pure CSS. You never write Python. Save it and the running app
-   picks it up on the next interaction.
+   THE RULES OF THIS STYLE, so that anything added later still fits:
 
-   Start with .streamlit/config.toml for colour and font — it restyles
-   everything at once. Come here for the details config.toml cannot reach.
+     1. Every surface has a 3px solid black keyline. No exceptions.
+     2. Every raised surface has a hard offset shadow: 5px 5px 0 black, no
+        blur, no opacity. Depth comes from displacement, not from softness.
+     3. border-radius is 0. Everywhere.
+     4. Colour is flat and comes from the five accents below, which are the
+        same five the rendered visuals use (renderers/design.py). A diagram
+        dropped into this page belongs to it.
+     5. Type is bold and tight. Headings are uppercase with negative tracking.
 
-   HOW TO TARGET THINGS
-   Streamlit does not give elements friendly class names. Use its data-testid
-   attributes, which are stable across releases. To find one: right click the
-   element in the browser, Inspect, and look for data-testid on it or a parent.
+   WHY THIS AND NOT A SOFT DASHBOARD LOOK: the whole product is watched, not
+   used — a judge sees a screen recording, often small and re-compressed. Thin
+   grey hairlines on a near-white card vanish at that bitrate. Black keylines
+   and flat colour survive it, and they read as deliberate rather than as a
+   default theme left untouched.
 
-   The ones you will want are listed below with a starter rule each. Every rule
-   is commented out. Uncomment and edit — do not feel obliged to use them all.
-
-   RULES OF THE ROAD
-   - Presentation only. If you find yourself needing a Python change, ask
-     Chezhil rather than editing app.py.
-   - Do not use display:none to hide anything the lesson needs. The adaptation
-     panel in particular is worth 20 marks precisely because judges can see it.
-   - Test at 1280x720. The demo is a recorded video, not a phone.
+   Streamlit gives elements data-testid attributes rather than friendly class
+   names. Those are what is targeted below; they are stable across releases.
+   Written against Streamlit 1.63.
    =========================================================================== */
+
+:root {
+    --ink: #12100E;
+    --paper: #F5F1E8;
+    --panel: #FFFFFF;
+    --muted: #6B6560;
+
+    --yellow: #FFD400;
+    --blue: #4A7DFF;
+    --red: #FF5A36;
+    --green: #00B37E;
+    --violet: #B47AFF;
+
+    --line: 3px solid var(--ink);
+    --drop: 5px 5px 0 var(--ink);
+    --drop-sm: 3px 3px 0 var(--ink);
+}
 
 
 /* --- Page shell --------------------------------------------------------- */
 
-/* Wider content column; the default leaves a lot of dead space on a 16:9 grab.
-.stAppViewContainer .stMain .stMainBlockContainer {
-    max-width: 1180px;
-    padding-top: 2rem;
+.stApp,
+.stAppViewContainer {
+    background: var(--paper);
 }
-*/
 
-/* Hide Streamlit's own header bar for a cleaner recording.
-   Keep the sidebar toggle reachable if you do this.
-[data-testid="stHeader"] { background: transparent; }
-*/
+.stAppViewContainer .stMain .stMainBlockContainer {
+    max-width: 1240px;
+    padding-top: 2.2rem;
+    padding-bottom: 4rem;
+}
+
+[data-testid="stHeader"] {
+    background: var(--paper);
+    border-bottom: var(--line);
+}
+
+/* Body copy. Streamlit's default grey-on-grey has nowhere near enough
+   contrast once a recording has been through H.264 twice. */
+.stApp, .stApp p, .stApp li, .stApp label, .stApp span {
+    color: var(--ink);
+}
+
+.stApp h1, .stApp h2, .stApp h3, .stApp h4 {
+    color: var(--ink);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    text-transform: uppercase;
+}
+
+.stApp h1 {
+    font-size: 2.9rem;
+    line-height: 1.02;
+    border-bottom: 6px solid var(--ink);
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.4rem;
+}
+
+.stApp h3 {
+    font-size: 1.25rem;
+    border-left: 10px solid var(--yellow);
+    padding-left: 0.6rem;
+}
 
 
 /* --- Sidebar: the adaptation panel lives here --------------------------- */
+/* This panel is the visible evidence that the teacher adapted, which is the
+   single largest band on the rubric. It gets the strongest treatment on the
+   page rather than the weakest. */
 
-/* [data-testid="stSidebar"] {
-    border-right: 1px solid rgba(255, 255, 255, 0.07);
+[data-testid="stSidebar"] {
+    background: var(--panel);
+    border-right: 4px solid var(--ink);
 }
-*/
 
-/* The "Teacher reasoning" heading and its fields are plain text today.
-   Making the misconception read as a callout is the single highest value
-   change on this page — it is the evidence that the teacher adapted.
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    background: var(--ink);
+    color: var(--paper) !important;
+    padding: 0.45rem 0.7rem;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+}
+
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    font-weight: 700;
+    font-size: 0.68rem;
+    color: var(--muted);
+}
+
+/* A named misconception is the proof the teacher diagnosed rather than just
+   marked. Make it unmissable. */
 [data-testid="stSidebar"] [data-testid="stAlertContainer"] {
-    border-left: 3px solid #e34a3a;
-    border-radius: 4px;
+    border: var(--line);
+    border-left: 10px solid var(--red);
+    border-radius: 0;
+    box-shadow: var(--drop-sm);
+    background: var(--panel);
 }
-*/
 
 
-/* --- Tabs ---------------------------------------------------------------- */
+/* --- Buttons ------------------------------------------------------------ */
 
-/* .stTabs [data-baseweb="tab-list"] { gap: 1.5rem; }
-.stTabs [data-baseweb="tab"] { font-weight: 600; letter-spacing: 0.01em; }
-*/
+.stButton button,
+.stFormSubmitButton button,
+.stDownloadButton button {
+    border: var(--line) !important;
+    border-radius: 0 !important;
+    box-shadow: var(--drop);
+    background: var(--panel);
+    color: var(--ink) !important;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    padding: 0.5rem 1.1rem;
+    transition: transform 0.06s ease, box-shadow 0.06s ease;
+}
+
+.stButton button[kind="primary"],
+.stFormSubmitButton button[kind="primary"] {
+    background: var(--yellow);
+}
+
+.stButton button:hover,
+.stFormSubmitButton button:hover,
+.stDownloadButton button:hover {
+    background: var(--yellow);
+    color: var(--ink) !important;
+    border-color: var(--ink) !important;
+}
+
+/* The press: the button moves into its own shadow. Costs nothing and makes
+   the whole interface feel physical. */
+.stButton button:active,
+.stFormSubmitButton button:active,
+.stDownloadButton button:active {
+    transform: translate(5px, 5px);
+    box-shadow: none;
+}
+
+.stButton button:disabled,
+.stFormSubmitButton button:disabled {
+    box-shadow: none;
+    background: #DED9CF;
+    color: var(--muted) !important;
+    transform: translate(2px, 2px);
+}
 
 
-/* --- Buttons and inputs -------------------------------------------------- */
+/* --- Inputs ------------------------------------------------------------- */
 
-/* .stButton button {
-    border-radius: 8px;
+.stTextInput input,
+.stTextArea textarea,
+.stNumberInput input,
+[data-baseweb="select"] > div {
+    border: var(--line) !important;
+    border-radius: 0 !important;
+    background: var(--panel) !important;
+    color: var(--ink) !important;
     font-weight: 600;
-    transition: transform 0.08s ease;
+    box-shadow: var(--drop-sm);
 }
-.stButton button:active { transform: translateY(1px); }
-*/
 
-/* .stTextInput input, .stTextArea textarea {
-    border-radius: 8px;
+.stTextInput input:focus,
+.stTextArea textarea:focus {
+    outline: none;
+    background: #FFFBE6 !important;
 }
-*/
+
+/* Labels above every field. Small, uppercase, and black, so the form reads as
+   a form rather than as grey suggestions. */
+.stTextInput label,
+.stSelectbox label,
+.stSlider label,
+.stRadio label,
+.stFileUploader label {
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-size: 0.72rem !important;
+    color: var(--ink) !important;
+}
+
+[data-testid="stFileUploaderDropzone"] {
+    border: 3px dashed var(--ink);
+    border-radius: 0;
+    background: var(--panel);
+}
+
+/* Answer options. These are what a student actually clicks, several times a
+   lesson, so they get to be targets rather than radio dots. */
+[data-testid="stRadio"] [role="radiogroup"] > label {
+    border: var(--line);
+    background: var(--panel);
+    box-shadow: var(--drop-sm);
+    padding: 0.55rem 0.8rem;
+    margin-bottom: 0.55rem;
+    width: 100%;
+    transition: transform 0.06s ease, box-shadow 0.06s ease, background 0.06s ease;
+}
+
+[data-testid="stRadio"] [role="radiogroup"] > label:hover {
+    background: #FFFBE6;
+}
+
+[data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked) {
+    background: var(--yellow);
+    transform: translate(3px, 3px);
+    box-shadow: none;
+}
+
+.stSlider [data-baseweb="slider"] [role="slider"] {
+    border: var(--line);
+    border-radius: 0;
+    background: var(--yellow);
+}
 
 
-/* --- The lesson ---------------------------------------------------------- */
+/* --- Tabs --------------------------------------------------------------- */
 
-/* The teaching video is the centrepiece. Give it a frame.
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0.5rem;
+    border-bottom: 4px solid var(--ink);
+    padding-bottom: 0;
+}
+
+.stTabs [data-baseweb="tab"] {
+    border: var(--line);
+    border-bottom: none;
+    background: var(--panel);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.82rem;
+    padding: 0.5rem 1rem;
+    margin-bottom: -4px;
+}
+
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    background: var(--yellow);
+}
+
+.stTabs [data-baseweb="tab-highlight"],
+.stTabs [data-baseweb="tab-border"] {
+    display: none;
+}
+
+
+/* --- Panels, alerts, expanders ------------------------------------------ */
+
+[data-testid="stAlertContainer"] {
+    border: var(--line);
+    border-radius: 0;
+    box-shadow: var(--drop-sm);
+    background: var(--panel);
+    color: var(--ink);
+}
+
+/* Each alert kind gets its own edge colour, matching the visuals' palette. */
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"])    { border-left: 10px solid var(--blue); }
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) { border-left: 10px solid var(--green); }
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]) { border-left: 10px solid var(--yellow); }
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"])   { border-left: 10px solid var(--red); }
+
+[data-testid="stExpander"] details {
+    border: var(--line);
+    border-radius: 0;
+    box-shadow: var(--drop-sm);
+    background: var(--panel);
+}
+
+[data-testid="stExpander"] summary {
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.78rem;
+}
+
+[data-testid="stForm"] {
+    border: var(--line);
+    border-radius: 0;
+    box-shadow: var(--drop);
+    background: var(--panel);
+    padding: 1.1rem;
+}
+
+
+/* --- The lesson --------------------------------------------------------- */
+
+/* The teaching video is the centrepiece of the whole submission. Frame it. */
 [data-testid="stVideo"] video {
-    border-radius: 10px;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    border: 4px solid var(--ink);
+    border-radius: 0;
+    box-shadow: 8px 8px 0 var(--ink);
+    background: var(--ink);
 }
-*/
 
-/* The rendered visual sits beside it.
 [data-testid="stImage"] img {
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: var(--line);
+    border-radius: 0;
+    box-shadow: var(--drop);
 }
-*/
 
-/* Citations ("From your material") are the proof the lesson is grounded in
-   the student's own document. Worth making legible rather than incidental.
-[data-testid="stExpander"] summary { font-weight: 600; }
-*/
+[data-testid="stAudio"] audio {
+    border: var(--line);
+    border-radius: 0;
+    width: 100%;
+}
+
+.stProgress > div > div {
+    border: var(--line);
+    border-radius: 0;
+    background: var(--panel);
+    height: 20px;
+}
+
+.stProgress > div > div > div {
+    background: var(--yellow);
+    border-radius: 0;
+    height: 100%;
+}
 
 
-/* --- Report -------------------------------------------------------------- */
+/* --- Report ------------------------------------------------------------- */
 
-/* The score is the payoff of the whole session.
-[data-testid="stMetricValue"] { font-size: 3rem; }
-*/
+[data-testid="stMetric"] {
+    border: var(--line);
+    box-shadow: var(--drop);
+    background: var(--yellow);
+    padding: 0.9rem 1.1rem;
+}
+
+[data-testid="stMetricValue"] {
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+}
+
+[data-testid="stMetricLabel"] {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 800;
+    font-size: 0.7rem;
+}
+
+hr, [data-testid="stDivider"] hr {
+    border: none;
+    border-top: 4px solid var(--ink);
+    opacity: 1;
+}
+
+code, .stCode, pre {
+    border: 2px solid var(--ink) !important;
+    border-radius: 0 !important;
+    background: var(--panel) !important;
+    color: var(--ink) !important;
+}
+
+/* The spinner is on screen for the ten seconds a lesson takes to plan, which
+   is the longest a judge waits for anything. It should look intentional. */
+[data-testid="stSpinner"] {
+    border: var(--line);
+    box-shadow: var(--drop-sm);
+    background: var(--yellow);
+    padding: 0.6rem 0.9rem;
+    font-weight: 700;
+}
+
+
+/* --- Right-to-left ------------------------------------------------------ */
+/* Urdu and Arabic. Streamlit has no RTL mode, so app.py sets dir="rtl" on the
+   app root and the layout follows from here. */
+
+[dir="rtl"] .stAppViewContainer .stMain { direction: rtl; text-align: right; }
+[dir="rtl"] .stApp h3 {
+    border-left: none;
+    border-right: 10px solid var(--yellow);
+    padding-left: 0;
+    padding-right: 0.6rem;
+}
+[dir="rtl"] [data-testid="stAlertContainer"] { border-left: var(--line); }
+/* Code and rendered visuals stay left-to-right whatever the interface does. */
+[dir="rtl"] code, [dir="rtl"] pre, [dir="rtl"] [data-testid="stImage"] {
+    direction: ltr;
+    text-align: left;
+}

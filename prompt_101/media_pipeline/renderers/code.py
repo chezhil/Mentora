@@ -7,7 +7,7 @@ import re
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch
+from matplotlib.patches import Rectangle
 
 from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI
 
@@ -187,102 +187,117 @@ def _get_color(token_type: str) -> str:
     }.get(token_type, COLOR_DEFAULT)
 
 
+# ── Layout ──────────────────────────────────────────────────────────────────
+#
+# Two bugs lived in the old layout and both are visible in any screenshot of
+# it. First, the width of a monospace character was guessed at
+# `font_size * 0.00055` axes units, which is about 16% narrower than DejaVu
+# Sans Mono actually is — so every token was drawn slightly left of where the
+# one before it ended, and `def resistance(v, i):` came out as overlapping
+# glyphs reading `def resistanc(e, i):`. Second, the line height was the whole
+# canvas divided by the number of lines, so a four-line snippet was spread out
+# with 150px between lines.
+#
+# Both are now measured rather than guessed: the character advance comes from
+# the renderer, and the line height follows the font size.
+
+EDITOR_BG = "#12100E"        # matches design.INK, so it sits in the family
+CHROME_BG = "#262320"
+GUTTER = "#7A736C"
+
+
+def _char_width(fig, ax, font_size: float) -> float:
+    """Width of one monospace character, in axes units. Measured, not guessed."""
+    probe = ax.text(0, 0, "M" * 50, fontsize=font_size, fontfamily="monospace",
+                    transform=ax.transAxes, alpha=0)
+    fig.canvas.draw()
+    box = probe.get_window_extent(fig.canvas.get_renderer())
+    probe.remove()
+    return box.width / 50.0 / fig.bbox.width
+
+
 @register("code")
 def render_code(content: str, subject: str, data: dict) -> str:
     """Render syntax-highlighted code filling the full 1280x720 canvas.
-    
+
     Data options:
     - data["language"]: programming language (default: "python")
     - data["title"]: filename/title for the title bar
     """
-    language = data.get("language", "python")
-    title = data.get("title", "Code")
+    language = str(data.get("language", "python"))
+    title = str(data.get("title") or "Code")
 
-    fig, ax = plt.subplots(1, 1, figsize=(IMAGE_WIDTH/DPI, IMAGE_HEIGHT/DPI), dpi=DPI)
-    ax.set_facecolor("#1e1e2f")
-    fig.patch.set_facecolor("#1e1e2f")
+    fig, ax = plt.subplots(1, 1, figsize=(IMAGE_WIDTH / DPI, IMAGE_HEIGHT / DPI),
+                           dpi=DPI)
+    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    ax.set_facecolor(EDITOR_BG)
+    fig.patch.set_facecolor(EDITOR_BG)
     ax.axis("off")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
 
     # ── Title bar ──
-    ax.add_patch(FancyBboxPatch((0.02, 0.93), 0.96, 0.055,
-                                boxstyle="round,pad=0.008",
-                                facecolor="#2d2d44", edgecolor="#444466",
-                                linewidth=1.5, transform=ax.transAxes))
-    # Window dots
-    for i, c in enumerate(["#ff5f56", "#ffbd2e", "#27c93f"]):
-        circle = plt.Circle((0.045 + i * 0.018, 0.9575), 0.006,
-                            facecolor=c, edgecolor="none",
-                            transform=ax.transAxes, zorder=5)
-        ax.add_patch(circle)
+    ax.add_patch(Rectangle((0, 0.925), 1, 0.075, facecolor=CHROME_BG,
+                           edgecolor="none", transform=ax.transAxes, zorder=2))
+    ax.plot([0, 1], [0.925, 0.925], color="#4A4540", linewidth=2,
+            transform=ax.transAxes, zorder=3, clip_on=False)
+    for i, colour in enumerate(["#FF5A36", "#FFD400", "#00B37E"]):
+        ax.add_patch(plt.Circle((0.022 + i * 0.020, 0.9625), 0.007,
+                                facecolor=colour, edgecolor="none",
+                                transform=ax.transAxes, zorder=4))
+    ax.text(0.095, 0.9625, title, fontsize=17, color="#E8E3DC", va="center",
+            transform=ax.transAxes, fontfamily="monospace", zorder=4)
+    ax.text(0.985, 0.9625, language, fontsize=13, color=GUTTER, va="center",
+            ha="right", transform=ax.transAxes, fontfamily="monospace", zorder=4)
 
-    ax.text(0.10, 0.9575, title, fontsize=14, color="#cccccc",
-            transform=ax.transAxes, va="center", fontfamily="monospace")
+    # ── Code ──
+    lines = str(content).replace("\t", "    ").split("\n")
+    # Drop leading and trailing blank lines; they only eat vertical room.
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    if not lines:
+        lines = ["(no code in this payload)"]
 
-    # Language tag
-    ax.text(0.95, 0.9575, language, fontsize=11, color="#888888",
-            transform=ax.transAxes, va="center", ha="right", fontfamily="monospace")
+    top, floor = 0.885, 0.055
+    room = top - floor
+    widest = max(len(line) for line in lines)
 
-    # ── Code content ──
-    code_lines = content.split("\n")
-    n_lines = len(code_lines)
-
-    # Calculate layout
-    y_start = 0.90
-    y_end = 0.04
-    available_height = y_start - y_end
-
-    # Dynamic font size: fit all lines or use max readable size
-    if n_lines <= 15:
-        font_size = 18
-        line_height = available_height / max(n_lines, 1)
-    elif n_lines <= 25:
-        font_size = 14
-        line_height = available_height / max(n_lines, 1)
-    else:
-        font_size = 12
-        line_height = min(0.035, available_height / max(n_lines, 1))
-
-    # Character width in axes units (monospace is ~0.6 * font_size in points)
-    # For 1280px wide figure at 100 DPI, 1 axes unit = 1280 pixels
-    # A monospace char at 18pt is roughly 10.8 pixels wide
-    char_width = font_size * 0.00055  # Approximate in axes coordinates
-
-    # Left margin for line numbers
-    line_num_width = 0.04  # Space for line numbers
-
-    for i, line in enumerate(code_lines):
-        y = y_start - i * line_height
-        if y < y_end:
-            # Show truncation indicator
-            ax.text(0.95, y_end + 0.01, f"... {n_lines - i} more lines",
-                    fontsize=11, color="#888888",
-                    transform=ax.transAxes, ha="right", fontfamily="monospace")
+    # Pick the largest size at which every line fits both ways, then let the
+    # line height follow from it rather than stretching to fill the canvas.
+    for font_size in (20, 18, 16, 14, 12, 10):
+        line_height = font_size * 1.62 / (IMAGE_HEIGHT / DPI * 72)
+        gutter_chars = 4
+        char_w = font_size * 0.6 * 1.39 / IMAGE_WIDTH
+        if (len(lines) * line_height <= room
+                and (widest + gutter_chars) * char_w <= 0.94):
             break
 
-        # Line number (right-aligned in its column)
-        line_num = f"{i+1:3d}"
-        ax.text(line_num_width, y, line_num, fontsize=font_size - 2,
-                color="#858585", transform=ax.transAxes, va="top",
-                fontfamily="monospace", ha="right")
+    char_w = _char_width(fig, ax, font_size)
+    x_gutter = 0.030
+    x_code = 0.052
+    y = top
 
-        # Tokenize and render the line
-        tokens = _tokenize_line(line, language)
-        x_pos = line_num_width + 0.01  # Start after line numbers
+    for i, line in enumerate(lines):
+        if y - line_height < floor:
+            ax.text(0.98, floor - 0.005, f"... {len(lines) - i} more lines",
+                    fontsize=max(11, font_size - 4), color=GUTTER,
+                    transform=ax.transAxes, ha="right", va="top",
+                    fontfamily="monospace", zorder=4)
+            break
 
-        for token_text, token_type in tokens:
-            color = _get_color(token_type)
-            ax.text(x_pos, y, token_text, fontsize=font_size, color=color,
-                    transform=ax.transAxes, va="top", fontfamily="monospace")
-            x_pos += len(token_text) * char_width
+        ax.text(x_gutter, y, f"{i + 1:2d}", fontsize=font_size - 2,
+                color=GUTTER, transform=ax.transAxes, va="top", ha="right",
+                fontfamily="monospace", zorder=4)
 
-    # ── Bottom status bar ──
-    ax.add_patch(FancyBboxPatch((0.02, 0.005), 0.96, 0.025,
-                                boxstyle="round,pad=0.003",
-                                facecolor="#2d2d44", edgecolor="none",
-                                transform=ax.transAxes))
-    ax.text(0.04, 0.0175, f"Lines: {n_lines}", fontsize=10, color="#888888",
-            transform=ax.transAxes, va="center", fontfamily="monospace")
+        x = x_code
+        for text, kind in _tokenize_line(line, language):
+            if text.strip():
+                ax.text(x, y, text, fontsize=font_size, color=_get_color(kind),
+                        transform=ax.transAxes, va="top",
+                        fontfamily="monospace", zorder=4)
+            x += len(text) * char_w
+        y -= line_height
 
     return save_figure(fig, "code")

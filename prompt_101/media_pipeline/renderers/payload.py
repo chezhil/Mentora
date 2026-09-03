@@ -17,36 +17,64 @@ Explicit data still wins; this only fills gaps.
 
 import re
 
-_ARROW = re.compile(r"\s*(?:-->|->|→|=>)\s*")
+_ARROW = re.compile(r"\s*(?:-->|->|→|=>|---|--)\s*")
 _HEADER = re.compile(r"^\s*(?:graph|flowchart|digraph)\s+\w+\s*;?\s*", re.I)
-_LABELLED = re.compile(r"^\w+\s*[\[\(\{]\s*(.+?)\s*[\]\)\}]$")
+_LABELLED = re.compile(r"^(\w+)\s*[\[\(\{]\s*(.+?)\s*[\]\)\}]$")
+
+# `A[Voltage]` anywhere in the text declares that the id A means "Voltage".
+_NODE_DEF = re.compile(r"(\w+)\s*[\[\(\{]\s*([^\[\]\(\)\{\}]+?)\s*[\]\)\}]")
+
+# Mermaid writes an edge label as `A -->|carries charge| B`.
+_EDGE_LABEL = re.compile(r"^\|\s*([^|]+?)\s*\|\s*")
 
 _SAFE_EXPR = re.compile(r"^[\w\s\.\+\-\*/\(\)\^,]+$")
 _FUNCS = ("sin", "cos", "tan", "exp", "log", "sqrt", "abs", "pi", "x")
 
 
-def _label(token: str) -> str:
-    """`A[Resistance]` -> `Resistance`; a bare word stays as it is."""
+def node_labels(content: str) -> dict[str, str]:
+    """Every `id[Label]` declaration in the payload, as {id: label}.
+
+    Mermaid names a node once and then refers to it by its bare id:
+
+        A[Voltage] --> B[Current]; C[Resistance] --> B
+
+    Without this map that last `B` is drawn as a box labelled "B" — which is
+    what the diagrams were doing, sitting in the middle of a real circuit
+    diagram as a single meaningless letter.
+    """
+    return {m.group(1): m.group(2).strip()
+            for m in _NODE_DEF.finditer(content or "")}
+
+
+def _label(token: str, known: dict[str, str] | None = None) -> str:
+    """`A[Resistance]` -> `Resistance`; a bare `A` -> whatever A was declared as."""
     token = token.strip().rstrip(";").strip()
     m = _LABELLED.match(token)
-    return (m.group(1) if m else token).strip()
+    if m:
+        return m.group(2).strip()
+    if known and token in known:
+        return known[token]
+    return token
 
 
 def parse_edges(content: str) -> list[tuple[str, str]]:
     """Pull (source, target) label pairs out of mermaid-ish text."""
     if not content:
         return []
+    known = node_labels(content)
     text = _HEADER.sub("", content.strip())
     edges: list[tuple[str, str]] = []
     for statement in re.split(r"[;\n]+", text):
         parts = [p for p in _ARROW.split(statement) if p.strip()]
         if len(parts) < 2:
             continue
-        labels = [_label(p) for p in parts]
+        # Strip any `|edge label|` the arrow left glued to the target.
+        parts = [_EDGE_LABEL.sub("", p.strip()) for p in parts]
+        labels = [_label(p, known) for p in parts]
         for a, b in zip(labels, labels[1:]):
-            if a and b:
+            if a and b and a != b:
                 edges.append((a, b))
-    return edges
+    return list(dict.fromkeys(edges))
 
 
 def parse_nodes(content: str) -> list[str]:

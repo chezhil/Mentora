@@ -1,4 +1,4 @@
-﻿"""
+"""
 U4: SQLite history persistence module.
 Stores turns and lesson reports in mentora.db.
 """
@@ -158,3 +158,52 @@ def load_history(student_id: str = "default_student") -> List[LessonReport]:
             )
         )
     return reports
+
+
+def class_summary() -> list[dict]:
+    """One row per student, for the teacher's classroom view.
+
+    Reads across every student rather than one, which load_history cannot do.
+    Returns [{student_id, lessons, average, latest_topic, weak}] newest first,
+    where `weak` is the concepts that student got wrong most often.
+    """
+    _init_db()
+    conn = _get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+    SELECT student_id, score, weak_json, misconceptions_json, next_topic,
+           created_at
+    FROM reports
+    ORDER BY id DESC
+    """)
+    rows = cur.fetchall()
+    conn.close()
+
+    by_student: dict[str, dict] = {}
+    for r in rows:
+        entry = by_student.setdefault(r["student_id"], {
+            "student_id": r["student_id"],
+            "lessons": 0,
+            "scores": [],
+            "weak": [],
+            "misconceptions": [],
+            "next_topic": r["next_topic"],
+            "last_seen": r["created_at"],
+        })
+        entry["lessons"] += 1
+        entry["scores"].append(float(r["score"]))
+        try:
+            entry["weak"].extend(json.loads(r["weak_json"]))
+            entry["misconceptions"].extend(json.loads(r["misconceptions_json"]))
+        except Exception:
+            pass
+
+    out = []
+    for entry in by_student.values():
+        scores = entry.pop("scores")
+        entry["average"] = sum(scores) / len(scores) if scores else 0.0
+        # Keep the order they were first seen in, without duplicates.
+        entry["weak"] = list(dict.fromkeys(entry["weak"]))
+        entry["misconceptions"] = list(dict.fromkeys(entry["misconceptions"]))
+        out.append(entry)
+    return sorted(out, key=lambda e: e["last_seen"], reverse=True)
