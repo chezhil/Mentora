@@ -6,6 +6,7 @@ Supports two providers:
 
 Both go behind the same speak() function. Provider is controlled by config.
 """
+import os
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -50,6 +51,25 @@ GOOGLE_VOICES = {
 }
 
 
+def _provider_order(lang: str) -> list[str]:
+    """Which backends to try, best first.
+
+    Piper is local and needs no network, so it leads wherever it has a voice.
+    Edge is free and covers every language we offer. Google is last because it
+    needs a paid account, and is skipped entirely unless configured.
+    """
+    if TTS_PROVIDER != "auto":
+        return [TTS_PROVIDER, "edge", "piper"]
+
+    order = []
+    if lang in PIPER_VOICES:
+        order.append("piper")
+    order.append("edge")
+    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        order.append("google")
+    return order
+
+
 def _resolve_provider(lang: str) -> str:
     """Determine the TTS provider for a language.
     
@@ -92,18 +112,80 @@ def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str
     if cache_path.exists():
         return str(cache_path)
     
-    # Resolve which provider to use for this language
-    provider = _resolve_provider(lang)
-    
-    # Generate speech
-    if provider == "piper":
-        path = _speak_piper(text, lang, cache_path)
-    elif provider == "google":
-        path = _speak_google(text, lang, cache_path)
-    else:
-        raise ValueError(f"Unknown TTS provider: {provider}")
-    
-    return str(path)
+    # Try providers in order and never raise: a lesson must keep going even if
+    # every backend is unavailable. Selecting Tamil used to raise ImportError
+    # here, which ended the lesson rather than degrading it.
+    backends = {
+        "piper": _speak_piper,
+        "edge": _speak_edge,
+        "google": _speak_google,
+    }
+    for name in _provider_order(lang):
+        fn = backends.get(name)
+        if fn is None:
+            continue
+        try:
+            path = fn(text, lang, cache_path)
+            if path and Path(path).exists() and Path(path).stat().st_size > 1024:
+                return str(path)
+        except Exception as exc:
+            print(f"[voice] {name} failed for {lang}: {exc}. Trying the next backend.")
+
+    print(f"[voice] no TTS backend produced audio for {lang}; using a silent "
+          f"placeholder so the lesson can continue.")
+    return str(_generate_placeholder_wav(text, cache_path))
+
+
+# ── Edge TTS ─────────────────────────────────────────────────────────────────
+#
+# Piper has no voices for Tamil or Kannada — I checked rhasspy/piper-voices
+# directly, those language directories do not exist. The routing sent them to
+# Google Cloud TTS, which needs a paid account and credentials we do not have,
+# so selecting Tamil raised ImportError in the middle of a lesson.
+#
+# Microsoft Edge's TTS is free, needs no key or account, and has neural voices
+# for every language we offer. It is used for anything Piper cannot speak, and
+# as the fallback whenever a local Piper voice is missing.
+#
+# The only cost is that it needs a network connection, where Piper does not.
+# That is why Piper still wins for the languages it covers.
+
+EDGE_VOICES = {
+    "en": "en-IN-NeerjaNeural",       # Indian English suits the audience
+    "hi": "hi-IN-SwaraNeural",
+    "ta": "ta-IN-PallaviNeural",
+    "kn": "kn-IN-SapnaNeural",
+    "te": "te-IN-ShrutiNeural",
+    "bn": "bn-IN-TanishaaNeural",
+    "mr": "mr-IN-AarohiNeural",
+    "hinglish": "hi-IN-SwaraNeural",
+}
+
+
+def _speak_edge(text: str, lang: str, output_path: Path) -> Path:
+    """Free neural TTS via Edge. Returns a WAV so the rest of the pipeline
+    (duration checks, ffmpeg mux) is unchanged."""
+    import asyncio
+    import subprocess
+
+    import edge_tts
+    import imageio_ffmpeg
+
+    voice = EDGE_VOICES.get(lang, EDGE_VOICES["en"])
+    mp3_path = output_path.with_suffix(".edge.mp3")
+
+    async def _run() -> None:
+        await edge_tts.Communicate(text, voice).save(str(mp3_path))
+
+    asyncio.run(_run())
+
+    subprocess.run(
+        [imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error",
+         "-i", str(mp3_path), "-ar", "22050", "-ac", "1", str(output_path)],
+        check=True, capture_output=True,
+    )
+    mp3_path.unlink(missing_ok=True)
+    return output_path
 
 
 # ── Piper Implementation ──

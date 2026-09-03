@@ -24,6 +24,10 @@ imageio-ffmpeg>=1.4            # NOT a system ffmpeg
 opencv-python-headless>=4.9    # FaceDetectorYN, video writing
 librosa>=0.10                  # mel spectrogram for Wav2Lip
 # Weights are NOT in the repo (436MB). See README "Avatar weights".
-piper-tts>=1.7                 # real voice; without it speak() is silent
+piper-tts>=1.7                 # local voice: en, hi, te. Offline, no key.
+edge-tts>=7.0                  # free neural voice for ta, kn, bn, mr and as
+                               # fallback everywhere. No key, needs network.
+# google-cloud-texttospeech    # optional; only used if
+                               # GOOGLE_APPLICATION_CREDENTIALS is set
 # Voice models are NOT in the repo (63MB each). See README "Voice models".
 # REPLICATE_API_TOKEN env var  # real avatar; without it it is a still image

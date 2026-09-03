@@ -27,7 +27,13 @@ curl -sL -o $D/hi_IN-pratham-medium.onnx      $B/hi/hi_IN/pratham/medium/hi_IN-p
 curl -sL -o $D/hi_IN-pratham-medium.onnx.json $B/hi/hi_IN/pratham/medium/hi_IN-pratham-medium.onnx.json
 ```
 
-Piper has no voice for Tamil, Kannada or Bengali — those need Google Cloud TTS.
+Piper has no voices for Tamil or Kannada at all, so those languages use
+edge-tts (free neural voices, no key, needs a network connection). The order
+tried per language is Piper, then edge-tts, then Google Cloud TTS if
+GOOGLE_APPLICATION_CREDENTIALS happens to be set. If every backend fails the
+lesson continues with a silent placeholder rather than stopping.
+
+Verified real speech in en, hi, ta, kn, te, bn and mr.
 
 ### Avatar weights (talking head, free — no Replicate)
 
