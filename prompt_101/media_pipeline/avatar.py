@@ -60,7 +60,11 @@ def render_avatar(audio_path: str, photo_path: str, output_path: Optional[str] =
     
     # Check API token
     if not REPLICATE_API_TOKEN:
-        print("[avatar] Warning: REPLICATE_API_TOKEN not set. Using placeholder.")
+        print("[avatar] REPLICATE_API_TOKEN not set, using a still placeholder. "
+              "This path is only a fallback — the local Wav2Lip backend "
+              "(local_avatar/) is free and needs no token. It is skipped only "
+              "when models/wav2lip_gan.pth is missing or "
+              "MENTORA_LOCAL_AVATAR=0.")
         return _create_placeholder_avatar(audio_path, cache_path)
     
     # Generate avatar video via Replicate

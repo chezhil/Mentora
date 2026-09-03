@@ -199,10 +199,19 @@ def api_panel() -> None:
     opened = st.session_state.pop("api_panel_open", False)
     with st.sidebar.expander("⚙️ APIs", expanded=opened):
         offline = os.environ.get("AI_TEACHER_MOCK") is not None
+        avatar_mod = getattr(wiring.render_avatar, "__module__", "?")
+        if avatar_mod.startswith("local_avatar"):
+            avatar_line = "🟢 local Wav2Lip (free, no account needed)"
+        elif "prompt_101" in avatar_mod:
+            avatar_line = "🟡 Replicate — needs a paid token"
+        else:
+            avatar_line = "🟡 placeholder (still image)"
+
         st.caption(
             f"Gemini key: `{_mask(llm.API_KEY)}`  \n"
             f"Model: `{llm.MODEL}`  \n"
-            f"Mode: {'🟡 offline (mock)' if offline else '🟢 live'}"
+            f"Mode: {'🟡 offline (mock)' if offline else '🟢 live'}  \n"
+            f"Avatar: {avatar_line}"
         )
 
         key = st.text_input("Gemini API key", type="password",
@@ -212,8 +221,12 @@ def api_panel() -> None:
         model = st.selectbox("Model", GEMINI_MODELS,
                              index=GEMINI_MODELS.index(llm.MODEL)
                              if llm.MODEL in GEMINI_MODELS else 0)
-        replicate = st.text_input("Replicate token (avatar)", type="password",
-                                  placeholder="optional — enables the talking head")
+        replicate = st.text_input(
+            "Replicate token", type="password",
+            placeholder="not needed — the avatar runs locally",
+            help="Only used if the local Wav2Lip weights are missing, or you "
+                 "set MENTORA_LOCAL_AVATAR=0. The local backend is free and "
+                 "needs no account.")
         new_offline = st.toggle("Offline mode (no API calls)", value=offline,
                                 help="Replays canned answers. Free, but every "
                                      "answer is marked wrong.")
