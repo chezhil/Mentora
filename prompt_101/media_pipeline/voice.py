@@ -2,7 +2,7 @@
 
 Supports two providers:
 - Piper: Local CPU-based TTS for development (free, unlimited, Indian language voices)
-- Google Cloud TTS WaveNet: High-quality TTS for final demo (free monthly allowance)
+- edge-tts: free neural voices, no key, for everything Piper cannot speak
 
 Both go behind the same speak() function. Provider is controlled by config.
 """
@@ -16,7 +16,6 @@ from .config import (
     TTS_PROVIDER,
     PIPER_BIN,
     PIPER_MODEL_DIR,
-    GOOGLE_TTS_CREDENTIALS,
 )
 from .utils import get_cached_path
 
@@ -32,60 +31,24 @@ PIPER_VOICES = {
     "hi": ("hi_IN-pratham-medium", 22050),
     "te": ("te_IN-maya-medium", 22050),
     # Piper has NO voice for Tamil, Kannada or Bengali. Those languages have
-    # to go through Google Cloud TTS (see GOOGLE_VOICES below), which is the
-    # final-demo backend anyway.
+    # to go through edge-tts, which is free and needs no key.
 }
-
-# Languages that require Google Cloud TTS (no Piper model available)
-GOOGLE_ONLY_LANGUAGES = {"ta", "kn", "bn", "mr"}
-
-# Google Cloud TTS voices
-GOOGLE_VOICES = {
-    "en": "en-US-Wavenet-D",
-    "hi": "hi-IN-Wavenet-A",
-    "ta": "ta-IN-Wavenet-A",
-    "kn": "kn-IN-Wavenet-A",
-    "te": "te-IN-Wavenet-A",
-    "bn": "bn-IN-Wavenet-A",
-    "mr": "mr-IN-Wavenet-A",
-}
-
 
 def _provider_order(lang: str) -> list[str]:
     """Which backends to try, best first.
 
-    Piper is local and needs no network, so it leads wherever it has a voice.
-    Edge is free and covers every language we offer. Google is last because it
-    needs a paid account, and is skipped entirely unless configured.
+    Piper is local and needs no network, so it leads wherever it has a voice
+    installed (en, hi, te). Edge is free, needs no key, and covers every
+    language we offer, so it takes the rest and backs up the others.
+
+    There is no third option. Google Cloud TTS was wired in but needs a paid
+    account we do not have, and selecting Tamil used to raise ImportError in
+    the middle of a lesson. Dead paths that can only fail are worse than no
+    path at all.
     """
     if TTS_PROVIDER != "auto":
         return [TTS_PROVIDER, "edge", "piper"]
-
-    order = []
-    if lang in PIPER_VOICES:
-        order.append("piper")
-    order.append("edge")
-    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-        order.append("google")
-    return order
-
-
-def _resolve_provider(lang: str) -> str:
-    """Determine the TTS provider for a language.
-    
-    When TTS_PROVIDER is "auto" (default):
-      - Languages with Piper models use "piper"
-      - Languages without Piper models (ta, kn) use "google"
-    When TTS_PROVIDER is "piper" or "google", that provider is forced.
-    
-    Returns:
-        "piper" or "google"
-    """
-    if TTS_PROVIDER == "auto":
-        if lang in GOOGLE_ONLY_LANGUAGES or lang not in PIPER_VOICES:
-            return "google"
-        return "piper"
-    return TTS_PROVIDER
+    return (["piper", "edge"] if lang in PIPER_VOICES else ["edge"])
 
 
 def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str:
@@ -115,11 +78,7 @@ def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str
     # Try providers in order and never raise: a lesson must keep going even if
     # every backend is unavailable. Selecting Tamil used to raise ImportError
     # here, which ended the lesson rather than degrading it.
-    backends = {
-        "piper": _speak_piper,
-        "edge": _speak_edge,
-        "google": _speak_google,
-    }
+    backends = {"piper": _speak_piper, "edge": _speak_edge}
     for name in _provider_order(lang):
         fn = backends.get(name)
         if fn is None:
@@ -140,8 +99,8 @@ def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str
 #
 # Piper has no voices for Tamil or Kannada — I checked rhasspy/piper-voices
 # directly, those language directories do not exist. The routing sent them to
-# Google Cloud TTS, which needs a paid account and credentials we do not have,
-# so selecting Tamil raised ImportError in the middle of a lesson.
+# Google Cloud TTS, which needed a paid account we do not have, so selecting
+# Tamil raised ImportError in the middle of a lesson. That path is gone.
 #
 # Microsoft Edge's TTS is free, needs no key or account, and has neural voices
 # for every language we offer. It is used for anything Piper cannot speak, and
@@ -250,46 +209,6 @@ def _speak_piper(text: str, lang: str, output_path: Path) -> Path:
     print(f"[voice] All Piper methods failed for {lang}. Using placeholder.")
     return _generate_placeholder_wav(text, output_path)
 
-
-# ── Google Cloud TTS Implementation ──
-
-def _speak_google(text: str, lang: str, output_path: Path) -> Path:
-    """Generate speech using Google Cloud TTS WaveNet."""
-    try:
-        from google.cloud import texttospeech
-    except ImportError:
-        raise ImportError(
-            "google-cloud-texttospeech is required for Google TTS. "
-            "Install with: pip install google-cloud-texttospeech"
-        )
-    
-    if not GOOGLE_TTS_CREDENTIALS:
-        raise ValueError(
-            "GOOGLE_APPLICATION_CREDENTIALS not set. "
-            "Set it in your environment or .env file."
-        )
-    
-    client = texttospeech.TextToSpeechClient()
-    
-    voice_name = GOOGLE_VOICES.get(lang, GOOGLE_VOICES["en"])
-    
-    synthesis_input = texttospeech.SynthesisInput(text=text)
-    voice = texttospeech.VoiceSelectionParams(
-        language_code=f"{lang}-IN" if lang != "en" else "en-US",
-        name=voice_name,
-    )
-    audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-        sample_rate_hertz=24000,
-    )
-    
-    response = client.synthesize_speech(
-        input=synthesis_input, voice=voice, audio_config=audio_config
-    )
-    
-    # Save response audio
-    output_path.write_bytes(response.audio_content)
-    return output_path
 
 
 # ── Placeholder Generator ──
