@@ -603,8 +603,20 @@ def screen_lesson() -> None:
                              label_visibility="collapsed")
         else:
             reply = st.text_input("Your answer", label_visibility="collapsed")
-        submitted = st.form_submit_button("Answer", type="primary",
-                                          disabled=_busy())
+        col_a, col_s = st.columns([1, 1])
+        with col_a:
+            submitted = st.form_submit_button("Answer", type="primary",
+                                              disabled=_busy())
+        with col_s:
+            skipped = st.form_submit_button("Skip question", disabled=_busy())
+
+    if skipped:
+        token = f"skip:{session.session_id}:{segment.question.id}"
+        if _claim(token):
+            orch.skip(session, segment.question.id)
+            _release(token, completed=True)
+            st.session_state.last_feedback = None
+            _advance(session)
 
     if submitted and reply:
         # Keyed on the question, so one question can only ever be answered once

@@ -460,6 +460,36 @@ def lesson_video(session: SessionState) -> str:
         return ""          # a failed stitch must not break the report
 
 
+def skip(session: SessionState, question_id: str) -> None:
+    """Move past a question the student does not want to answer.
+
+    Not the same as getting it wrong: no Evaluation is recorded, so a skipped
+    question does not count against the score or trigger a re-explanation. It
+    does advance the lesson, and it clears any queued re-explanation — a
+    student who skips is telling us to move on, not to try again.
+    """
+    rt = runtime(session)
+    question = rt.questions.get(question_id)
+    concept_id = question.concept_id if question else None
+
+    _log(session, "student", "(skipped this question)", concept_id)
+    _log(session, "system", "Student skipped the question; moving on.",
+         concept_id)
+
+    rt.pending = None
+    if not is_finished(session):
+        session.current_concept += 1
+
+    rt.panel = PanelState(
+        answered=True,
+        correct=None,
+        action_taken="skipped",
+        concept_name=rt.panel.concept_name,
+        retrieved=rt.panel.retrieved,
+        grounded_pages=rt.panel.grounded_pages,
+    )
+
+
 def note(session: SessionState, text: str) -> None:
     """Record a system event (a language switch, say) on the transcript."""
     _log(session, "system", text)

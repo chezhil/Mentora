@@ -98,6 +98,13 @@ def save_figure(fig, kind: str) -> str:
     filename = f"visual_{kind}_{uuid.uuid4().hex[:8]}.png"
     output_path = OUTPUT_DIR / filename
 
+    # Axis labels and titles were being clipped at the canvas edge. tight_layout
+    # reserves room for them; the output is resized to exactly 1280x720 below,
+    # so the framing is unchanged.
+    try:
+        fig.tight_layout(pad=1.4)
+    except Exception:
+        pass
     fig.savefig(output_path, dpi=DPI, facecolor=fig.get_facecolor(), edgecolor="none")
     plt.close(fig)
 
