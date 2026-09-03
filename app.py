@@ -60,6 +60,7 @@ def init_state() -> None:
     st.session_state.setdefault("last_feedback", None)
     st.session_state.setdefault("student_id", "student")
     st.session_state.setdefault("busy", None)
+    st.session_state.setdefault("last_followup", None)
     st.session_state.setdefault("done_tokens", set())
 
 
@@ -387,15 +388,90 @@ def screen_setup() -> None:
 # Screen 2 — Lesson
 # ---------------------------------------------------------------------------
 
+def _language_switch(session) -> None:
+    """Change the teaching language without restarting the lesson.
+
+    The brief asks for this explicitly — "now explain it in English" mid
+    conversation — and the lesson has to survive it: same plan, same progress,
+    same history. Pair B reads state.profile.language on every call, and
+    speak() is passed it per segment, so changing it here is enough. It takes
+    effect on the next segment rather than re-rendering the current one, which
+    would cost a Gemini call and a re-render for something the student can
+    just read.
+    """
+    codes = list(LANGUAGES)
+    current = session.profile.language
+    index = codes.index(current) if current in codes else 0
+
+    chosen = st.selectbox(
+        "Language", codes, index=index,
+        format_func=lambda c: LANGUAGES[c],
+        key=f"lang_switch_{session.session_id}",
+        label_visibility="collapsed",
+        help="Switch mid-lesson. Applies from the next part onwards.",
+    )
+    if chosen != current:
+        session.profile.language = chosen
+        orch.note(session,
+                  f"Student switched the teaching language to {LANGUAGES[chosen]}.")
+        st.session_state.lang_note = (
+            f"Switched to {LANGUAGES[chosen]} — from the next part onwards."
+        )
+        st.rerun()
+
+
+def _followup_box(session) -> None:
+    """Let the student ask their own question mid-lesson.
+
+    Task 2 of the brief: answer follow-ups while holding lesson context.
+    orchestrator.ask() does the retrieval, the logging and the failure
+    handling; this is only the input and the reply.
+    """
+    with st.expander("Ask me something about this"):
+        with st.form(f"followup_{session.session_id}", clear_on_submit=True):
+            question = st.text_input(
+                "Your question", label_visibility="collapsed",
+                placeholder="e.g. why does the water pipe analogy work?")
+            asked = st.form_submit_button("Ask", disabled=_busy())
+
+        if asked and question.strip():
+            token = f"ask:{session.session_id}:{len(session.turns)}"
+            if not _claim(token):
+                st.info("Still answering your last question…")
+                st.stop()
+            try:
+                with st.spinner("Thinking…"):
+                    reply = orch.ask(session, question)
+            except Exception as exc:
+                _release(token, completed=False)
+                st.error(_friendly(exc))
+                st.stop()
+            _release(token, completed=True)
+            st.session_state.last_followup = (question, reply)
+            st.rerun()
+
+        asked_before = st.session_state.get("last_followup")
+        if asked_before:
+            q, a = asked_before
+            st.caption(f"You asked: {q}")
+            st.info(a)
+
+
 def screen_lesson() -> None:
     session = st.session_state.session
     segment = st.session_state.segment
 
     plan = session.plan
     done = min(session.current_concept, len(plan.concepts))
-    st.progress(done / len(plan.concepts),
-                text=f"{plan.topic} — concept {min(done + 1, len(plan.concepts))} "
-                     f"of {len(plan.concepts)}")
+
+    bar, lang_col = st.columns([4, 1])
+    with bar:
+        st.progress(done / len(plan.concepts),
+                    text=f"{plan.topic} — concept "
+                         f"{min(done + 1, len(plan.concepts))} "
+                         f"of {len(plan.concepts)}")
+    with lang_col:
+        _language_switch(session)
 
     if segment is None:
         st.success("That's the whole lesson.")
@@ -452,6 +528,11 @@ def screen_lesson() -> None:
     elif session.doc_id:
         st.caption("Nothing in your material covers this — taught from "
                    "general knowledge.")
+
+    if st.session_state.get("lang_note"):
+        st.success(st.session_state.pop("lang_note"))
+
+    _followup_box(session)
 
     if st.session_state.last_feedback:
         st.info(st.session_state.last_feedback)
@@ -586,7 +667,7 @@ def screen_report() -> None:
 
     if st.button("Teach me something else"):
         for key in ("phase", "session", "segment", "report", "last_feedback",
-                    "busy", "done_tokens"):
+                    "busy", "done_tokens", "last_followup", "lang_note"):
             st.session_state.pop(key, None)
         init_state()
         st.rerun()

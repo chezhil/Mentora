@@ -437,6 +437,11 @@ def finish(session: SessionState) -> LessonReport:
 # Signatures are fixed — screens are built against them.
 # ---------------------------------------------------------------------------
 
+def note(session: SessionState, text: str) -> None:
+    """Record a system event (a language switch, say) on the transcript."""
+    _log(session, "system", text)
+
+
 def quiz_questions(session: SessionState) -> list[Question]:
     """The final quiz. Empty until finish() has run."""
     return list(runtime(session).quiz)
