@@ -8,8 +8,15 @@ pages = {
                     <h2 class="panel-title">CONFIGURE LESSON</h2>
                     <div class="panel-box">
                         <p>Upload a document (PDF/TXT) or enter a topic to begin personalized learning.</p>
-                        <input type="text" class="brutal-input" placeholder="ENTER TOPIC (e.g. Electricity)">
-                        <button class="brutal-btn action-btn" style="margin-top: 20px;">START SESSION</button>
+                        <input type="text" id="topic-input" class="brutal-input" placeholder="ENTER TOPIC (e.g. Electricity)">
+                        
+                        <p style="margin-top: 20px; font-weight: bold;">Study Material (Optional):</p>
+                        <input type="file" id="doc-upload" class="brutal-input" style="padding: 10px; cursor: pointer;">
+                        
+                        <p style="margin-top: 20px; font-weight: bold;">API Configuration:</p>
+                        <input type="password" id="api-key-input" class="brutal-input" placeholder="ENTER GEMINI API KEY">
+                        
+                        <button id="start-session-btn" class="brutal-btn action-btn" style="margin-top: 20px;">START SESSION</button>
                     </div>
                 </div>
         """
@@ -25,17 +32,17 @@ pages = {
                         </div>
                         <div class="chat-history" id="chat-history">
                             <div class="message system">
-                                <strong>SYS:</strong> TEACHING SEGMENT 1: VOLTAGE & CURRENT.
+                                <strong>SYS</strong> TEACHING SEGMENT 1: VOLTAGE & CURRENT.
                             </div>
                             <div class="message ai">
-                                <strong>MENTORA:</strong> Voltage is the push that moves the charge, like pressure in a hose. Does that make sense?
+                                <strong>MENTORA</strong> Voltage is the push that moves the charge, like pressure in a hose. Does that make sense?
                             </div>
                         </div>
                     </div>
 
                     <div class="input-area">
                         <textarea id="prompt-input" placeholder="ASK A FOLLOW-UP QUESTION..."></textarea>
-                        <button id="send-btn" class="brutal-btn action-btn">SEND</button>
+                        <button id="send-btn" class="action-btn">SEND</button>
                     </div>
                 </div>
         """
@@ -47,7 +54,7 @@ pages = {
                     <h2 class="panel-title">FINAL ASSESSMENT</h2>
                     <div class="panel-box">
                         <p><strong>Q1:</strong> If resistance increases, what happens to current?</p>
-                        <textarea class="brutal-input" placeholder="ENTER ANSWER..." style="height: 100px;"></textarea>
+                        <textarea class="brutal-input" placeholder="ENTER ANSWER..." style="height: 100px; resize: none;"></textarea>
                         <button class="brutal-btn action-btn" style="margin-top: 20px;">SUBMIT QUIZ</button>
                     </div>
                 </div>
@@ -65,7 +72,7 @@ pages = {
                         </div>
                         <div class="widget" style="margin-top: 20px;">
                             <div class="widget-title">LEARNING PATH</div>
-                            <p style="font-family: 'Space Mono', monospace; line-height: 2;">
+                            <p style="margin-top: 10px; line-height: 1.8;">
                             1. Electricity Foundation <br> 
                             2. Series & Parallel Circuits <br> 
                             3. Electromagnetism</p>
@@ -80,12 +87,12 @@ pages = {
                 <div class="panel">
                     <h2 class="panel-title">LESSON REPORT</h2>
                     <div class="panel-box">
-                        <h3>SCORE: <span style="color: var(--accent-3);">92%</span></h3>
+                        <h3>SCORE: 92%</h3>
                         <br>
                         <p><strong>STRONG AREAS:</strong> Current, Voltage</p>
                         <br>
                         <p><strong>MISCONCEPTIONS:</strong> Believes current and resistance are directly proportional.</p>
-                        <button class="brutal-btn action-btn" style="margin-top: 20px; width: auto; padding: 15px 30px;">WATCH FULL LESSON VIDEO</button>
+                        <button class="brutal-btn action-btn" style="margin-top: 20px;">WATCH FULL LESSON VIDEO</button>
                     </div>
                 </div>
         """
@@ -105,7 +112,7 @@ template = """<!DOCTYPE html>
         <!-- Header -->
         <header class="header">
             <div class="header-left">
-                <button id="hamburger-btn" class="brutal-btn hamburger">
+                <button id="hamburger-btn" class="hamburger">
                     <span class="bar"></span>
                     <span class="bar"></span>
                     <span class="bar"></span>
@@ -114,7 +121,7 @@ template = """<!DOCTYPE html>
             </div>
             <div class="header-right">
                 <div class="user-profile">USR // NAMAN</div>
-                <button id="theme-toggle" class="brutal-btn theme-btn">DARK MODE</button>
+                <button id="theme-toggle" class="theme-btn">DARK</button>
             </div>
         </header>
 
@@ -129,17 +136,6 @@ template = """<!DOCTYPE html>
                     <a href="progress.html" class="nav-btn {active_progress}">PROGRESS & ANALYTICS</a>
                     <a href="report.html" class="nav-btn {active_report}">LESSON REPORT</a>
                 </nav>
-
-                <div class="progress-widgets">
-                    <div class="widget">
-                        <div class="widget-title">TOKENS USED</div>
-                        <div class="widget-data">45,892</div>
-                    </div>
-                    <div class="widget">
-                        <div class="widget-title">TOPICS MASTERED</div>
-                        <div class="widget-data">14</div>
-                    </div>
-                </div>
             </aside>
 
             <!-- Main Features Area -->
@@ -163,5 +159,6 @@ for filename, data in pages.items():
         active_progress="active" if filename == "progress.html" else "",
         active_report="active" if filename == "report.html" else ""
     )
-    with open(os.path.join("frontend_web", filename), "w") as f:
+    # Output to the new frontend folder
+    with open(os.path.join("frontend", filename), "w", encoding="utf-8") as f:
         f.write(html_content)

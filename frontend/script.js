@@ -49,10 +49,13 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Check if we are on the setup page starting a lesson
             if(window.location.pathname.includes('index.html') || window.location.pathname === '/') {
+                const apiKeyInput = document.getElementById('api-key-input');
+                const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
+                
                 const response = await fetch('/api/start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ topic: text })
+                    body: JSON.stringify({ topic: text, api_key: apiKey })
                 });
                 const data = await response.json();
                 window.location.href = '/lesson.html';

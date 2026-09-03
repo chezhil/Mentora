@@ -27,6 +27,10 @@ async def serve_file(filename: str):
 async def start_lesson(request: Request):
     data = await request.json()
     topic = data.get("topic", "Electricity")
+    api_key = data.get("api_key")
+    
+    if api_key:
+        os.environ["GEMINI_API_KEY"] = api_key
     
     # Initialize session
     profile = LearnerProfile(

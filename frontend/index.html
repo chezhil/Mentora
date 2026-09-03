@@ -11,7 +11,7 @@
         <!-- Header -->
         <header class="header">
             <div class="header-left">
-                <button id="hamburger-btn" class="brutal-btn hamburger">
+                <button id="hamburger-btn" class="hamburger">
                     <span class="bar"></span>
                     <span class="bar"></span>
                     <span class="bar"></span>
@@ -20,7 +20,7 @@
             </div>
             <div class="header-right">
                 <div class="user-profile">USR // NAMAN</div>
-                <button id="theme-toggle" class="brutal-btn theme-btn">DARK MODE</button>
+                <button id="theme-toggle" class="theme-btn">DARK</button>
             </div>
         </header>
 
@@ -35,17 +35,6 @@
                     <a href="progress.html" class="nav-btn ">PROGRESS & ANALYTICS</a>
                     <a href="report.html" class="nav-btn ">LESSON REPORT</a>
                 </nav>
-
-                <div class="progress-widgets">
-                    <div class="widget">
-                        <div class="widget-title">TOKENS USED</div>
-                        <div class="widget-data">45,892</div>
-                    </div>
-                    <div class="widget">
-                        <div class="widget-title">TOPICS MASTERED</div>
-                        <div class="widget-data">14</div>
-                    </div>
-                </div>
             </aside>
 
             <!-- Main Features Area -->
@@ -55,8 +44,15 @@
                     <h2 class="panel-title">CONFIGURE LESSON</h2>
                     <div class="panel-box">
                         <p>Upload a document (PDF/TXT) or enter a topic to begin personalized learning.</p>
-                        <input type="text" class="brutal-input" placeholder="ENTER TOPIC (e.g. Electricity)">
-                        <button class="brutal-btn action-btn" style="margin-top: 20px;">START SESSION</button>
+                        <input type="text" id="topic-input" class="brutal-input" placeholder="ENTER TOPIC (e.g. Electricity)">
+                        
+                        <p style="margin-top: 20px; font-weight: bold;">Study Material (Optional):</p>
+                        <input type="file" id="doc-upload" class="brutal-input" style="padding: 10px; cursor: pointer;">
+                        
+                        <p style="margin-top: 20px; font-weight: bold;">API Configuration:</p>
+                        <input type="password" id="api-key-input" class="brutal-input" placeholder="ENTER GEMINI API KEY">
+                        
+                        <button id="start-session-btn" class="brutal-btn action-btn" style="margin-top: 20px;">START SESSION</button>
                     </div>
                 </div>
         
