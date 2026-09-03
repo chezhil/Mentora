@@ -94,8 +94,11 @@ def main():
 
     # 3. Compose segments (visual + audio, no avatar since we don't have a photo)
     print("\n--- Composing Video Segments ---")
-    import imageio_ffmpeg
-    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    try:
+        import imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    except ImportError:
+        ffmpeg_exe = "ffmpeg"
     import subprocess
 
     for i in range(len(segments)):

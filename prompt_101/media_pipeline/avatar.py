@@ -116,6 +116,8 @@ def _create_placeholder_avatar(audio_path: str, output_path: Path) -> Path:
     try:
         import imageio_ffmpeg
         ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    except ImportError:
+        ffmpeg_exe = "ffmpeg"
         
         duration = get_audio_duration(audio_path)
         

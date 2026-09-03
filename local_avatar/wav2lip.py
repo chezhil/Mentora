@@ -187,11 +187,15 @@ def render_avatar(audio_path: str, face_image: str) -> str:
     finally:
         writer.release()
 
-    # Mux the narration in. imageio-ffmpeg, never a system ffmpeg — the team is
-    # on three operating systems.
-    import imageio_ffmpeg
+    # Mux the narration in.
+    try:
+        import imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    except ImportError:
+        ffmpeg_exe = "ffmpeg"
+
     subprocess.run(
-        [imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error",
+        [ffmpeg_exe, "-y", "-loglevel", "error",
          "-i", str(silent), "-i", audio_path,
          "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
          "-shortest", str(final)],
