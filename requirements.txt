@@ -19,6 +19,11 @@ google-genai>=1.0              # NOT google-generativeai
 
 # Pair C — prompt_101/media_pipeline (Santosh, Hamza)
 imageio-ffmpeg>=1.4            # NOT a system ffmpeg
+
+# Local avatar (local_avatar/) — free alternative to Replicate
+opencv-python-headless>=4.9    # FaceDetectorYN, video writing
+librosa>=0.10                  # mel spectrogram for Wav2Lip
+# Weights are NOT in the repo (436MB). See README "Avatar weights".
 piper-tts>=1.7                 # real voice; without it speak() is silent
 # Voice models are NOT in the repo (63MB each). See README "Voice models".
 # REPLICATE_API_TOKEN env var  # real avatar; without it it is a still image

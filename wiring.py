@@ -147,7 +147,28 @@ _PAIR_C = ("visuals", "media", "prompt_101.media_pipeline")
 render = _adapt_render(_from_modules("render", *_PAIR_C, stub=pair_c))
 choose_visual = _from_modules("choose_visual", *_PAIR_C, stub=pair_c)
 speak = _from_modules("speak", *_PAIR_C, stub=pair_c)
-render_avatar = _from_modules("render_avatar", *_PAIR_C, stub=pair_c)
+
+
+def _resolve_avatar():
+    """Prefer the local Wav2Lip render over the paid Replicate one.
+
+    Pair C's path costs ~$0.40 per 60s render. local_avatar runs the same job
+    on this machine for nothing. It is used whenever the weights are present;
+    set MENTORA_LOCAL_AVATAR=0 to force the Replicate path, or when you want
+    fast iteration (a render is ~18s per segment, though results are cached).
+    """
+    if os.environ.get("MENTORA_LOCAL_AVATAR", "1") != "0":
+        try:
+            import local_avatar
+            if local_avatar.available():
+                _STATUS["render_avatar"] = True
+                return local_avatar.render_avatar
+        except Exception:
+            pass
+    return _from_modules("render_avatar", *_PAIR_C, stub=pair_c)
+
+
+render_avatar = _resolve_avatar()
 compose = _adapt_compose(_from_modules("compose", *_PAIR_C, stub=pair_c))
 stitch = _from_modules("stitch", *_PAIR_C, stub=pair_c)
 

@@ -29,6 +29,23 @@ curl -sL -o $D/hi_IN-pratham-medium.onnx.json $B/hi/hi_IN/pratham/medium/hi_IN-p
 
 Piper has no voice for Tamil, Kannada or Bengali — those need Google Cloud TTS.
 
+### Avatar weights (talking head, free — no Replicate)
+
+Two files, ~436MB, gitignored:
+
+```bash
+mkdir -p models
+curl -sL -o models/wav2lip_gan.pth https://huggingface.co/camenduru/Wav2Lip/resolve/main/checkpoints/wav2lip_gan.pth
+curl -sL -o models/face_detection_yunet.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
+```
+
+Wav2Lip needs a REAL front-facing photograph at `assets/teacher.jpg` — a drawn
+or stylised avatar will not register with the face detector. If detection picks
+the wrong face, or you are deliberately animating an illustration, set
+`MENTORA_FACE_BOX="x1,y1,x2,y2"` to skip detection.
+
+`MENTORA_LOCAL_AVATAR=0` forces Pair C's Replicate path instead.
+
 ### Keys
 
 | Variable | Without it |

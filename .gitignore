@@ -18,6 +18,10 @@ cache/
 .freebuff/
 
 # Models and voices — hundreds of megabytes, never commit
+models/
+*.pth
+*.pt
+*.ckpt
 voices/*.onnx
 voices/*.onnx.json
 *.onnx
