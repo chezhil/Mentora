@@ -21,6 +21,7 @@ Notes for whoever maintains this:
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import subprocess
 from pathlib import Path
@@ -130,6 +131,75 @@ def _mel_chunks(wav_path: str) -> list[np.ndarray]:
     return chunks
 
 
+# ---------------------------------------------------------------------------
+# Synthetic head motion
+#
+# Wav2Lip animates the mouth and nothing else, so the output is a photograph
+# with a moving mouth — technically correct and slightly unsettling. A slow
+# drift of the whole frame reads as a person holding still rather than a
+# freeze frame.
+#
+# Deliberately subtle. Anything you consciously notice looks worse than no
+# motion at all. The periods are mutually incommensurate so the loop never
+# visibly repeats, and the amplitude follows the speech envelope, so the head
+# settles when the teacher stops talking.
+#
+# MENTORA_HEAD_MOTION=0 turns it off.
+# ---------------------------------------------------------------------------
+
+# Amplitudes are relative to the FACE, not the frame. Scaling by frame width
+# made the motion vanish on a tightly cropped portrait: 0.27% of frame width,
+# which measured as movement and read as a freeze frame.
+ROT_DEG = 1.5          # peak rotation, degrees
+SHIFT_X = 0.030        # peak drift as a fraction of face width
+SHIFT_Y = 0.020
+SCALE_A = 0.010        # peak "lean in"
+PERIODS = (5.7, 4.3, 6.9, 8.1)   # seconds; no common multiple
+
+
+def _speech_envelope(wav_path: str, n_frames: int) -> np.ndarray:
+    """Per-frame loudness in 0..1, so motion tracks the voice."""
+    try:
+        samples = w2l_audio.load_wav(wav_path, 16000)
+    except Exception:
+        return np.ones(n_frames, dtype=np.float32)
+
+    per_frame = int(16000 / FPS)
+    env = np.zeros(n_frames, dtype=np.float32)
+    for i in range(n_frames):
+        chunk = samples[i * per_frame:(i + 1) * per_frame]
+        env[i] = float(np.sqrt(np.mean(chunk ** 2))) if len(chunk) else 0.0
+    peak = env.max()
+    if peak <= 0:
+        return np.ones(n_frames, dtype=np.float32)
+    env = env / peak
+    # Smooth, or the head jitters on every syllable.
+    kernel = np.ones(9, dtype=np.float32) / 9.0
+    env = np.convolve(env, kernel, mode="same")
+    return 0.45 + 0.55 * env          # never fully still, livelier when loud
+
+
+def _head_motion(frame: np.ndarray, i: int, amp: float,
+                 face_w: float) -> np.ndarray:
+    """One slow affine nudge. Cheap: a single warpAffine per frame."""
+    t = i / FPS
+    h, w = frame.shape[:2]
+    k = face_w                         # amplitudes are fractions of the face
+
+    p1, p2, p3, p4 = PERIODS
+    angle = ROT_DEG * amp * math.sin(2 * math.pi * t / p1)
+    dx = SHIFT_X * k * amp * math.sin(2 * math.pi * t / p2 + 1.1)
+    dy = SHIFT_Y * k * amp * math.sin(2 * math.pi * t / p3 + 2.3)
+    scale = 1.0 + SCALE_A * amp * math.sin(2 * math.pi * t / p4)
+
+    m = cv2.getRotationMatrix2D((w / 2, h / 2), angle, scale)
+    m[0, 2] += dx
+    m[1, 2] += dy
+    # Replicate the edge instead of leaving black borders as the frame drifts.
+    return cv2.warpAffine(frame, m, (w, h), flags=cv2.INTER_LINEAR,
+                          borderMode=cv2.BORDER_REPLICATE)
+
+
 def render_avatar(audio_path: str, face_image: str) -> str:
     """CONTRACT: path to a WAV and a photo, returns a talking-head MP4."""
     if not available():
@@ -158,6 +228,9 @@ def render_avatar(audio_path: str, face_image: str) -> str:
     device = _device()
     model = _load_model(device)
 
+    motion_on = os.environ.get("MENTORA_HEAD_MOTION", "1") != "0"
+    envelope = _speech_envelope(audio_path, len(chunks)) if motion_on else None
+
     silent = OUT_DIR / f"silent_{key}.mp4"
     writer = cv2.VideoWriter(str(silent), cv2.VideoWriter_fourcc(*"mp4v"),
                              FPS, (frame.shape[1], frame.shape[0]))
@@ -180,9 +253,16 @@ def render_avatar(audio_path: str, face_image: str) -> str:
                 pred = model(mel_t, img_t)
 
             pred = (pred.cpu().numpy().transpose(0, 2, 3, 1) * 255.0)
-            for mouth in pred.astype(np.uint8):
+            for j, mouth in enumerate(pred.astype(np.uint8)):
                 out = frame.copy()
                 out[y1:y2, x1:x2] = cv2.resize(mouth, (x2 - x1, y2 - y1))
+                if envelope is not None:
+                    idx = start + j
+                    out = _head_motion(
+                        out, idx,
+                        float(envelope[min(idx, len(envelope) - 1)]),
+                        float(x2 - x1),
+                    )
                 writer.write(out)
     finally:
         writer.release()
