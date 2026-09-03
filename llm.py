@@ -20,11 +20,34 @@ from google import genai
 from google.genai import types
 
 _PROVIDER_EARLY = os.environ.get("AI_TEACHER_PROVIDER", "gemini").strip().lower()
-MODEL = os.environ.get(
-    "AI_TEACHER_MODEL",
-    {"gemini": "gemini-3.6-flash", "groq": "llama-3.3-70b-versatile",
-     "ollama": "llama3.1:8b"}.get(_PROVIDER_EARLY, "gemini-3.6-flash"),
-)
+_MODEL_DEFAULTS = {
+    "gemini": "gemini-3.6-flash",
+    "groq": "openai/gpt-oss-120b",
+    "ollama": "llama3.1:8b",
+}
+_MODEL_PREFIX = {"gemini": ("gemini",)}
+
+
+def _pick_model() -> str:
+    """Honour AI_TEACHER_MODEL, but not when it belongs to another provider.
+
+    A model id left in .env from a previous provider produces a 404 that reads
+    like the provider is broken. It is not — it is the wrong model name. So a
+    mismatch falls back to the provider's default rather than failing.
+    """
+    default = _MODEL_DEFAULTS.get(_PROVIDER_EARLY, "gemini-3.6-flash")
+    wanted = os.environ.get("AI_TEACHER_MODEL", "").strip()
+    if not wanted:
+        return default
+    prefixes = _MODEL_PREFIX.get(_PROVIDER_EARLY)
+    if prefixes and not wanted.startswith(prefixes):
+        return default
+    if _PROVIDER_EARLY != "gemini" and wanted.startswith("gemini"):
+        return default
+    return wanted
+
+
+MODEL = _pick_model()
 
 # Milliseconds. One segment is a few seconds normally; 60s is generous and
 # still bounded. Override with AI_TEACHER_TIMEOUT_MS if a slow link needs it.
@@ -135,7 +158,7 @@ PROVIDER = os.environ.get("AI_TEACHER_PROVIDER", "gemini").strip().lower()
 
 DEFAULT_MODELS = {
     "gemini": "gemini-3.6-flash",
-    "groq": "llama-3.3-70b-versatile",
+    "groq": "openai/gpt-oss-120b",
     "ollama": "llama3.1:8b",
 }
 

@@ -167,8 +167,8 @@ PROVIDER_MODELS = {
     # Groq's free tier is thousands of requests a day against Gemini's 20,
     # and one lesson costs 22 — so Groq is the practical default for building
     # and rehearsing. Keep Gemini for the final recording if you prefer it.
-    "groq": ["llama-3.3-70b-versatile", "openai/gpt-oss-120b",
-             "llama-3.1-8b-instant", "openai/gpt-oss-20b"],
+    "groq": ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'groq/compound', 'groq/compound-mini', 'openai/gpt-oss-20b'],
+
     "ollama": ["llama3.1:8b", "qwen2.5:7b", "gemma2:9b"],
 }
 

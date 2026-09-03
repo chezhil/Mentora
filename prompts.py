@@ -183,7 +183,12 @@ YOUR SINGLE JOB THIS SEGMENT
    - "none"      -> no visual needed
    Pick what genuinely helps this subject. Do not use "none" every time.
    Chapter 10 of the brief is graded on subject-aware visuals.
-3. Ask a question ONLY if ASK_QUESTION is <<ASK>>. Otherwise use null.
+3. ASK_QUESTION = <<ASK>>
+   If ASK_QUESTION is True you MUST end with exactly one question, filled into
+   the "question" field. Never leave it null when ASK_QUESTION is True — the
+   lesson cannot adapt to a student who is never asked anything, and that is
+   the largest single category on the rubric.
+   If ASK_QUESTION is False, set "question" to null.
 
 RULES
 - HARD LIMIT: the script must be AT MOST 130 words. This is not a style
