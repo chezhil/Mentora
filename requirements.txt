@@ -33,3 +33,6 @@ edge-tts>=7.0                  # free neural voice for ta, kn, bn, mr and as
                                # fallback everywhere. No key, needs network.
 # Voice models are NOT in the repo (63MB each). See README "Voice models".
 # REPLICATE_API_TOKEN env var  # real avatar; without it it is a still image
+
+fastapi>=0.110.0
+uvicorn>=0.28.0

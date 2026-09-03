@@ -1,0 +1,473 @@
+@import url('https://fonts.googleapis.com/css2?family=Helvetica+Neue:wght@400;500;700&display=swap');
+
+:root {
+    /* Light Mode Variables - Skeuomorphic Gloss */
+    --bg-color: #E8ECEF; /* Metallic light gray */
+    --surface-bg: linear-gradient(to bottom, #F5F7FA, #E8ECEF);
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    
+    --panel-border: 1px solid #FFFFFF;
+    --panel-shadow: 0 10px 20px rgba(0,0,0,0.15), inset 0 1px 0 #FFFFFF;
+    
+    --btn-bg: linear-gradient(to bottom, #FFFFFF 0%, #E5E5E5 100%);
+    --btn-border: 1px solid #B3B3B3;
+    --btn-border-bottom: 2px solid #808080;
+    --btn-shadow: 0 3px 5px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,1);
+    --btn-text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+    
+    --input-bg: inset 0 3px 6px rgba(0,0,0,0.15), inset 0 1px 2px rgba(0,0,0,0.1);
+    --input-color: #F8F9FA;
+    
+    --accent-color: #2481CE;
+    --accent-gradient: linear-gradient(to bottom, #4A90E2, #1C5A96);
+}
+
+[data-theme="dark"] {
+    /* Dark Mode Variables - Pro Audio / Dark Metallic */
+    --bg-color: #242526;
+    --surface-bg: linear-gradient(to bottom, #3A3B3C, #242526);
+    --text-primary: #E4E6EB;
+    --text-secondary: #B0B3B8;
+    
+    --panel-border: 1px solid #4E4F50;
+    --panel-shadow: 0 15px 25px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+    
+    --btn-bg: linear-gradient(to bottom, #4A4B4D 0%, #2A2B2D 100%);
+    --btn-border: 1px solid #1A1A1A;
+    --btn-border-bottom: 2px solid #000000;
+    --btn-shadow: 0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+    --btn-text-shadow: 0 -1px 0 rgba(0,0,0,0.8);
+    
+    --input-bg: inset 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 3px rgba(0,0,0,0.6);
+    --input-color: #18191A;
+    
+    --accent-color: #39FF14;
+    --accent-gradient: linear-gradient(to bottom, #4CAF50, #1B5E20);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-color);
+    /* Textured background simulating subtle noise or brushed metal could go here */
+    color: var(--text-primary);
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    height: 100vh;
+    overflow: hidden;
+}
+
+input, textarea, button {
+    font-family: inherit;
+    outline: none;
+}
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: var(--surface-bg);
+    border-bottom: 1px solid rgba(0,0,0,0.3);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.2);
+    z-index: 200;
+    position: relative;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    background: transparent;
+    cursor: pointer;
+    padding: 5px;
+    border: none;
+}
+
+.hamburger .bar {
+    width: 24px;
+    height: 3px;
+    background-color: var(--text-primary);
+    border-radius: 2px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.3);
+}
+
+.logo {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-shadow: var(--btn-text-shadow);
+    letter-spacing: -0.5px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.user-profile {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-shadow: var(--btn-text-shadow);
+}
+
+/* Layout */
+.main-content {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    padding: 20px;
+    gap: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.nav-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--surface-bg);
+    border-radius: 12px;
+    padding: 20px;
+    border: var(--panel-border);
+    box-shadow: var(--panel-shadow);
+}
+
+.nav-header {
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    text-shadow: var(--btn-text-shadow);
+}
+
+/* Physical Buttons */
+.brutal-btn, .nav-btn, .theme-btn {
+    background: var(--btn-bg);
+    color: var(--text-primary);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+    text-shadow: var(--btn-text-shadow);
+    border: var(--btn-border);
+    border-bottom: var(--btn-border-bottom);
+    box-shadow: var(--btn-shadow);
+    transition: all 0.05s ease;
+}
+
+.theme-btn {
+    font-size: 0.8rem;
+    padding: 8px 16px;
+    border-radius: 20px;
+}
+
+.nav-btn {
+    text-align: left;
+}
+
+.nav-btn:hover, .brutal-btn:hover:not(.hamburger) {
+    filter: brightness(1.05);
+}
+
+.nav-btn.active {
+    background: var(--accent-gradient);
+    color: #FFFFFF;
+    text-shadow: 0 -1px 0 rgba(0,0,0,0.4);
+    border: 1px solid rgba(0,0,0,0.5);
+    border-bottom: 2px solid rgba(0,0,0,0.8);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4);
+}
+
+/* Pressed State */
+.nav-btn:active, .brutal-btn:active:not(.hamburger) {
+    transform: translateY(2px);
+    border-bottom: 1px solid rgba(0,0,0,0.5);
+    border-top: 2px solid rgba(0,0,0,0.5);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    filter: brightness(0.9);
+}
+
+.action-btn {
+    background: var(--accent-gradient);
+    color: #FFFFFF;
+    text-shadow: 0 -1px 0 rgba(0,0,0,0.4);
+    border: 1px solid rgba(0,0,0,0.5);
+    border-bottom: 2px solid rgba(0,0,0,0.8);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4);
+    text-align: center;
+}
+
+/* Progress Widgets */
+.progress-widgets {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.widget {
+    background: var(--surface-bg);
+    border-radius: 12px;
+    padding: 20px;
+    border: var(--panel-border);
+    box-shadow: var(--panel-shadow);
+}
+
+.widget-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    text-shadow: var(--btn-text-shadow);
+    margin-bottom: 8px;
+}
+
+.widget-data {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-shadow: var(--btn-text-shadow);
+}
+
+/* Panels */
+.content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.panel-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 15px;
+    text-shadow: var(--btn-text-shadow);
+}
+
+.panel-box {
+    background: var(--surface-bg);
+    border-radius: 12px;
+    padding: 30px;
+    border: var(--panel-border);
+    box-shadow: var(--panel-shadow);
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+}
+
+/* Recessed Forms / Inputs */
+.brutal-input {
+    width: 100%;
+    padding: 15px;
+    font-size: 1rem;
+    background-color: var(--input-color);
+    color: var(--text-primary);
+    border: 1px solid rgba(0,0,0,0.3);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    margin-top: 15px;
+    box-shadow: var(--input-bg);
+}
+
+.brutal-input:focus {
+    box-shadow: var(--input-bg), 0 0 8px var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+/* Active Lesson */
+.chat-interface {
+    background: var(--surface-bg);
+    border-radius: 12px;
+    border: var(--panel-border);
+    box-shadow: var(--panel-shadow);
+    overflow: hidden;
+}
+
+.lesson-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+.video-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(0,0,0,0.2);
+    background: #000; /* Looks like a turned-off screen */
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+}
+
+.video-placeholder, .visual-placeholder {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #444;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.1);
+    padding: 20px;
+    text-align: center;
+}
+
+.visual-placeholder {
+    border-top: 2px solid #222;
+    background: #111;
+}
+
+.chat-history {
+    flex: 1.5;
+    padding: 24px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background-color: var(--input-color);
+    box-shadow: var(--input-bg);
+}
+
+/* Skeuomorphic Chat Bubbles (like early iOS iMessage) */
+.message {
+    font-size: 0.95rem;
+    padding: 10px 16px;
+    border-radius: 16px;
+    max-width: 80%;
+    line-height: 1.4;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+    border: 1px solid rgba(0,0,0,0.2);
+}
+
+.message strong {
+    font-weight: 700;
+    margin-right: 5px;
+}
+
+.message.system {
+    align-self: center;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    box-shadow: none;
+    border: none;
+    text-shadow: var(--btn-text-shadow);
+}
+
+.message.ai {
+    align-self: flex-start;
+    background: linear-gradient(to bottom, #E5E5EA, #D1D1D6);
+    color: #000;
+    border-bottom-left-radius: 2px;
+}
+
+[data-theme="dark"] .message.ai {
+    background: linear-gradient(to bottom, #4A4A4A, #333333);
+    color: #FFF;
+}
+
+.message.user {
+    align-self: flex-end;
+    background: var(--accent-gradient);
+    color: #FFFFFF;
+    border-bottom-right-radius: 2px;
+    text-shadow: 0 -1px 0 rgba(0,0,0,0.2);
+}
+
+/* Input Area */
+.input-area {
+    display: flex;
+    padding: 15px;
+    background: var(--surface-bg);
+    gap: 15px;
+    border-top: 1px solid rgba(0,0,0,0.2);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+    align-items: center;
+}
+
+#prompt-input {
+    flex: 1;
+    height: 45px;
+    margin-top: 0;
+    border-radius: 22px;
+}
+
+#send-btn {
+    width: auto;
+    padding: 0 20px;
+    height: 45px;
+    border-radius: 22px;
+}
+
+/* Responsive Sidebar / Hamburger */
+@media (max-width: 1000px) {
+    .hamburger {
+        display: flex;
+    }
+    .main-content {
+        padding: 10px;
+    }
+    .sidebar {
+        position: fixed;
+        left: -320px;
+        top: 60px;
+        background: var(--surface-bg);
+        z-index: 100;
+        padding: 20px;
+        height: calc(100vh - 60px);
+        box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+        transition: left 0.3s ease;
+    }
+    .sidebar.open {
+        left: 0;
+    }
+    .lesson-layout {
+        flex-direction: column;
+    }
+    .video-container {
+        border-right: none;
+        border-bottom: 1px solid #000;
+        min-height: 250px;
+    }
+}
+EOF
