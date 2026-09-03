@@ -117,3 +117,8 @@ def compose(avatar_mp4: str, visual_png: str, audio_wav: str) -> str:
 def stitch(segment_paths: list[str]) -> str:
     """Concatenate finished segments into one lesson video."""
     return ""
+
+
+def build_lesson_video(segment_paths: list[str], title: str = "") -> str:
+    """STUB — real one is in prompt_101/media_pipeline/compositor.py (Hamza)."""
+    return stitch(segment_paths)

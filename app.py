@@ -643,6 +643,11 @@ def screen_report() -> None:
 
     st.metric("Score", f"{report.score:.0f}%")
 
+    video = orch.lesson_video(st.session_state.session)
+    if video and os.path.exists(video):
+        st.subheader("Your lesson")
+        st.video(video)
+
     left, right = st.columns(2)
     with left:
         st.subheader("Strong")

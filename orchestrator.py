@@ -28,6 +28,7 @@ TWO GAPS IN CONTRACT.txt, HANDLED HERE (Chezhil to raise with the team):
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import datetime, timezone
 
@@ -436,6 +437,28 @@ def finish(session: SessionState) -> LessonReport:
 # Runtime side-table. Each screen calls one of these and renders the result.
 # Signatures are fixed — screens are built against them.
 # ---------------------------------------------------------------------------
+
+def lesson_video(session: SessionState) -> str:
+    """One MP4 of the whole lesson, or "" if there is nothing to stitch.
+
+    Segments were being composed individually and then thrown away — Pair C's
+    build_lesson_video existed and nothing called it, so there was no single
+    video to hand over, which is the actual deliverable of the brief.
+
+    Runtime.media preserves insertion order, so segments come out in the order
+    they were taught, including re-explanations.
+    """
+    paths = [
+        m.video_mp4 for m in runtime(session).media.values()
+        if m.video_mp4 and os.path.exists(m.video_mp4)
+    ]
+    if not paths:
+        return ""
+    try:
+        return wiring.build_lesson_video(paths, session.plan.topic)
+    except Exception:
+        return ""          # a failed stitch must not break the report
+
 
 def note(session: SessionState, text: str) -> None:
     """Record a system event (a language switch, say) on the transcript."""

@@ -171,6 +171,8 @@ def _resolve_avatar():
 render_avatar = _resolve_avatar()
 compose = _adapt_compose(_from_modules("compose", *_PAIR_C, stub=pair_c))
 stitch = _from_modules("stitch", *_PAIR_C, stub=pair_c)
+build_lesson_video = _from_modules("build_lesson_video", *_PAIR_C,
+                                   stub=pair_c)
 
 # Length check before we pay for an avatar render. Theirs is named differently.
 try:
