@@ -18,6 +18,10 @@ from google import genai
 from google.genai import types
 
 MODEL = os.environ.get("AI_TEACHER_MODEL", "gemini-3.6-flash")
+
+# Milliseconds. One segment is a few seconds normally; 60s is generous and
+# still bounded. Override with AI_TEACHER_TIMEOUT_MS if a slow link needs it.
+REQUEST_TIMEOUT_MS = int(os.environ.get("AI_TEACHER_TIMEOUT_MS", "60000"))
 API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
 _client = None
@@ -61,7 +65,32 @@ def _get_client():
                 "GEMINI_API_KEY (or GOOGLE_API_KEY) and try again. "
                 "Each team member uses their own key."
             )
-        _client = genai.Client(api_key=API_KEY)
+        # A request with no timeout hangs forever. It did: the app sat on
+        # plan() with an open socket to Google, 0% CPU, and no way out but
+        # killing the server. On demo day that is fatal, so cap it.
+        _client = genai.Client(
+            api_key=API_KEY,
+            http_options=types.HttpOptions(
+                timeout=REQUEST_TIMEOUT_MS,
+                # Retry genuinely transient server errors, but NOT 429.
+                #
+                # The SDK retries 429 by default with exponential backoff. Our
+                # 429 is a DAILY quota — it will not recover in seconds, so the
+                # retries just sit there. That is what "the server got stuck
+                # after I clicked start lesson": an open socket to Google, 0%
+                # CPU, and no error, when the actual response had come back in
+                # 0.6 seconds saying the quota was gone.
+                #
+                # Excluding 429 lets it surface at once, so the app can say so
+                # and offer another key.
+                retry_options=types.HttpRetryOptions(
+                    attempts=2,
+                    initial_delay=1.0,
+                    max_delay=4.0,
+                    http_status_codes=[500, 502, 503, 504],
+                ),
+            ),
+        )
     return _client
 
 
