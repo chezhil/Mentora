@@ -1,0 +1,7 @@
+Chapter 6: Optic Reflections and Refraction
+
+Section 6.1: Reflection of Light
+Light travels in straight lines. When light strikes a polished mirror surface, it reflects according to the laws of reflection: 1. Angle of incidence equals angle of reflection. 2. Incident ray, reflected ray, and normal lie on the same plane.
+
+Section 6.2: Refraction of Light and Snell's Law
+When light passes from one transparent medium to another, it bends due to speed change. Snell's Law states that n1 * sin(theta1) = n2 * sin(theta2).
