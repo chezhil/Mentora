@@ -429,6 +429,74 @@ def finish(session: SessionState) -> LessonReport:
 
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Data access for the screens in screens/.
+#
+# These exist so a screen never has to reach into planner/, teacher/ or the
+# Runtime side-table. Each screen calls one of these and renders the result.
+# Signatures are fixed — screens are built against them.
+# ---------------------------------------------------------------------------
+
+def quiz_questions(session: SessionState) -> list[Question]:
+    """The final quiz. Empty until finish() has run."""
+    return list(runtime(session).quiz)
+
+
+def submit_quiz(session: SessionState,
+                answers: dict[str, str]) -> LessonReport:
+    """Mark the final quiz and fold it into the report.
+
+    `answers` is {question_id: answer}. Each is marked by Pair B's evaluate,
+    recorded on the session like any other answer, and the report is rebuilt so
+    the score reflects the quiz rather than only mid-lesson answers.
+    """
+    rt = runtime(session)
+    for question_id, answer in answers.items():
+        question = rt.questions.get(question_id)
+        if question is None or not str(answer).strip():
+            continue
+        response = StudentResponse(question_id=question_id, answer=answer)
+        evaluation = wiring.evaluate(question, response)
+        _log(session, "student", answer, question.concept_id)
+        _log(session, "teacher", evaluation.feedback, question.concept_id)
+        session.evaluations.append(evaluation)
+
+    report = wiring.build_report(trim_state(session))
+    _persist("save_report", session.session_id, report, rt.student_id)
+    return report
+
+
+def learning_path_for(topic: str) -> list[str]:
+    """Ordered next topics. Each entry is "Step name - why it comes here"."""
+    try:
+        return list(wiring.learning_path(topic))
+    except Exception:
+        return []
+
+
+def ask(session: SessionState, question: str) -> str:
+    """A student's own question, mid-lesson.
+
+    Retrieves against their material first so the reply can be grounded, then
+    hands both to Pair B. Never raises: a failed follow-up must not end the
+    lesson.
+    """
+    chunks = []
+    if session.doc_id and question.strip():
+        try:
+            chunks = wiring.retrieve(session.doc_id, question, RETRIEVE_K)
+        except Exception:
+            chunks = []
+
+    _log(session, "student", question)
+    try:
+        reply = wiring.answer_followup(question, trim_state(session), chunks)
+    except Exception as exc:
+        reply = f"I could not answer that just now ({type(exc).__name__}). Let's continue."
+    _log(session, "teacher", reply)
+    return reply
+
+
 def _remember_question(session: SessionState,
                        segment: TeachingSegment) -> None:
     """answer() is only given a question_id, so we keep the questions."""

@@ -214,3 +214,13 @@ def learning_path(topic: str) -> list[str]:
         f"{topic}: applications",
         f"{topic}: advanced topics",
     ]
+
+
+def answer_followup(question: str, state: SessionState,
+                    chunks: list[SourceChunk]) -> str:
+    """STUB — replaced by teacher/followup.py (Jyothi)."""
+    if state.doc_id and not chunks:
+        return ("That isn't covered by the material you uploaded, so I'd rather "
+                "not guess. Let's carry on with the lesson.")
+    return ("Good question. Short version: it follows from what we just "
+            "covered. Let's keep going and it'll make more sense.")

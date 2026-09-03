@@ -132,6 +132,8 @@ next_segment = _from_modules("next_segment", "teacher.engine", "teacher", stub=p
 evaluate = _from_modules("evaluate", "teacher.engine", "teacher", stub=pair_b)
 final_quiz = _from_modules("final_quiz", "planner.quiz", "teacher.engine", "teacher", stub=pair_b)
 build_report = _from_modules("build_report", "planner.report", "teacher.engine", "teacher", stub=pair_b)
+answer_followup = _from_modules("answer_followup", "teacher.followup",
+                                "teacher", stub=pair_b)
 reexplain = _adapt_reexplain(
     _from_modules("reexplain", "teacher.engine", "teacher", stub=pair_b)
 )

@@ -23,6 +23,8 @@ except Exception:
 
 import orchestrator as orch
 import wiring
+from screens import path as path_screen
+from screens import quiz as quiz_screen
 from shared.models import LearnerProfile, StudentResponse
 
 UPLOAD_DIR = "out/uploads"
@@ -598,12 +600,19 @@ api_panel()
 if st.session_state.phase == "setup":
     screen_setup()
 else:
-    lesson_tab, history_tab, report_tab = st.tabs(
-        ["Lesson", "History", "Report"]
+    # Screens live in screens/ so several people can build them at once
+    # without editing this file. Each takes the session and renders; none of
+    # them touch st.session_state.
+    lesson_tab, history_tab, quiz_tab, path_tab, report_tab = st.tabs(
+        ["Lesson", "History", "Quiz", "Path", "Report"]
     )
     with lesson_tab:
         screen_lesson()
     with history_tab:
         screen_history()
+    with quiz_tab:
+        quiz_screen.render_quiz(st.session_state.session)
+    with path_tab:
+        path_screen.render_path(st.session_state.session)
     with report_tab:
         screen_report()
