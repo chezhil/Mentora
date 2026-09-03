@@ -22,6 +22,7 @@ except Exception:
     pass
 
 import orchestrator as orch
+import ui
 import wiring
 from screens import path as path_screen
 from screens import quiz as quiz_screen
@@ -46,6 +47,10 @@ st.set_page_config(
                  "controls in this menu.)",
     },
 )
+
+# Frontend team styles the app through ui/style.css and .streamlit/config.toml.
+# This is the only line joining presentation to the rest of app.py.
+ui.apply_theme()
 
 
 # ---------------------------------------------------------------------------

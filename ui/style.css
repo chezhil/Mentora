@@ -1,0 +1,109 @@
+/* ===========================================================================
+   Mentora — visual polish.  OWNED BY THE FRONTEND TEAM.
+   ===========================================================================
+
+   This file is pure CSS. You never write Python. Save it and the running app
+   picks it up on the next interaction.
+
+   Start with .streamlit/config.toml for colour and font — it restyles
+   everything at once. Come here for the details config.toml cannot reach.
+
+   HOW TO TARGET THINGS
+   Streamlit does not give elements friendly class names. Use its data-testid
+   attributes, which are stable across releases. To find one: right click the
+   element in the browser, Inspect, and look for data-testid on it or a parent.
+
+   The ones you will want are listed below with a starter rule each. Every rule
+   is commented out. Uncomment and edit — do not feel obliged to use them all.
+
+   RULES OF THE ROAD
+   - Presentation only. If you find yourself needing a Python change, ask
+     Chezhil rather than editing app.py.
+   - Do not use display:none to hide anything the lesson needs. The adaptation
+     panel in particular is worth 20 marks precisely because judges can see it.
+   - Test at 1280x720. The demo is a recorded video, not a phone.
+   =========================================================================== */
+
+
+/* --- Page shell --------------------------------------------------------- */
+
+/* Wider content column; the default leaves a lot of dead space on a 16:9 grab.
+.stAppViewContainer .stMain .stMainBlockContainer {
+    max-width: 1180px;
+    padding-top: 2rem;
+}
+*/
+
+/* Hide Streamlit's own header bar for a cleaner recording.
+   Keep the sidebar toggle reachable if you do this.
+[data-testid="stHeader"] { background: transparent; }
+*/
+
+
+/* --- Sidebar: the adaptation panel lives here --------------------------- */
+
+/* [data-testid="stSidebar"] {
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+*/
+
+/* The "Teacher reasoning" heading and its fields are plain text today.
+   Making the misconception read as a callout is the single highest value
+   change on this page — it is the evidence that the teacher adapted.
+[data-testid="stSidebar"] [data-testid="stAlertContainer"] {
+    border-left: 3px solid #e34a3a;
+    border-radius: 4px;
+}
+*/
+
+
+/* --- Tabs ---------------------------------------------------------------- */
+
+/* .stTabs [data-baseweb="tab-list"] { gap: 1.5rem; }
+.stTabs [data-baseweb="tab"] { font-weight: 600; letter-spacing: 0.01em; }
+*/
+
+
+/* --- Buttons and inputs -------------------------------------------------- */
+
+/* .stButton button {
+    border-radius: 8px;
+    font-weight: 600;
+    transition: transform 0.08s ease;
+}
+.stButton button:active { transform: translateY(1px); }
+*/
+
+/* .stTextInput input, .stTextArea textarea {
+    border-radius: 8px;
+}
+*/
+
+
+/* --- The lesson ---------------------------------------------------------- */
+
+/* The teaching video is the centrepiece. Give it a frame.
+[data-testid="stVideo"] video {
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+*/
+
+/* The rendered visual sits beside it.
+[data-testid="stImage"] img {
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+*/
+
+/* Citations ("From your material") are the proof the lesson is grounded in
+   the student's own document. Worth making legible rather than incidental.
+[data-testid="stExpander"] summary { font-weight: 600; }
+*/
+
+
+/* --- Report -------------------------------------------------------------- */
+
+/* The score is the payoff of the whole session.
+[data-testid="stMetricValue"] { font-size: 3rem; }
+*/

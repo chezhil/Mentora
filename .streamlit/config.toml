@@ -1,0 +1,29 @@
+# Streamlit theme. OWNED BY THE FRONTEND TEAM.
+#
+# Changing values here restyles the whole app with no Python at all. Streamlit
+# picks this up on restart. Start here before writing any CSS — most of what a
+# judge notices (colour, contrast, font) is on this page.
+#
+# Full reference: https://docs.streamlit.io/develop/api-reference/configuration/config.toml
+
+[theme]
+base = "dark"
+
+# The accent used for buttons, sliders, progress bars, active tabs.
+primaryColor = "#e34a3a"
+
+# Page and panel backgrounds. secondary is the sidebar and input fields.
+backgroundColor = "#12141a"
+secondaryBackgroundColor = "#1c1f27"
+
+textColor = "#e8eaed"
+
+# Any font installed on the machine, or a Google Font name Streamlit knows.
+font = "sans serif"
+
+[server]
+# Keeps the demo tidy — no upload size surprises mid-recording.
+maxUploadSize = 200
+
+[browser]
+gatherUsageStats = false
