@@ -9,15 +9,22 @@ function that maps a prompt to its JSON text. Tests use this.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+from pathlib import Path
 import re
 from typing import Callable
 
 from google import genai
 from google.genai import types
 
-MODEL = os.environ.get("AI_TEACHER_MODEL", "gemini-3.6-flash")
+_PROVIDER_EARLY = os.environ.get("AI_TEACHER_PROVIDER", "gemini").strip().lower()
+MODEL = os.environ.get(
+    "AI_TEACHER_MODEL",
+    {"gemini": "gemini-3.6-flash", "groq": "llama-3.3-70b-versatile",
+     "ollama": "llama3.1:8b"}.get(_PROVIDER_EARLY, "gemini-3.6-flash"),
+)
 
 # Milliseconds. One segment is a few seconds normally; 60s is generous and
 # still bounded. Override with AI_TEACHER_TIMEOUT_MS if a slow link needs it.
@@ -39,6 +46,58 @@ def set_handler(fn: Callable[[str], str] | None) -> None:
     _handler = fn
 
 
+# ---------------------------------------------------------------------------
+# Response cache
+#
+# The free tier is 20 requests PER DAY per key per model, and one lesson costs
+# 10 to 15. Without this, rehearsing a demo twice in a day is impossible.
+#
+# Keyed on the exact prompt AND model, so editing a prompt or switching model
+# invalidates by construction — there is no stale-cache trap. A cached run
+# costs nothing and returns instantly, which also makes rehearsal pleasant.
+#
+# AI_TEACHER_CACHE=0 disables it. AI_TEACHER_CACHE=<dir> moves it.
+# ---------------------------------------------------------------------------
+
+_CACHE_SETTING = os.environ.get("AI_TEACHER_CACHE", "")
+CACHE_DIR = (
+    None if _CACHE_SETTING == "0"
+    else Path(_CACHE_SETTING or ".cache/llm")
+)
+
+
+def _cache_key(prompt: str) -> str:
+    return hashlib.sha256(f"{MODEL}\x00{prompt}".encode("utf-8")).hexdigest()[:32]
+
+
+def _cache_get(prompt: str) -> str | None:
+    if CACHE_DIR is None:
+        return None
+    f = CACHE_DIR / f"{_cache_key(prompt)}.txt"
+    try:
+        return f.read_text(encoding="utf-8")
+    except Exception:
+        return None
+
+
+def _cache_put(prompt: str, response: str) -> None:
+    if CACHE_DIR is None or not response:
+        return
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        (CACHE_DIR / f"{_cache_key(prompt)}.txt").write_text(
+            response, encoding="utf-8")
+    except Exception:
+        pass          # a cache failure must never break a lesson
+
+
+def cache_stats() -> dict:
+    """For the UI: how much of a lesson can be replayed for free."""
+    if CACHE_DIR is None or not CACHE_DIR.is_dir():
+        return {"enabled": CACHE_DIR is not None, "entries": 0}
+    return {"enabled": True, "entries": len(list(CACHE_DIR.glob("*.txt")))}
+
+
 def _mock_response(prompt: str) -> str | None:
     """Offline replay: AI_TEACHER_MOCK=<json file> maps a prompt substring
     to the JSON response the model should 'return'. Lets the contract's
@@ -54,6 +113,75 @@ def _mock_response(prompt: str) -> str | None:
         if key in prompt:
             return value if isinstance(value, str) else json.dumps(value)
     return None
+
+
+# ---------------------------------------------------------------------------
+# Provider
+#
+# Gemini's free tier is 20 requests per day, per key, per model. One lesson
+# costs 22 — measured — so a single lesson cannot finish on one key. Groq's
+# free tier is thousands a day and serves Llama 3.3 70B, which is close enough
+# in quality for teaching content and misconception naming.
+#
+#   AI_TEACHER_PROVIDER=gemini   (default) needs GEMINI_API_KEY
+#   AI_TEACHER_PROVIDER=groq               needs GROQ_API_KEY
+#   AI_TEACHER_PROVIDER=ollama             needs ollama running locally
+#
+# Groq and Ollama both speak the OpenAI API, so one client covers both. The
+# cache, the timeout and the JSON parsing are shared by every provider.
+# ---------------------------------------------------------------------------
+
+PROVIDER = os.environ.get("AI_TEACHER_PROVIDER", "gemini").strip().lower()
+
+DEFAULT_MODELS = {
+    "gemini": "gemini-3.6-flash",
+    "groq": "llama-3.3-70b-versatile",
+    "ollama": "llama3.1:8b",
+}
+
+OPENAI_BASE_URLS = {
+    "groq": "https://api.groq.com/openai/v1",
+    "ollama": os.environ.get("OLLAMA_HOST", "http://localhost:11434") + "/v1",
+}
+
+_openai_client = None
+
+
+def _openai_key() -> str:
+    if PROVIDER == "groq":
+        key = os.environ.get("GROQ_API_KEY", "")
+        if not key:
+            raise LLMError(
+                "No Groq API key found. Create a free one at "
+                "console.groq.com/keys and set GROQ_API_KEY, or paste it into "
+                "the APIs panel in the sidebar."
+            )
+        return key
+    return "ollama"          # Ollama ignores the key but the SDK wants one
+
+
+def _get_openai_client():
+    global _openai_client
+    if _openai_client is None:
+        from openai import OpenAI
+        _openai_client = OpenAI(
+            api_key=_openai_key(),
+            base_url=OPENAI_BASE_URLS[PROVIDER],
+            timeout=REQUEST_TIMEOUT_MS / 1000,
+            max_retries=1,          # a daily-quota 429 will not recover
+        )
+    return _openai_client
+
+
+def _complete_openai(prompt: str) -> str:
+    resp = _get_openai_client().chat.completions.create(
+        model=MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "json_object"},
+        temperature=0.4,
+        max_tokens=8192,
+    )
+    return resp.choices[0].message.content or ""
 
 
 def _get_client():
@@ -100,6 +228,16 @@ def _complete(prompt: str) -> str:
     replay = _mock_response(prompt)
     if replay is not None:
         return replay
+
+    cached = _cache_get(prompt)
+    if cached is not None:
+        return cached
+
+    if PROVIDER in OPENAI_BASE_URLS:
+        text = _complete_openai(prompt)
+        _cache_put(prompt, text)
+        return text
+
     resp = _get_client().models.generate_content(
         model=MODEL,
         contents=prompt,
@@ -109,6 +247,7 @@ def _complete(prompt: str) -> str:
             max_output_tokens=8192,
         ),
     )
+    _cache_put(prompt, resp.text)
     return resp.text
 
 

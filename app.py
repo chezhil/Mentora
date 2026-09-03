@@ -161,6 +161,19 @@ def save_upload(uploaded) -> str | None:
 # Free-tier quota is per-project-PER-MODEL, so switching model gives a fresh
 # daily allowance. Ordered cheapest-first: our calls are structured JSON
 # against a fixed schema, which is what Flash-Lite is built for.
+PROVIDERS = ["gemini", "groq", "ollama"]
+
+PROVIDER_MODELS = {
+    # Groq's free tier is thousands of requests a day against Gemini's 20,
+    # and one lesson costs 22 — so Groq is the practical default for building
+    # and rehearsing. Keep Gemini for the final recording if you prefer it.
+    "groq": ["llama-3.3-70b-versatile", "openai/gpt-oss-120b",
+             "llama-3.1-8b-instant", "openai/gpt-oss-20b"],
+    "ollama": ["llama3.1:8b", "qwen2.5:7b", "gemma2:9b"],
+}
+
+PROVIDER_KEY_ENV = {"gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY"}
+
 GEMINI_MODELS = [
     "gemini-2.5-flash-lite",   # ~$0.004/lesson
     "gemini-3.1-flash-lite",   # ~$0.012/lesson
@@ -219,19 +232,35 @@ def api_panel() -> None:
             f"Avatar: {avatar_line}"
         )
 
-        key = st.text_input("Gemini API key", type="password",
-                            placeholder="paste a teammate's key",
-                            help="Free tier is 20 requests/day per key. "
-                                 "One lesson costs 10-15.")
-        model = st.selectbox("Model", GEMINI_MODELS,
-                             index=GEMINI_MODELS.index(llm.MODEL)
-                             if llm.MODEL in GEMINI_MODELS else 0)
+        provider = st.selectbox(
+            "Provider", PROVIDERS,
+            index=PROVIDERS.index(llm.PROVIDER) if llm.PROVIDER in PROVIDERS else 0,
+            help="Gemini free tier is 20 requests/day and one lesson costs 22. "
+                 "Groq's free tier is thousands/day. Ollama runs locally with "
+                 "no limit at all.")
+
+        key_env = PROVIDER_KEY_ENV.get(provider)
+        key = ""
+        if key_env:
+            key = st.text_input(
+                f"{provider.title()} API key", type="password",
+                placeholder="free key from console.groq.com/keys"
+                            if provider == "groq" else "paste a key")
+        else:
+            st.caption("Ollama needs no key — just `ollama serve` running.")
+
+        models = PROVIDER_MODELS.get(provider, GEMINI_MODELS)
+        model = st.selectbox(
+            "Model", models,
+            index=models.index(llm.MODEL) if llm.MODEL in models else 0)
+
         replicate = st.text_input(
             "Replicate token", type="password",
             placeholder="not needed — the avatar runs locally",
             help="Only used if the local Wav2Lip weights are missing, or you "
                  "set MENTORA_LOCAL_AVATAR=0. The local backend is free and "
                  "needs no account.")
+
         new_offline = st.toggle("Offline mode (no API calls)", value=offline,
                                 help="Replays canned answers. Free, but every "
                                      "answer is marked wrong.")
@@ -240,11 +269,18 @@ def api_panel() -> None:
 
         if st.button("Apply", type="primary"):
             saved = {}
-            if key:
-                os.environ["GEMINI_API_KEY"] = key
-                llm.API_KEY = key
-                llm._client = None            # force a client with the new key
-                saved["GEMINI_API_KEY"] = key
+            if provider != llm.PROVIDER:
+                os.environ["AI_TEACHER_PROVIDER"] = provider
+                llm.PROVIDER = provider
+                saved["AI_TEACHER_PROVIDER"] = provider
+            if key and key_env:
+                os.environ[key_env] = key
+                if provider == "gemini":
+                    llm.API_KEY = key
+                saved[key_env] = key
+            # both clients are cached; drop them so the new choice takes effect
+            llm._client = None
+            llm._openai_client = None
             if model != llm.MODEL:
                 os.environ["AI_TEACHER_MODEL"] = model
                 llm.MODEL = model

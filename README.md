@@ -46,6 +46,28 @@ the wrong face, or you are deliberately animating an illustration, set
 
 `MENTORA_LOCAL_AVATAR=0` forces Pair C's Replicate path instead.
 
+### Which LLM provider
+
+Gemini's free tier is **20 requests per day**, per key, per model. One lesson
+costs **22** (measured), so a lesson cannot finish on a single free key.
+
+Groq's free tier is thousands per day and serves Llama 3.3 70B. Get a key at
+**https://console.groq.com/keys** — sign in with Google or GitHub, click
+*Create API Key*, copy it once (it is shown only once).
+
+Then either paste it into the ⚙️ APIs panel in the sidebar, or:
+
+```bash
+echo "AI_TEACHER_PROVIDER=groq" >> .env
+echo "GROQ_API_KEY=your-key-here" >> .env
+```
+
+`AI_TEACHER_PROVIDER` accepts `gemini`, `groq` or `ollama`. Ollama runs
+locally with no key and no limit; install it and `ollama pull llama3.1:8b`.
+
+Responses are cached in `.cache/llm` keyed on the exact prompt and model, so
+repeating a lesson costs nothing. `AI_TEACHER_CACHE=0` disables it.
+
 ### Keys
 
 | Variable | Without it |
