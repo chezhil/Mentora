@@ -10,4 +10,7 @@ output/
 cache/
 voices/*.onnx
 voices/*.onnx.json
+prompt_101/media_pipeline/piper_models/*.onnx
+prompt_101/media_pipeline/piper_models/*.onnx.json
+prompt_101/media_pipeline/piper_models/.cache/
 .freebuff/

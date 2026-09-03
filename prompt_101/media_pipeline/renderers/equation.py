@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, TEXT_COLOR, ACCENT_COLORS
+from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, TEXT_COLOR, ACCENT_COLORS, get_font_family
 
 
 @register("equation")
@@ -33,10 +33,13 @@ def render_equation(content: str, subject: str, data: dict) -> str:
 
     n_lines = len(all_lines)
 
+    lang = data.get("lang", "en")
+    font = get_font_family(lang)
+
     # Title at top
     ax.text(0.5, 0.92, "Equation", fontsize=32, fontweight="bold",
             ha="center", va="center", color=ACCENT_COLORS[0],
-            fontfamily="sans-serif")
+            fontfamily=font)
 
     # Divider line
     ax.plot([0.1, 0.9], [0.87, 0.87], color=ACCENT_COLORS[0],
@@ -58,7 +61,7 @@ def render_equation(content: str, subject: str, data: dict) -> str:
 
     # Main equation in a styled box
     ax.text(0.5, 0.65, main_eq, fontsize=main_fontsize, fontweight="bold",
-            ha="center", va="center", color=TITLE_COLOR, fontfamily="serif",
+            ha="center", va="center", color=TITLE_COLOR, fontfamily=font,
             bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
                       edgecolor=ACCENT_COLORS[0], linewidth=3, alpha=0.95))
 
@@ -81,7 +84,7 @@ def render_equation(content: str, subject: str, data: dict) -> str:
 
             ax.text(0.5, y, f"{prefix}{line}", fontsize=step_fontsize,
                     ha="center", va="center", color=TEXT_COLOR,
-                    fontfamily="sans-serif",
+                    fontfamily=font,
                     bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
                               edgecolor=color, linewidth=1.5, alpha=0.8))
 
@@ -89,6 +92,6 @@ def render_equation(content: str, subject: str, data: dict) -> str:
     if subject:
         ax.text(0.5, 0.04, subject.title(), fontsize=18,
                 ha="center", va="center", color="#888888",
-                fontfamily="sans-serif", fontstyle="italic")
+                fontfamily=font, fontstyle="italic")
 
     return save_figure(fig, "equation")

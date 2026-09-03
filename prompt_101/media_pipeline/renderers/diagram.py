@@ -15,7 +15,7 @@ try:
 except ImportError:
     HAS_NETWORKX = False
 
-from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, TEXT_COLOR, ACCENT_COLORS
+from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, TEXT_COLOR, ACCENT_COLORS, get_font_family
 
 
 @register("diagram")
@@ -33,6 +33,9 @@ def render_diagram(content: str, subject: str, data: dict) -> str:
 
 def _render_matplotlib_diagram(content: str, subject: str, data: dict) -> str:
     """Render diagram with boxes and arrows filling the full canvas."""
+    lang = data.get("lang", "en")
+    font = get_font_family(lang)
+
     fig, ax = plt.subplots(1, 1, figsize=(IMAGE_WIDTH/DPI, IMAGE_HEIGHT/DPI), dpi=DPI)
     fig.patch.set_facecolor(BG_COLOR)
     ax.set_facecolor(BG_COLOR)
@@ -42,7 +45,7 @@ def _render_matplotlib_diagram(content: str, subject: str, data: dict) -> str:
 
     # Title at top - large font
     ax.text(5, 9.3, content[:50], fontsize=32, fontweight="bold",
-            ha="center", va="center", color=TITLE_COLOR, fontfamily="sans-serif")
+            ha="center", va="center", color=TITLE_COLOR, fontfamily=font)
 
     # Divider
     ax.axhline(y=8.8, xmin=0.1, xmax=0.9, color=ACCENT_COLORS[0],
@@ -66,7 +69,7 @@ def _render_matplotlib_diagram(content: str, subject: str, data: dict) -> str:
                               linewidth=3, alpha=0.92)
         ax.add_patch(rect)
         ax.text(x, y, label, fontsize=20, ha="center", va="center",
-                color="white", fontweight="bold", fontfamily="sans-serif")
+                color="white", fontweight="bold", fontfamily=font)
 
     # Draw arrows between consecutive boxes
     for i in range(len(boxes) - 1):
@@ -85,7 +88,7 @@ def _render_matplotlib_diagram(content: str, subject: str, data: dict) -> str:
     if subject:
         ax.text(5, 0.4, subject.title(), fontsize=18,
                 ha="center", va="center", color="#888888",
-                fontfamily="sans-serif", fontstyle="italic")
+                fontfamily=font, fontstyle="italic")
 
     return save_figure(fig, "diagram")
 

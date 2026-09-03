@@ -8,7 +8,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, TEXT_COLOR, ACCENT_COLORS
+from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, TEXT_COLOR, ACCENT_COLORS, get_font_family
 
 
 @register("timeline")
@@ -18,6 +18,9 @@ def render_timeline(content: str, subject: str, data: dict) -> str:
     Data options:
     - data["events"]: list of {"year": str, "label": str}
     """
+    lang = data.get("lang", "en")
+    font = get_font_family(lang)
+
     fig, ax = plt.subplots(1, 1, figsize=(IMAGE_WIDTH/DPI, IMAGE_HEIGHT/DPI), dpi=DPI)
     fig.patch.set_facecolor(BG_COLOR)
     ax.set_facecolor(BG_COLOR)
@@ -27,7 +30,7 @@ def render_timeline(content: str, subject: str, data: dict) -> str:
 
     # Title at top - large
     ax.text(0.5, 0.92, content[:50], fontsize=32, fontweight="bold",
-            ha="center", va="center", color=TITLE_COLOR, fontfamily="sans-serif")
+            ha="center", va="center", color=TITLE_COLOR, fontfamily=font)
 
     # Divider
     ax.plot([0.05, 0.95], [0.87, 0.87], color=ACCENT_COLORS[0],
@@ -64,7 +67,7 @@ def render_timeline(content: str, subject: str, data: dict) -> str:
         year_text = event.get("year", str(i + 1))
         ax.text(x, y_line - 0.10, year_text, fontsize=22,
                 ha="center", va="top", color=color, fontweight="bold",
-                transform=ax.transAxes, fontfamily="sans-serif")
+                transform=ax.transAxes, fontfamily=font)
 
         # Event label above - large font, alternating above/below for readability
         label_text = event.get("label", f"Event {i + 1}")
@@ -78,20 +81,20 @@ def render_timeline(content: str, subject: str, data: dict) -> str:
             line2 = " ".join(words[mid:])
             ax.text(x, y_label + 0.04, line1, fontsize=18,
                     ha="center", va="bottom", color=TEXT_COLOR,
-                    transform=ax.transAxes, fontfamily="sans-serif")
+                    transform=ax.transAxes, fontfamily=font)
             ax.text(x, y_label - 0.02, line2, fontsize=18,
                     ha="center", va="bottom", color=TEXT_COLOR,
-                    transform=ax.transAxes, fontfamily="sans-serif")
+                    transform=ax.transAxes, fontfamily=font)
         else:
             ax.text(x, y_label, label_text, fontsize=20,
                     ha="center", va="bottom", color=TEXT_COLOR,
-                    transform=ax.transAxes, fontfamily="sans-serif",
+                    transform=ax.transAxes, fontfamily=font,
                     fontweight="bold")
 
     # Subject tag at bottom
     if subject:
         ax.text(0.5, 0.04, subject.title(), fontsize=18,
                 ha="center", va="center", color="#888888",
-                transform=ax.transAxes, fontfamily="sans-serif", fontstyle="italic")
+                transform=ax.transAxes, fontfamily=font, fontstyle="italic")
 
     return save_figure(fig, "timeline")

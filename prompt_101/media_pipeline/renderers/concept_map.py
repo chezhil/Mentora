@@ -13,7 +13,7 @@ try:
 except ImportError:
     HAS_NETWORKX = False
 
-from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, ACCENT_COLORS
+from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, ACCENT_COLORS, get_font_family
 
 
 @register("concept_map")
@@ -32,6 +32,9 @@ def render_concept_map(content: str, subject: str, data: dict) -> str:
 
 def _render_matplotlib_concept_map(content: str, subject: str, data: dict) -> str:
     """Render concept map with central node and satellites filling the canvas."""
+    lang = data.get("lang", "en")
+    font = get_font_family(lang)
+
     fig, ax = plt.subplots(1, 1, figsize=(IMAGE_WIDTH/DPI, IMAGE_HEIGHT/DPI), dpi=DPI)
     fig.patch.set_facecolor(BG_COLOR)
     ax.set_facecolor(BG_COLOR)
@@ -41,7 +44,7 @@ def _render_matplotlib_concept_map(content: str, subject: str, data: dict) -> st
 
     # Title at top
     ax.text(5, 9.3, content[:50], fontsize=32, fontweight="bold",
-            ha="center", va="center", color=TITLE_COLOR, fontfamily="sans-serif")
+            ha="center", va="center", color=TITLE_COLOR, fontfamily=font)
 
     # Central concept - large circle
     central = data.get("central", content[:25])
@@ -57,7 +60,7 @@ def _render_matplotlib_concept_map(content: str, subject: str, data: dict) -> st
                          alpha=0.95, edgecolor="white", linewidth=4)
     ax.add_patch(circle)
     ax.text(center_x, center_y, central, fontsize=24, ha="center", va="center",
-            color="white", fontweight="bold", fontfamily="sans-serif",
+            color="white", fontweight="bold", fontfamily=font,
             wrap=True)
 
     # Related concepts in a circle around center
@@ -77,7 +80,7 @@ def _render_matplotlib_concept_map(content: str, subject: str, data: dict) -> st
                                 edgecolor="white", linewidth=3)
         ax.add_patch(sat_circle)
         ax.text(x, y, rel, fontsize=16, ha="center", va="center",
-                color="white", fontweight="bold", fontfamily="sans-serif")
+                color="white", fontweight="bold", fontfamily=font)
 
         # Arrow from satellite to center
         arrow_len = 0.8
@@ -93,7 +96,7 @@ def _render_matplotlib_concept_map(content: str, subject: str, data: dict) -> st
     if subject:
         ax.text(5, 0.4, subject.title(), fontsize=18,
                 ha="center", va="center", color="#888888",
-                fontfamily="sans-serif", fontstyle="italic")
+                fontfamily=font, fontstyle="italic")
 
     return save_figure(fig, "concept_map")
 

@@ -8,7 +8,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, ACCENT_COLORS
+from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, ACCENT_COLORS, get_font_family
 
 
 @register("graph")
@@ -22,6 +22,9 @@ def render_graph(content: str, subject: str, data: dict) -> str:
     - data["title"]: custom title
     - data["x_label"], data["y_label"]: axis labels
     """
+    lang = data.get("lang", "en")
+    font = get_font_family(lang)
+
     fig, ax = plt.subplots(1, 1, figsize=(IMAGE_WIDTH/DPI, IMAGE_HEIGHT/DPI), dpi=DPI)
     ax.set_facecolor(BG_COLOR)
     fig.patch.set_facecolor(BG_COLOR)
@@ -75,12 +78,12 @@ def render_graph(content: str, subject: str, data: dict) -> str:
     ax.tick_params(axis="both", which="major", labelsize=tick_size, width=2, length=6)
 
     # Large axis labels
-    ax.set_xlabel(data.get("x_label", "X"), fontsize=label_size, fontweight="bold", labelpad=10)
-    ax.set_ylabel(data.get("y_label", "Y"), fontsize=label_size, fontweight="bold", labelpad=10)
+    ax.set_xlabel(data.get("x_label", "X"), fontsize=label_size, fontweight="bold", labelpad=10, fontfamily=font)
+    ax.set_ylabel(data.get("y_label", "Y"), fontsize=label_size, fontweight="bold", labelpad=10, fontfamily=font)
 
     # Title
     title = data.get("title", content[:50])
-    ax.set_title(title, fontsize=title_size, fontweight="bold", color=TITLE_COLOR, pad=20)
+    ax.set_title(title, fontsize=title_size, fontweight="bold", color=TITLE_COLOR, pad=20, fontfamily=font)
 
     # Add padding so content doesn't touch edges
     plt.subplots_adjust(left=0.08, right=0.95, top=0.90, bottom=0.10)

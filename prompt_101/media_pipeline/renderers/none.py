@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, TEXT_COLOR, ACCENT_COLORS
+from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, TEXT_COLOR, ACCENT_COLORS, get_font_family
 
 
 @register("none")
@@ -16,6 +16,9 @@ def render_none(content: str, subject: str, data: dict) -> str:
     
     This is the safety net - always succeeds.
     """
+    lang = data.get("lang", "en")
+    font = get_font_family(lang)
+
     fig, ax = plt.subplots(1, 1, figsize=(IMAGE_WIDTH/DPI, IMAGE_HEIGHT/DPI), dpi=DPI)
     ax.set_facecolor(BG_COLOR)
     fig.patch.set_facecolor(BG_COLOR)
@@ -40,13 +43,13 @@ def render_none(content: str, subject: str, data: dict) -> str:
     # Title - very large
     display_title = data.get("title", "Title Card")
     ax.text(0.5, 0.62, display_title, fontsize=44, fontweight="bold",
-            ha="center", va="center", color=TITLE_COLOR, fontfamily="sans-serif",
+            ha="center", va="center", color=TITLE_COLOR, fontfamily=font,
             transform=ax.transAxes)
 
     # Content text
     display_text = content[:80] if content else "Visual content"
     ax.text(0.5, 0.42, display_text, fontsize=24,
-            ha="center", va="center", color=TEXT_COLOR, fontfamily="sans-serif",
+            ha="center", va="center", color=TEXT_COLOR, fontfamily=font,
             transform=ax.transAxes)
 
     # Bottom decoration
@@ -57,7 +60,7 @@ def render_none(content: str, subject: str, data: dict) -> str:
     if subject:
         ax.text(0.5, 0.22, subject.title(), fontsize=20,
                 ha="center", va="center", color="#888888",
-                fontfamily="sans-serif", fontstyle="italic",
+                fontfamily=font, fontstyle="italic",
                 transform=ax.transAxes)
 
     return save_figure(fig, "placeholder")

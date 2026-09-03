@@ -2,9 +2,85 @@
 
 Each renderer is a function: (content, subject, data) -> path_to_png
 Renderers are loaded on-demand so missing dependencies don't break the package.
+
+Indic fonts (Noto Sans) are registered at import time for all 5 Indian scripts:
+Devanagari (Hindi/Marathi), Tamil, Telugu, Bengali, Kannada.
 """
 from pathlib import Path
 import uuid
+
+# ── Indic Font Registration ──
+# Register Noto Sans fonts for all 5 Indian scripts so matplotlib can render
+# Devanagari (Hindi, Marathi), Tamil, Telugu, Bengali, and Kannada text.
+_FONTS_DIR = Path(__file__).parent.parent.parent / "assets" / "fonts"
+
+# Script -> font file mapping
+_INDIC_FONTS = {
+    "devanagari": "NotoSansDevanagari-Regular.ttf",  # Hindi, Marathi
+    "tamil": "NotoSansTamil-Regular.ttf",
+    "telugu": "NotoSansTelugu-Regular.ttf",
+    "bengali": "NotoSansBengali-Regular.ttf",
+    "kannada": "NotoSansKannada-Regular.ttf",
+    "latin": "NotoSans-Regular.ttf",  # English fallback
+}
+
+# Language code -> script mapping
+_LANG_TO_SCRIPT = {
+    "en": "latin",
+    "hi": "devanagari",
+    "mr": "devanagari",
+    "ta": "tamil",
+    "te": "telugu",
+    "bn": "bengali",
+    "kn": "kannada",
+}
+
+# Registered font families (populated at module load)
+_INDIC_FONT_FAMILIES = {}
+
+def _register_indic_fonts():
+    """Register Noto Sans Indic fonts with matplotlib."""
+    import matplotlib.font_manager as fm
+
+    for script, font_file in _INDIC_FONTS.items():
+        font_path = _FONTS_DIR / font_file
+        if font_path.exists():
+            try:
+                fm.fontManager.addfont(str(font_path))
+                prop = fm.FontProperties(fname=str(font_path))
+                family = prop.get_name()
+                _INDIC_FONT_FAMILIES[script] = family
+            except Exception as e:
+                print(f"[renderers] Warning: Could not register {font_file}: {e}")
+        else:
+            print(f"[renderers] Warning: Font not found: {font_path}")
+
+_register_indic_fonts()
+
+def get_font_family(lang: str = "en") -> str:
+    """Get the appropriate font family for a language.
+    
+    For Indic scripts, sets the matplotlib rcParams so that the Indic font
+    is tried first, with fallback to DejaVu Sans for Latin glyphs.
+    This ensures mixed-script content (e.g., "E = mc²" in Hindi) renders
+    correctly: Indic characters use Noto Sans, Latin characters fall back.
+    
+    Args:
+        lang: Language code (en, hi, ta, te, bn, kn, mr)
+    
+    Returns:
+        Matplotlib font family name (always "sans-serif").
+    """
+    import matplotlib
+    script = _LANG_TO_SCRIPT.get(lang, "latin")
+    indic_font = _INDIC_FONT_FAMILIES.get(script)
+    if indic_font and script != "latin":
+        # Prepend Indic font to sans-serif list so it's tried first.
+        # Matplotlib falls back to subsequent fonts for missing glyphs.
+        current = list(matplotlib.rcParams["font.sans-serif"])
+        if indic_font not in current:
+            matplotlib.rcParams["font.sans-serif"] = [indic_font] + current
+    return "sans-serif"
 
 # ── Shared Constants ──
 IMAGE_WIDTH = 1280
@@ -148,8 +224,11 @@ def render_networkx_graph(content: str, data: dict, kind: str = "diagram") -> st
     ax.set_facecolor(BG_COLOR)
     ax.axis("off")
     
+    lang = data.get("lang", "en")
+    font = get_font_family(lang)
+
     ax.set_title(content[:50], fontsize=32, fontweight="bold",
-                 color=TITLE_COLOR, pad=20, fontfamily="sans-serif")
+                 color=TITLE_COLOR, pad=20, fontfamily=font)
     
     pos = nx.spring_layout(G, k=2.5, iterations=80)
     node_colors = [ACCENT_COLORS[i % len(ACCENT_COLORS)] for i in range(len(G.nodes))]
