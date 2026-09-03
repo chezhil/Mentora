@@ -15,6 +15,8 @@ import streamlit as st
 
 import orchestrator as orch
 from shared.models import StudentResponse
+import ui
+ui.apply_theme()
 
 LANGUAGES = {
     "en": "English",
@@ -205,23 +207,26 @@ def _render() -> None:
         # Whole lesson done.
         st.success("That's the whole lesson.")
         if st.session_state.report is not None:
-            st.info("Your report is ready — open the **Report** page above.")
+            st.info("The lesson is finished! Open the **Quiz** page to take your final assessment.")
             return
-        if st.button("Finish and see my report", type="primary",
+        if st.button("Finish and take the Final Quiz", type="primary",
                      disabled=_busy()):
             token = f"finish:{session.session_id}"
             if not _claim(token):
-                st.info("Already building your report…")
+                st.info("Preparing your quiz...")
                 st.stop()
             try:
-                with st.spinner("Marking the lesson…"):
+                with st.spinner("Preparing your final quiz..."):
                     st.session_state.report = orch.finish(session)
             except Exception as exc:
                 _release(token, completed=False)
                 st.error(_friendly(exc))
                 st.stop()
             _release(token, completed=True)
-            st.rerun()
+            if hasattr(st, "switch_page"):
+                st.switch_page("pages/3_Quiz.py")
+            else:
+                st.rerun()
         return
 
     media = orch.media_for(session, segment)

@@ -5,6 +5,8 @@ import os
 import tempfile
 
 st.set_page_config(page_title="Setup - Mentora", page_icon="📝", layout="centered")
+import ui
+ui.apply_theme()
 
 st.title("Welcome to Mentora")
 

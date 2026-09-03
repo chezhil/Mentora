@@ -3,6 +3,8 @@ import orchestrator as orch
 import os
 
 st.set_page_config(page_title="Report - Mentora", page_icon="🎓", layout="wide")
+import ui
+ui.apply_theme()
 
 st.title("Lesson Report")
 

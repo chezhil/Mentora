@@ -1,4 +1,4 @@
-﻿"""Final Quiz Page for Mentora AI Teacher.
+"""Final Quiz Page for Mentora AI Teacher.
 OWNED BY UTKARSH (PAIR A).
 """
 import streamlit as st
@@ -61,44 +61,14 @@ if submitted:
         report = orch.submit_quiz(session, user_answers)
         st.session_state.report = report
 
-    st.success(f"🎉 Quiz evaluated successfully! Overall Score: **{report.score:.1f}%**")
-
-    # Metrics Summary
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Final Score", f"{report.score:.1f}%")
-    col2.metric("Mastered Concepts", len(report.strong))
-    col3.metric("Concepts to Review", len(report.weak))
-
-    st.divider()
-    
-    col_left, col_right = st.columns(2)
-    with col_left:
-        st.markdown("### ✅ Strong Concepts")
-        if report.strong:
-            for s in report.strong:
-                st.write(f"- **{s}**")
-        else:
-            st.caption("Keep practicing to master these topics.")
-
-        if report.misconceptions:
-            st.markdown("### 🔍 Diagnosed Misconceptions")
-            for m in report.misconceptions:
-                st.warning(f"⚠️ {m}")
-
-    with col_right:
-        if report.weak:
-            st.markdown("### ⚠️ Areas for Improvement")
-            for w in report.weak:
-                st.write(f"- {w}")
-
-        if report.revise:
-            st.markdown("### 📖 Recommended Revision")
-            for r in report.revise:
-                st.info(f"📌 {r}")
-
-        if report.next_topic:
-            st.markdown("### 🚀 Next Recommended Topic")
-            st.success(f"**{report.next_topic}**")
+    st.success("Quiz evaluated successfully!")
+    if hasattr(st, "switch_page"):
+        st.switch_page("pages/5_Report.py")
+    else:
+        st.info("Check out your full result on the Report page.")
 
 elif existing_report:
     st.info(f"Previous submission recorded. Current Score: **{existing_report.score:.1f}%**")
+    if hasattr(st, "switch_page"):
+        if st.button("View Full Report"):
+            st.switch_page("pages/5_Report.py")
