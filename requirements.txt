@@ -4,6 +4,8 @@
 pydantic>=2.6
 streamlit>=1.31
 matplotlib>=3.8
+numpy>=1.26
+python-dotenv>=1.0             # app.py and smoke_test.py read .env
 
 # Pair A — ingest/ (Utkarsh)
 pymupdf>=1.24
@@ -16,11 +18,13 @@ sentence-transformers>=2.7     # loads BAAI/bge-m3
 
 # Pair B — planner/ teacher/ (Jyothi, Naman)
 google-genai>=1.0              # NOT google-generativeai
+openai>=1.40                   # Groq and Ollama speak the OpenAI API
 
 # Pair C — prompt_101/media_pipeline (Santosh, Hamza)
 imageio-ffmpeg>=1.4            # NOT a system ffmpeg
 
 # Local avatar (local_avatar/) — free alternative to Replicate
+torch>=2.2                     # Wav2Lip inference in local_avatar/
 opencv-python-headless>=4.9    # FaceDetectorYN, video writing
 librosa>=0.10                  # mel spectrogram for Wav2Lip
 # Weights are NOT in the repo (436MB). See README "Avatar weights".

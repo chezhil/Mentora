@@ -367,6 +367,39 @@ def adaptation_panel() -> None:
         icon = "🟢" if state == "LIVE" else "🟡"
         st.sidebar.write(f"{icon} {pair} — {state}")
 
+    _asset_warning()
+
+
+def _asset_warning() -> None:
+    """Say plainly when the downloaded assets are missing.
+
+    They are ~500MB and cannot live in git, so a fresh clone has none of them.
+    Everything still runs, which is the problem: the avatar quietly becomes a
+    still image and narration quietly becomes silence, and the only clue is
+    that the demo looks worse than it did on someone else's laptop.
+    """
+    missing = []
+    try:
+        import local_avatar
+        if not local_avatar.available():
+            missing.append("avatar weights (talking head)")
+    except Exception:
+        missing.append("avatar weights (talking head)")
+
+    try:
+        from pathlib import Path
+        from prompt_101.media_pipeline.config import PIPER_MODEL_DIR
+        if not list(Path(PIPER_MODEL_DIR).glob("*.onnx")):
+            missing.append("Piper voices (en, hi, te narration)")
+    except Exception:
+        pass
+
+    if missing:
+        st.sidebar.warning(
+            "Missing downloads: " + "; ".join(missing) +
+            ".\n\nRun `python setup_assets.py` — about 500MB, once."
+        )
+
 
 # ---------------------------------------------------------------------------
 # Screen 1 — Setup

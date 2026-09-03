@@ -40,21 +40,23 @@ placeholder rather than stopping.
 
 Verified real speech in all seven: en, hi, ta, kn, te, bn, mr.
 
-### Avatar weights (talking head, free — no Replicate)
+### Downloads (required for video and voice)
 
-Two files, ~436MB, gitignored:
+Model weights are ~500MB and cannot live in git, so a fresh clone starts
+without them. One command:
 
 ```bash
-mkdir -p models
-curl -sL -o models/wav2lip_gan.pth https://huggingface.co/camenduru/Wav2Lip/resolve/main/checkpoints/wav2lip_gan.pth
-curl -sL -o models/face_detection_yunet.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
+.venv/bin/python setup_assets.py
 ```
+
+Safe to re-run; anything already present is skipped. Without it the app still
+runs, but **the avatar is a still image and narration is silent** — which is
+usually why video "does not work" on a new clone. The sidebar warns when they
+are missing.
 
 Wav2Lip needs a REAL front-facing photograph at `assets/teacher.jpg` — a drawn
 or stylised avatar will not register with the face detector. If detection picks
-the wrong face, or you are deliberately animating an illustration, set
-`MENTORA_FACE_BOX="x1,y1,x2,y2"` to skip detection.
-
+the wrong face, set `MENTORA_FACE_BOX="x1,y1,x2,y2"` to skip it.
 `MENTORA_LOCAL_AVATAR=0` forces Pair C's Replicate path instead.
 
 ### Which LLM provider
