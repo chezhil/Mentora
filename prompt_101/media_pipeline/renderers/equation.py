@@ -35,8 +35,7 @@ def render_equation(content: str, subject: str, data: dict) -> str:
 
     # Title at top
     ax.text(0.5, 0.92, "Equation", fontsize=32, fontweight="bold",
-            ha="center", va="center", color=ACCENT_COLORS[0],
-            fontfamily="sans-serif")
+            ha="center", va="center", color=ACCENT_COLORS[0])
 
     # Divider line
     ax.plot([0.1, 0.9], [0.87, 0.87], color=ACCENT_COLORS[0],
@@ -81,14 +80,12 @@ def render_equation(content: str, subject: str, data: dict) -> str:
 
             ax.text(0.5, y, f"{prefix}{line}", fontsize=step_fontsize,
                     ha="center", va="center", color=TEXT_COLOR,
-                    fontfamily="sans-serif",
                     bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
                               edgecolor=color, linewidth=1.5, alpha=0.8))
 
     # Subject tag at bottom
     if subject:
         ax.text(0.5, 0.04, subject.title(), fontsize=18,
-                ha="center", va="center", color="#888888",
-                fontfamily="sans-serif", fontstyle="italic")
+                ha="center", va="center", color="#888888", fontstyle="italic")
 
     return save_figure(fig, "equation")

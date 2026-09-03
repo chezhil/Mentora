@@ -180,7 +180,14 @@ YOUR SINGLE JOB THIS SEGMENT
 3. Ask a question ONLY if ASK_QUESTION is <<ASK>>. Otherwise use null.
 
 RULES
-- Keep the script proportionate to <<MINUTES>> minutes.
+- HARD LIMIT: the script must be AT MOST 130 words. This is not a style
+  preference — the avatar renderer refuses any narration over 60 seconds, and
+  130 words is about 55 seconds of speech. A longer script means NO VIDEO IS
+  PRODUCED AT ALL for this segment.
+- The concept is allotted <<MINUTES>> minutes, but that covers the student
+  thinking, answering and being re-explained to. Teach ONE clear idea in this
+  segment and let the question carry the rest. Do not try to fill the minutes
+  with narration.
 - If you used a document chunk, list its index in "used_chunk_indexes"
   (from the numbered list above). If you used none, that list is empty.
 - The student should feel taught, not interrogated AND not lectured.
@@ -272,6 +279,8 @@ DO
    wrong, then re-explain the CONCEPT around the NEW ANALOGY, then give a
    fresh example (different from the first attempt). Keep it shorter than
    the original explanation.
+   HARD LIMIT: at most 110 words. Over 60 seconds of narration and the avatar
+   renderer refuses the segment, so no video is produced.
 2. Visual: pick one that supports this re-explanation (equation, graph,
    diagram, timeline, code, concept_map, or none).
 3. End with ONE new question (""q"" id) that checks the same understanding

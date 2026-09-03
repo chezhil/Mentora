@@ -40,13 +40,13 @@ def render_none(content: str, subject: str, data: dict) -> str:
     # Title - very large
     display_title = data.get("title", "Title Card")
     ax.text(0.5, 0.62, display_title, fontsize=44, fontweight="bold",
-            ha="center", va="center", color=TITLE_COLOR, fontfamily="sans-serif",
+            ha="center", va="center", color=TITLE_COLOR,
             transform=ax.transAxes)
 
     # Content text
     display_text = content[:80] if content else "Visual content"
     ax.text(0.5, 0.42, display_text, fontsize=24,
-            ha="center", va="center", color=TEXT_COLOR, fontfamily="sans-serif",
+            ha="center", va="center", color=TEXT_COLOR,
             transform=ax.transAxes)
 
     # Bottom decoration
@@ -56,8 +56,7 @@ def render_none(content: str, subject: str, data: dict) -> str:
     # Subject tag
     if subject:
         ax.text(0.5, 0.22, subject.title(), fontsize=20,
-                ha="center", va="center", color="#888888",
-                fontfamily="sans-serif", fontstyle="italic",
+                ha="center", va="center", color="#888888", fontstyle="italic",
                 transform=ax.transAxes)
 
     return save_figure(fig, "placeholder")

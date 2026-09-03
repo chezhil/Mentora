@@ -5,6 +5,32 @@ from shared.models import (
 )
 from prompts import SEGMENT_PROMPT, EVALUATE_PROMPT, REEXPLAIN_PROMPT
 from llm import generate_json
+from shared.config import MAX_AVATAR_SECONDS, WORDS_PER_SECOND
+
+# Pair C refuses to render an avatar for narration longer than
+# MAX_AVATAR_SECONDS, and rightly — a 60s render costs $0.40, a 20-minute one
+# $5-8. Asking the model nicely is not enough: with a real key it produced
+# scripts of 74 to 114 seconds and every single segment came back with no
+# video. So the limit is enforced here as well as requested in the prompt.
+# 0.85 leaves headroom because speech rate varies by language and voice.
+MAX_SCRIPT_WORDS = int(MAX_AVATAR_SECONDS * WORDS_PER_SECOND * 0.85)
+
+
+def fit_script(script: str, limit: int = MAX_SCRIPT_WORDS) -> str:
+    """Trim narration to the avatar budget, cutting at a sentence boundary."""
+    if not script:
+        return script
+    words = script.split()
+    if len(words) <= limit:
+        return script
+
+    clipped = " ".join(words[:limit])
+    # Prefer to end on a finished sentence rather than mid-thought.
+    for stop in ("।", ".", "!", "?"):          # danda first for Indic scripts
+        cut = clipped.rfind(stop)
+        if cut > len(clipped) * 0.5:
+            return clipped[: cut + 1]
+    return clipped.rstrip(",;:") + "..."
 
 def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk]) -> TeachingSegment:
     """Generates the next teaching segment based on the plan and current state."""
@@ -42,6 +68,7 @@ def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk
     # a hallucinated page number, which is worse than none. These are the real
     # chunks retrieval returned.
     data["citations"] = [c.model_dump() for c in chunks]
+    data["script"] = fit_script(data.get("script", ""))
     return TeachingSegment.model_validate(data)
 
 def evaluate(question: Question, response: StudentResponse) -> Evaluation:
@@ -87,4 +114,5 @@ def reexplain(concept_id: str, misconception: str, attempt: int, state: SessionS
         
     data = generate_json(prompt)
     data["concept_id"] = concept_id
+    data["script"] = fit_script(data.get("script", ""))
     return TeachingSegment.model_validate(data)

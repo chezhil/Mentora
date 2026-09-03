@@ -97,18 +97,25 @@ def layout_boxes(labels: list[str]) -> list[dict]:
     n = len(labels)
     if n == 0:
         return []
-    margin = 1.3
-    span = 10 - 2 * margin
-    # Room each box may occupy without colliding with its neighbour.
-    room = (span / (n - 1)) * 0.88 if n > 1 else 6.0
-    xs = [5.0] if n == 1 else [margin + span * i / (n - 1) for i in range(n)]
 
-    boxes = []
-    for x, label in zip(xs, labels):
-        # Width follows the label so text does not spill out of the box.
-        width = min(room, max(2.3, len(label) * 0.17 + 0.6))
-        boxes.append({"x": x, "y": 5.0, "w": width, "h": 1.35, "label": label})
-    return boxes
+    # Width follows the label. The renderer measures the laid-out text and can
+    # widen further; this is the starting estimate.
+    widths = [max(2.3, len(label) * 0.19 + 0.7) for label in labels]
+
+    # Keep every box inside the 0-10 axes. Centring the first box at a fixed
+    # margin put wide boxes at a negative x, where matplotlib clipped them and
+    # the label spilled past the visible edge.
+    edge = max(widths) / 2 + 0.35
+    left, right = edge, 10 - edge
+    if right <= left:
+        left = right = 5.0
+    xs = [5.0] if n == 1 else [left + (right - left) * i / (n - 1)
+                               for i in range(n)]
+
+    return [
+        {"x": x, "y": 5.0, "w": w, "h": 1.35, "label": label}
+        for x, w, label in zip(xs, widths, labels)
+    ]
 
 
 def enrich(kind: str, content: str, data: dict | None) -> dict:

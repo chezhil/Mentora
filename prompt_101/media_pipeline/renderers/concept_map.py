@@ -43,7 +43,7 @@ def _render_matplotlib_concept_map(content: str, subject: str, data: dict) -> st
 
     # Title at top
     ax.text(5, 9.3, (data.get("title") or content)[:50], fontsize=32, fontweight="bold",
-            ha="center", va="center", color=TITLE_COLOR, fontfamily="sans-serif")
+            ha="center", va="center", color=TITLE_COLOR)
 
     # Central concept - large circle
     central = data.get("central", content[:25])
@@ -59,7 +59,7 @@ def _render_matplotlib_concept_map(content: str, subject: str, data: dict) -> st
                          alpha=0.95, edgecolor="white", linewidth=4)
     ax.add_patch(circle)
     ax.text(center_x, center_y, central, fontsize=24, ha="center", va="center",
-            color="white", fontweight="bold", fontfamily="sans-serif",
+            color="white", fontweight="bold",
             wrap=True)
 
     # Related concepts in a circle around center
@@ -79,7 +79,7 @@ def _render_matplotlib_concept_map(content: str, subject: str, data: dict) -> st
                                 edgecolor="white", linewidth=3)
         ax.add_patch(sat_circle)
         ax.text(x, y, rel, fontsize=16, ha="center", va="center",
-                color="white", fontweight="bold", fontfamily="sans-serif")
+                color="white", fontweight="bold")
 
         # Arrow from satellite to center
         arrow_len = 0.8
@@ -97,8 +97,7 @@ def _render_matplotlib_concept_map(content: str, subject: str, data: dict) -> st
     # Subject tag
     if subject:
         ax.text(5, 0.4, subject.title(), fontsize=18,
-                ha="center", va="center", color="#888888",
-                fontfamily="sans-serif", fontstyle="italic")
+                ha="center", va="center", color="#888888", fontstyle="italic")
 
     return save_figure(fig, "concept_map")
 

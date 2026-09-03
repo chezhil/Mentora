@@ -44,7 +44,7 @@ def _render_matplotlib_diagram(content: str, subject: str, data: dict) -> str:
 
     # Title at top - large font
     ax.text(5, 9.3, (data.get("title") or content)[:50], fontsize=32, fontweight="bold",
-            ha="center", va="center", color=TITLE_COLOR, fontfamily="sans-serif")
+            ha="center", va="center", color=TITLE_COLOR)
 
     # Divider
     ax.axhline(y=8.8, xmin=0.1, xmax=0.9, color=ACCENT_COLORS[0],
@@ -62,13 +62,26 @@ def _render_matplotlib_diagram(content: str, subject: str, data: dict) -> str:
         color = box.get("color", ACCENT_COLORS[0])
         label = box.get("label", "")
 
+        # Size the box to the text it actually contains. A character-count
+        # estimate is wrong across scripts and weights — bold Latin and
+        # Devanagari have very different widths per character — so measure the
+        # laid-out text and widen the box if it would spill out.
+        if box.get("autosize", True):
+            probe = ax.text(x, y, label, fontsize=20, ha="center", va="center",
+                            alpha=0)
+            fig.canvas.draw()
+            bb = probe.get_window_extent(fig.canvas.get_renderer())
+            text_w = bb.transformed(ax.transData.inverted()).width
+            probe.remove()
+            w = max(w, text_w + 0.7)
+
         rect = FancyBboxPatch((x - w/2, y - h/2), w, h,
                               boxstyle="round,pad=0.15",
                               facecolor=color, edgecolor="white",
                               linewidth=3, alpha=0.92)
         ax.add_patch(rect)
         ax.text(x, y, label, fontsize=20, ha="center", va="center",
-                color="white", fontweight="bold", fontfamily="sans-serif")
+                color="white", fontweight="bold")
 
     # Draw arrows between consecutive boxes
     for i in range(len(boxes) - 1):
@@ -86,8 +99,7 @@ def _render_matplotlib_diagram(content: str, subject: str, data: dict) -> str:
     # Subject tag at bottom
     if subject:
         ax.text(5, 0.4, subject.title(), fontsize=18,
-                ha="center", va="center", color="#888888",
-                fontfamily="sans-serif", fontstyle="italic")
+                ha="center", va="center", color="#888888", fontstyle="italic")
 
     return save_figure(fig, "diagram")
 
