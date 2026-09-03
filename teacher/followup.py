@@ -24,12 +24,50 @@ you replace it, so the app keeps running while you work.
 """
 
 from shared.models import SessionState, SourceChunk
+from llm import generate_json
+from prompts import FOLLOWUP_PROMPT, fill
+from teacher.engine import fit_script
+
+
+def _recent_history(state: SessionState) -> str:
+    if not state.turns:
+        return "No history yet."
+    return "\n".join(f"{t.role}: {t.content}" for t in state.turns[-5:])
 
 
 def answer_followup(question: str, state: SessionState,
                     chunks: list[SourceChunk]) -> str:
-    """PLACEHOLDER — Jyothi replaces this body. Signature is fixed."""
-    return (
-        "That's a good question — I can't answer it properly yet, so let's "
-        "carry on with the lesson and come back to it."
+    """Answers the student's question aloud and steers back to the lesson."""
+    language = state.profile.language
+
+    # Contract: when there is an uploaded document but retrieval returned no
+    # relevant chunks, we say plainly the question is not in their material
+    # instead of answering from general knowledge.
+    if chunks:
+        status = "covered"
+        material = "\n".join(
+            f"[chunk {i}] {c.text}" for i, c in enumerate(chunks)
+        )
+    elif state.doc_id:
+        status = "not in material"
+        material = "No relevant passage was retrieved from the document."
+    else:
+        status = "no document"
+        material = "The student has no uploaded document for this lesson."
+
+    prompt = fill(
+        FOLLOWUP_PROMPT,
+        LANGUAGE=language,
+        HISTORY=_recent_history(state),
+        QUESTION=question,
+        MATERIAL_STATUS=status,
+        MATERIAL=material,
     )
+
+    reply = generate_json(prompt).get("answer", "")
+    if not reply:
+        reply = (
+            "That is a good question. Let me hold onto it and we will come "
+            "back to it after this part of the lesson."
+        )
+    return fit_script(reply.strip())
