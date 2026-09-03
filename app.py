@@ -30,11 +30,17 @@ from shared.models import LearnerProfile, StudentResponse
 
 UPLOAD_DIR = "out/uploads"
 
+# Every language here is verified end to end: real speech, and a font that can
+# draw its script on the visuals. Do not add one without checking both — a
+# language that renders as empty boxes is worse than one we do not offer.
 LANGUAGES = {
     "en": "English",
     "hi": "हिन्दी / Hindi",
     "ta": "தமிழ் / Tamil",
+    "te": "తెలుగు / Telugu",
     "kn": "ಕನ್ನಡ / Kannada",
+    "bn": "বাংলা / Bengali",
+    "mr": "मराठी / Marathi",
     "hinglish": "Hinglish",
 }
 
