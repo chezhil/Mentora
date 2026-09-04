@@ -1,0 +1,23 @@
+{
+  "concept_id": "c2",
+  "script": "Alright, let’s break down Fortnite’s three core modes. First up, Battle Royale – 100 players parachute onto a shrinking island, loot weapons, and fight to be the last one standing. It’s fast‑paced, solo or in squads, and the storm forces you to keep moving. Next, Save the World – a co‑op PvE campaign where you and up to three friends build forts, gather resources, and fend off waves of husks while completing story missions. Finally, Creative – a sandbox playground that lets you design your own islands, set up custom games, or just experiment with building mechanics. Each mode shares the same bright art style but offers a very different experience. Which mode sounds most exciting to you?",
+  "visual": {
+    "kind": "concept_map",
+    "payload": "graph TD\n    A[Fortnite Game Modes] --> B[Battle Royale]\n    A --> C[Save the World]\n    A --> D[Creative]\n    B --> B1[100 players, last‑man‑standing]\n    B --> B2[Storm shrinks map]\n    C --> C1[Co‑op PvE]\n    C --> C2[Build forts, fight husks]\n    D --> D1[Sandbox creation]\n    D --> D2[Custom games]",
+    "caption": "Fortnite’s three main game modes and their key traits"
+  },
+  "question": {
+    "id": "q__AUX__",
+    "concept_id": "c2",
+    "kind": "mcq",
+    "prompt": "Which Fortnite mode is a co‑op PvE campaign where you build forts and fight AI husks?",
+    "options": [
+      "Battle Royale",
+      "Save the World",
+      "Creative",
+      "None of the above"
+    ],
+    "expected": "Save the World"
+  },
+  "used_chunk_indexes": []
+}
