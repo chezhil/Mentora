@@ -233,17 +233,9 @@ def _render() -> None:
     video, visual = st.columns([3, 2])
     with video:
         if media.video_mp4 and os.path.exists(media.video_mp4):
-            try:
-                import streamlit.components.v1 as components
-                import lesson_stage
-                stage = lesson_stage.stage_html(media.video_mp4)
-                if stage:
-                    components.html(stage, height=560, scrolling=False)
-                else:
-                    st.video(media.video_mp4)
-            except Exception:
-                # Live teacher overlay unavailable: plain video still teaches.
-                st.video(media.video_mp4)
+            # The teacher is drawn into the video frames, so no overlay: a
+            # second copy of her would sit on the fullscreen button.
+            st.video(media.video_mp4)
         else:
             st.info("Avatar video pending (Pair C) — teaching as text for now.")
         st.write(segment.script)

@@ -715,22 +715,14 @@ def _followup_box(session) -> None:
 
 
 def _board(path: str) -> None:
-    """The board video with the 2D teacher overlaid, or a plain video.
+    """The board video, plain.
 
-    stage_html returns "" when the clip is too big to inline or the avatar
-    assets are missing, and any failure here has to degrade to the video
-    rather than lose the lesson.
+    The teacher used to be an HTML layer over this element. She is drawn into
+    the frames themselves now, so an overlay would be a SECOND copy of her —
+    and being absolutely positioned bottom-right, it sat exactly on top of the
+    video's fullscreen button. A plain video element keeps its own controls
+    and still shows the teacher, because she is in the picture.
     """
-    try:
-        import streamlit.components.v1 as components
-
-        import lesson_stage
-        stage = lesson_stage.stage_html(path)
-        if stage:
-            components.html(stage, height=440, scrolling=False)
-            return
-    except Exception:
-        pass
     st.video(path)
 
 

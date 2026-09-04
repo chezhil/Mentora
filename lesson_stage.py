@@ -1,5 +1,17 @@
 """Live 2D-avatar stage for a segment board video (client-side overlay).
 
+SUPERSEDED — nothing calls this, and nothing should.
+
+The teacher is rendered INTO the board video now, by avatar-prototype/
+avatar_render.py from encode(). An HTML overlay on top of that would be a
+second copy of her, and being absolutely positioned bottom-right it covered
+the video element's own fullscreen button. Burnt-in also survives fullscreen,
+download and upload, none of which an overlay does.
+
+Kept for reference because the parameter mapping here is the browser-side
+mirror of the rig; delete it once nothing needs that reference.
+
+
 Builds one self-contained HTML block: the narrated board video plus the
 approved 2D SVG teacher standing bottom-right, whose mouth is driven by the
 video's own audio through avatar-prototype's amplitude driver -- the pattern

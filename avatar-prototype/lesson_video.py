@@ -639,8 +639,15 @@ def draw_flow(ax, t, elements) -> None:
     # Arrows first, beneath the cards, so each connection appears exactly as
     # the box it reaches does -- and stops cleanly at that box's edge.
     for i, (el, box) in enumerate(zip(elements, boxes)):
-        e = ease(t, el.at, 0.5)
-        if e <= 0.0 or el.edge_from is None or el.edge_from >= len(boxes):
+        if el.edge_from is None or el.edge_from >= len(boxes):
+            continue
+        # BOTH ends have to exist before the line between them does. Gating on
+        # the target alone drew an arrow emerging from empty space, which
+        # happens whenever the script names a child before its parent — and
+        # the reveal follows the narration, not the flowchart.
+        src = elements[el.edge_from]
+        e = ease(t, max(el.at, src.at), 0.5)
+        if e <= 0.0:
             continue
         tail, head = anchors(boxes[el.edge_from], box)
         ax.add_patch(FancyArrowPatch(tail, head, arrowstyle="-|>",
