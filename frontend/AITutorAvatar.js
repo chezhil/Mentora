@@ -114,9 +114,9 @@ class AITutorAvatar {
             
             this.recognition.onstart = () => {
                 this.isListening = true;
-                this.micBtn.style.backgroundColor = 'var(--text-primary)';
-                this.micBtn.style.color = 'var(--bg-color)';
-                this.micBtn.textContent = '🎙️ LSTN';
+                this.micBtn.style.backgroundColor = '#d4e600'; // Darker acid color
+                const icon = this.micBtn.querySelector('iconify-icon');
+                if (icon) icon.setAttribute('icon', 'ph:microphone-stage-bold');
             };
             
             this.recognition.onresult = (event) => {
@@ -127,9 +127,10 @@ class AITutorAvatar {
             
             this.recognition.onend = () => {
                 this.isListening = false;
-                this.micBtn.style.backgroundColor = '';
+                this.micBtn.style.backgroundColor = '#e8ff00';
                 this.micBtn.style.color = '';
-                this.micBtn.textContent = '🎤 PTT';
+                const icon = this.micBtn.querySelector('iconify-icon');
+                if (icon) icon.setAttribute('icon', 'ph:microphone-bold');
             };
         } else {
             this.micBtn.style.display = 'none'; // Not supported
