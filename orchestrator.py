@@ -181,11 +181,6 @@ def _log(session: SessionState, role: str, content: str,
     _persist("save_turn", session.session_id, turn)
 
 
-def note(session: SessionState, text: str) -> None:
-    """Record an operational event or student action into the transcript."""
-    _log(session, "system", text)
-
-
 # ---------------------------------------------------------------------------
 # Context budget — Chezhil's dial. Do not send the whole transcript to Gemini.
 # ---------------------------------------------------------------------------
@@ -984,7 +979,7 @@ Return ONLY a valid JSON object matching this structure:
         _build_media(session, new_seg)
         _remember_question(session, new_seg)
         return new_seg
-    except Exception as exc:
+    except Exception:
         try:
             _build_media(session, current_segment)
         except Exception:
@@ -995,8 +990,6 @@ Return ONLY a valid JSON object matching this structure:
 def regenerate_current(session: SessionState, current_segment: TeachingSegment) -> TeachingSegment:
     """Regenerate the current segment with an alternative explanation and analogy."""
     concept_id = current_segment.concept_id
-    concept = next((c for c in session.plan.concepts if c.id == concept_id), None)
-    
     attempt = session.attempts.get(concept_id, 0) + 1
     session.attempts[concept_id] = attempt
     

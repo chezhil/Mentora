@@ -142,7 +142,7 @@ def test_compose_stitch():
         if Path(segment).exists() and Path(segment).stat().st_size > 0:
             passed += 1
         else:
-            print(f"  FAIL: compose() produced empty file")
+            print("  FAIL: compose() produced empty file")
             failed += 1
         
         # Test compose with None audio
@@ -150,7 +150,7 @@ def test_compose_stitch():
         if Path(segment2).exists():
             passed += 1
         else:
-            print(f"  FAIL: compose(visual, None) failed")
+            print("  FAIL: compose(visual, None) failed")
             failed += 1
         
         # Test stitch
@@ -158,7 +158,7 @@ def test_compose_stitch():
         if Path(final).exists() and Path(final).stat().st_size > 0:
             passed += 1
         else:
-            print(f"  FAIL: stitch() produced empty file")
+            print("  FAIL: stitch() produced empty file")
             failed += 1
         
         # Test stitch empty
@@ -231,7 +231,7 @@ def test_config_dataclass():
         if custom.tts_provider == "google" and custom.max_segment_duration == 30:
             passed += 1
         else:
-            print(f"  FAIL: PipelineConfig custom values not applied")
+            print("  FAIL: PipelineConfig custom values not applied")
             failed += 1
         
     except Exception as e:

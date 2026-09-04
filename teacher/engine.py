@@ -4,7 +4,7 @@ import re
 import uuid
 from shared.models import (
     LessonPlan, SessionState, SourceChunk, TeachingSegment, 
-    Question, StudentResponse, Evaluation, Turn
+    Question, StudentResponse, Evaluation
 )
 from prompts import SEGMENT_PROMPT, EVALUATE_PROMPT, REEXPLAIN_PROMPT
 from llm import generate_json

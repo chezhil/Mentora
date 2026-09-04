@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 
 # Load .env BEFORE orchestrator, which imports llm, which reads the provider
@@ -13,10 +12,10 @@ try:
 except Exception:
     pass
 
+import llm
 import orchestrator as orch
 from shared.models import LearnerProfile, StudentResponse
 from pathlib import Path
-import os
 
 app = FastAPI(title="Mentora API")
 
@@ -30,10 +29,16 @@ async def serve_index():
 
 @app.get("/{filename}")
 async def serve_file(filename: str):
-    file_path = frontend_dir / filename
-    if file_path.exists() and file_path.is_file():
-        return FileResponse(file_path)
-    return HTMLResponse("Not Found", status_code=404)
+    # Resolve and confine to frontend/. Without this the route served
+    # anything the path resolved to, and being a bare catch-all it also
+    # shadows every GET route declared after it.
+    try:
+        target = (frontend_dir / filename).resolve()
+    except (OSError, ValueError):
+        return HTMLResponse("Not Found", status_code=404)
+    if not target.is_relative_to(frontend_dir.resolve()) or not target.is_file():
+        return HTMLResponse("Not Found", status_code=404)
+    return FileResponse(target)
 
 @app.post("/api/start")
 async def start_lesson(request: Request):
@@ -42,7 +47,10 @@ async def start_lesson(request: Request):
     api_key = data.get("api_key")
     
     if api_key:
-        os.environ["GEMINI_API_KEY"] = api_key
+        # Setting os.environ here did nothing — llm read the key at import and
+        # cached the client holding it, so the key pasted into the web form
+        # was never used.
+        llm.configure(api_key=api_key)
     
     # Initialize session
     profile = LearnerProfile(
@@ -57,11 +65,20 @@ async def start_lesson(request: Request):
     # Start the lesson
     segment = orch.step(session)
     media = orch.media_for(session, segment)
-    
+
     return JSONResponse({
         "status": "started",
         "topic": topic,
         "segment_text": segment.script,
+        # Rendered and then discarded: the variable was assigned and never
+        # read, so the page had no video, audio or diagram to show even
+        # though all three had just been built.
+        "media": {
+            "video_mp4": media.video_mp4,
+            "audio_wav": media.audio_wav,
+            "visual_png": media.visual_png,
+            "notes": media.notes,
+        },
     })
 
 @app.post("/api/ask")

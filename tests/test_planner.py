@@ -9,7 +9,6 @@ from __future__ import annotations
 import unittest
 
 from shared.models import (
-    Evaluation,
     LearnerProfile,
     Question,
     SessionState,

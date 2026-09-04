@@ -6,7 +6,6 @@ bytes through ffmpeg (bundled by imageio-ffmpeg) once.
 
 from __future__ import annotations
 
-import asyncio
 import subprocess
 from pathlib import Path
 

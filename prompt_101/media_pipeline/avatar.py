@@ -83,7 +83,7 @@ def _generate_liveportrait(audio_path: str, photo_path: str, output_path: Path) 
     """
     import replicate
     
-    print(f"[avatar] Generating LivePortrait video...")
+    print("[avatar] Generating LivePortrait video...")
     print(f"  Audio: {audio_path}")
     print(f"  Photo: {photo_path}")
     

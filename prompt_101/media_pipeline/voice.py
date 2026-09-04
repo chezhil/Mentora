@@ -240,7 +240,6 @@ def _generate_placeholder_wav(text: str, output_path: Path) -> Path:
     Creates a valid WAV file with silence proportional to text length.
     This ensures the pipeline can still test without a working TTS.
     """
-    import struct
     import wave
     
     # Estimate duration: ~5 words per second, ~5 chars per word

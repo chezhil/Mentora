@@ -1,5 +1,4 @@
 ﻿"""Vector store management with local ChromaDB."""
-import os
 from pathlib import Path
 from typing import List, Dict, Any
 import chromadb

@@ -327,23 +327,15 @@ def api_panel() -> None:
                 llm.PROVIDER = provider
                 saved["AI_TEACHER_PROVIDER"] = provider
             if provider == "local" and local_url:
-                os.environ["GEMINI_URL"] = local_url
-                llm.LOCAL_BASE_URL = local_url
                 saved["GEMINI_URL"] = local_url
             if key and key_env:
-                os.environ[key_env] = key
-                if provider == "gemini":
-                    llm.API_KEY = key
-                elif provider == "local":
-                    llm.LOCAL_KEY = key
                 saved[key_env] = key
-            # both clients are cached; drop them so the new choice takes effect
-            llm._client = None
-            llm._openai_client = None
             if model != llm.MODEL:
-                os.environ["AI_TEACHER_MODEL"] = model
-                llm.MODEL = model
                 saved["AI_TEACHER_MODEL"] = model
+            # One call: it sets the globals, updates the environment AND drops
+            # both cached SDK clients, which hold the old key and base URL.
+            llm.configure(provider=provider, api_key=key or None, model=model,
+                          local_url=local_url if provider == "local" else None)
             if replicate:
                 os.environ["REPLICATE_API_TOKEN"] = replicate
                 saved["REPLICATE_API_TOKEN"] = replicate
