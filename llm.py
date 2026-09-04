@@ -27,7 +27,11 @@ from typing import Callable
 _PROVIDER_EARLY = os.environ.get("AI_TEACHER_PROVIDER", "groq").strip().lower()
 _MODEL_DEFAULTS = {
     "local": "gemini-3.7-flash",
-    "gemini": "gemini-3.6-flash",
+    # "gemini-3.6-flash" does not exist and never did: every call on the
+    # gemini provider died with a 404 from models.generateContent, so the
+    # documented fallback was dead on arrival. "gemini-flash-latest" is the
+    # moving alias, so it will not rot the next time the numbering changes.
+    "gemini": "gemini-flash-latest",
     "groq": "openai/gpt-oss-120b",
     "ollama": "llama3.1:8b",
 }
@@ -217,7 +221,7 @@ PROVIDER = os.environ.get("AI_TEACHER_PROVIDER", "groq").strip().lower()
 
 DEFAULT_MODELS = {
     "local": "gemini-3.7-flash",
-    "gemini": "gemini-3.6-flash",
+    "gemini": "gemini-flash-latest",
     "groq": "openai/gpt-oss-120b",
     "ollama": "llama3.1:8b",
 }
@@ -472,6 +476,16 @@ MAX_RATE_WAIT = float(os.environ.get("AI_TEACHER_MAX_RATE_WAIT", "30"))
 def _retry_delay(exc: Exception) -> float | None:
     """Seconds to wait, or None if waiting will not help."""
     message = str(exc)
+
+    # Transient server-side failures. A provider saying "currently
+    # experiencing high demand" is asking to be asked again -- it is not a
+    # quota, and it is not a bug in the prompt. Untreated, a single 503 spike
+    # killed a teaching step outright and the student lost the segment.
+    if any(k in message for k in ("503", "UNAVAILABLE", "overloaded",
+                                  "high demand", "502", "504",
+                                  "Internal error", "INTERNAL")):
+        return 2.0
+
     if "429" not in message and "RESOURCE_EXHAUSTED" not in message:
         return None
     # A daily cap does not recover, however long we sit here.

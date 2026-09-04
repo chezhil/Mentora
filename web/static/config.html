@@ -161,15 +161,7 @@
       <div class="config-card">
         <h2 class="font-black" style="font-size:1.25rem;text-transform:uppercase;margin-bottom:1rem;">Your Teacher</h2>
         <p style="font-size:0.85rem;color:rgba(0,0,0,0.6);margin-bottom:1rem;">Who appears in the lesson video.</p>
-        <div style="display:flex;gap:0.75rem;">
-          <button class="persona-btn" id="avatar-f" onclick="selectAvatar(this,'f')" style="flex:1;">
-            Ms. Mentora<br><span style="font-family:'Space Mono',monospace;font-size:10px;font-weight:400;text-transform:none;">Female teacher</span>
-          </button>
-          <button class="persona-btn" id="avatar-m" onclick="selectAvatar(this,'m')" style="flex:1;">
-            Mr. Mentora<br><span style="font-family:'Space Mono',monospace;font-size:10px;font-weight:400;text-transform:none;">Male teacher</span>
-          </button>
-        </div>
-      </div>
+        <div id="teacherGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;"></div>
 
       <!-- API keys -->
       <div class="config-card">
@@ -234,6 +226,36 @@
 
     // Restore saved config on load
     let selectedAvatar = 'f';
+    let selectedTeacher = 'maya';
+    let TEACHERS = [];
+
+    // Settings offered two teachers while the product has six, so `avatar`
+    // and `teacher` could disagree -- picking Ms. here would leave a male
+    // teacher id saved, and the lesson renderer follows the id.
+    async function fillTeachers() {
+      try { TEACHERS = await (await fetch('/api/teachers')).json(); } catch (e) { return; }
+      const grid = document.getElementById('teacherGrid');
+      if (!grid || !TEACHERS.length) return;
+      grid.innerHTML = TEACHERS.map(t =>
+        '<button class="persona-btn" data-teacher="' + t.id + '" style="text-align:left;">' +
+        t.name + '<br><span style="font-family:\'Space Mono\',monospace;font-size:10px;' +
+        'font-weight:400;text-transform:none;">' + t.note + '</span></button>').join('');
+      grid.querySelectorAll('[data-teacher]').forEach(b => b.onclick = () => {
+        selectedTeacher = b.dataset.teacher;
+        const t = TEACHERS.find(x => x.id === selectedTeacher);
+        selectedAvatar = (t && t.variant) || 'f';
+        grid.querySelectorAll('[data-teacher]').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+      });
+      markTeacher();
+    }
+
+    function markTeacher() {
+      const grid = document.getElementById('teacherGrid');
+      if (!grid) return;
+      grid.querySelectorAll('[data-teacher]').forEach(b =>
+        b.classList.toggle('active', b.dataset.teacher === selectedTeacher));
+    }
 
     // Settings live in the database, not in this browser. They used to be
     // written to localStorage and only mirrored to the server, and never read
@@ -249,6 +271,7 @@
       selectedPersona = s.persona || 'socratic';
       selectedLevel = s.difficulty || 'intermediate';
       selectedAvatar = s.avatar || 'f';
+      selectedTeacher = s.teacher || 'maya';
       if (s.language) document.getElementById('langSelect').value = s.language;
       document.getElementById('toggleQuiz').classList.toggle('on', s.auto_quiz !== false);
       if (s.provider) document.getElementById('providerSelect').value = s.provider;
@@ -261,11 +284,10 @@
         if (s.keys.gemini) document.getElementById('geminiKey').placeholder = 'Saved — type to replace';
       }
 
+      await fillTeachers();
       mark('.config-card:nth-child(2) .persona-btn', selectedPersona);
       mark('.config-card:nth-child(3) .persona-btn', selectedLevel);
-      document.querySelectorAll('#avatar-f,#avatar-m').forEach(b => b.classList.remove('active'));
-      const av = document.getElementById('avatar-' + selectedAvatar);
-      if (av) av.classList.add('active');
+      markTeacher();
     }
 
     function mark(sel, value) {
@@ -285,11 +307,6 @@
       btn.classList.add('active');
       selectedLevel = level;
     }
-    function selectAvatar(btn, who) {
-      document.querySelectorAll('#avatar-f,#avatar-m').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedAvatar = who;
-    }
 
     function toast(text) {
       var t = document.createElement('div');
@@ -308,6 +325,7 @@
           body: JSON.stringify({
             persona: selectedPersona, difficulty: selectedLevel,
             language: language, avatar: selectedAvatar,
+            teacher: selectedTeacher,
             auto_quiz: document.getElementById('toggleQuiz').classList.contains('on'),
           }),
         });

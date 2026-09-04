@@ -407,25 +407,57 @@
   }
 
   function speak(text, done) {
-    if (muted || !synth) { target = 0; done(); return; }
-    synth.cancel();
-    var u = new SpeechSynthesisUtterance(text);
+    // The callback MUST fire exactly once, and it must fire. Readiness is
+    // gated on it -- busy is only cleared here -- and speechSynthesis does
+    // not always deliver onend: a backgrounded tab, a voice the platform
+    // will not load, or speech blocked before a user gesture all leave the
+    // utterance hanging. When that happened the page bricked itself in
+    // silence: every later click was swallowed by `busy`, with no error and
+    // nothing on screen to explain it. A watchdog releases it.
+    var finished = false;
+    var guard = null;
+    function settle() {
+      if (finished) return;
+      finished = true;
+      if (guard) { clearTimeout(guard); guard = null; }
+      target = 0;
+      done();
+    }
+
+    if (muted || !synth) { settle(); return; }
+
+    var u;
+    try {
+      synth.cancel();
+      u = new SpeechSynthesisUtterance(text);
+    } catch (e) {
+      settle();
+      return;
+    }
     if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = lang; }
     u.rate = 1.0;
     u.pitch = 1.0;
 
+    // Boundary events land on each word, which is enough to drive a jaw:
+    // open on the word, fall between them.
     u.onboundary = function () {
       target = 0.55 + Math.random() * 0.45;
-      pulseVis();
       setTimeout(function () { target = 0.12; }, 90);
     };
-    u.onstart = function () {
-      say('Speaking');
-      startVis();
-    };
-    u.onend = function () { target = 0; stopVis(); done(); };
-    u.onerror = function () { target = 0; stopVis(); done(); };
-    synth.speak(u);
+    u.onstart = function () { say('Speaking'); };
+    u.onend = settle;
+    u.onerror = settle;
+
+    // Generous but finite: roughly real speaking time plus slack, so a
+    // hung utterance costs a pause rather than the rest of the session.
+    var words = String(text || '').split(/\s+/).length;
+    guard = setTimeout(settle, Math.max(6000, words * 600 + 4000));
+
+    try {
+      synth.speak(u);
+    } catch (e) {
+      settle();
+    }
   }
 
   // ---- The exchange -------------------------------------------------------

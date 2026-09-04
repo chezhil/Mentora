@@ -453,8 +453,13 @@ def discuss_api(payload: dict = None) -> dict:
         text = (answer or {}).get("answer")
         if isinstance(text, str) and text.strip():
             return {"answer": text.strip(), "role": "teacher"}
-    except Exception:
-        pass
+        # Fell through with a reply the model did not shape as expected.
+        print(f"[discuss] unusable model reply: {str(answer)[:160]}", flush=True)
+    except Exception as exc:
+        # Silent fallback made this impossible to diagnose: the page looked
+        # like it was answering while quietly serving the canned text.
+        print(f"[discuss] falling back to history reply: "
+              f"{type(exc).__name__}: {str(exc)[:180]}", flush=True)
 
     conn = _db()
     try:

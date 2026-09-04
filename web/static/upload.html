@@ -279,6 +279,21 @@
           'border:2px solid var(--ink);padding:0.3rem 0.6rem;white-space:nowrap;">Teach from this</span>' +
         '</div>').join('');
 
+      // The materials page links here as /upload?material=<path>. Nothing
+      // read it, so "Teach me this" landed on an empty form and the choice
+      // was silently dropped.
+      const wanted = new URLSearchParams(location.search).get('material');
+      if (wanted) {
+        const match = box.querySelector('.mat[data-path="' + wanted + '"]');
+        if (match) {
+          chosenMaterial = wanted;
+          match.style.background = 'var(--acid)';
+          match.style.boxShadow = '5px 5px 0 0 #000';
+          match.querySelector('.pickLabel').textContent = 'Selected';
+          match.scrollIntoView({block: 'center'});
+        }
+      }
+
       box.querySelectorAll('.mat').forEach(el => el.onclick = () => {
         const already = chosenMaterial === el.dataset.path;
         chosenMaterial = already ? null : el.dataset.path;

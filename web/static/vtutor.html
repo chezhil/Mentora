@@ -375,6 +375,35 @@
                    .trim();
       }
 
+      // ---- Teacher picker ----
+      // The markup shipped this select empty: nothing loaded teachers.js and
+      // nothing fetched /api/teachers, so it was a permanently blank control.
+      // Selecting here saves the same preference the lesson renderer reads.
+      (async function () {
+        var sel = document.getElementById('teacher');
+        if (!sel) return;
+        var list = [];
+        try {
+          list = await (await fetch('/api/teachers')).json();
+        } catch (e) { return; }
+        if (!Array.isArray(list) || !list.length) return;
+        sel.innerHTML = list.map(function (t) {
+          return '<option value="' + t.id + '">' + t.name + ' \u2014 ' + t.note + '</option>';
+        }).join('');
+        try {
+          var saved = await (await fetch('/api/settings')).json();
+          if (saved.teacher) sel.value = saved.teacher;
+        } catch (e) {}
+        sel.addEventListener('change', function () {
+          var picked = list.filter(function (t) { return t.id === sel.value; })[0];
+          if (!picked) return;
+          fetch('/api/settings', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({teacher: picked.id, avatar: picked.variant}),
+          }).catch(function () {});
+        });
+      })();
+
       // ---- Ask the teacher ----
       async function ask(text) {
         if (busy || !text.trim()) return;

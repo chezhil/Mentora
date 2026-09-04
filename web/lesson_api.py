@@ -105,7 +105,7 @@ def _spawn(live: _Live, phase: str, fn) -> None:
             # dies on a missing API key should say so on screen.
             traceback.print_exc()
             live.job = {"state": "error", "phase": phase,
-                        "error": f"{type(exc).__name__}: {exc}"}
+                        "error": human_error(exc)}
 
     threading.Thread(target=run, daemon=True).start()
 
@@ -113,6 +113,27 @@ def _spawn(live: _Live, phase: str, fn) -> None:
 # ---------------------------------------------------------------------------
 # Shaping orchestrator output for the page
 # ---------------------------------------------------------------------------
+
+def human_error(exc: Exception) -> str:
+    """Turn a provider exception into something a student can act on.
+
+    Raw text like "ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code':
+    429 ..." tells a student nothing and looks like a crash. The three cases
+    that actually happen are quota, overload and a missing key, and each has
+    a different thing to do about it.
+    """
+    msg = str(exc)
+    if "429" in msg or "RESOURCE_EXHAUSTED" in msg or "quota" in msg.lower():
+        return ("The teaching model is out of quota for now. Wait a minute and "
+                "try again, or add a different provider key in Settings.")
+    if any(k in msg for k in ("503", "UNAVAILABLE", "overloaded", "high demand",
+                              "502", "504")):
+        return ("The teaching model is busy right now. Give it a few seconds "
+                "and try again.")
+    if "No Groq API key" in msg or "No Gemini API key" in msg or "api key" in msg.lower():
+        return "No API key is set. Add one in Settings to start teaching."
+    return f"{type(exc).__name__}: {msg[:160]}"
+
 
 def _media_url(path: str | None) -> str | None:
     """A servable URL for a file the media pipeline wrote, or None.
@@ -947,8 +968,7 @@ def voice_reply(body: VoiceBody) -> JSONResponse:
     try:
         data = llm.generate_json(prompt)
     except Exception as exc:
-        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"},
-                            status_code=502)
+        return JSONResponse({"error": human_error(exc)}, status_code=502)
 
     answer = (data or {}).get("answer")
     if not isinstance(answer, str) or not answer.strip():
