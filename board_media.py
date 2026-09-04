@@ -125,13 +125,36 @@ def split_sentences_by_pause(wav, script, min_gap=GAP_SECONDS):
             cuts.append(((spans[k][1] + spans[k + 1][0]) / 2.0, gap))
     cuts.sort(key=lambda c: -c[1])
     cuts = sorted(c[0] for c in cuts[: max(0, n - 1)])
+
+    # Fewer audible pauses than sentences is common: a script with short
+    # clauses, or a backend that runs them together. The docstring promised
+    # these were "distributed proportionally by text length" but that was
+    # never implemented, so bounds came up short and bounds[k + 1] raised
+    # IndexError -- which render_board_video swallows, so the animated board
+    # silently did not render and the lesson quietly fell back to a still.
+    if len(cuts) < n - 1:
+        lengths = [max(len(part), 1) for part in parts]
+        total = float(sum(lengths))
+        acc, proportional = 0.0, []
+        for length in lengths[:-1]:
+            acc += length
+            proportional.append(dur * acc / total)
+        cuts = proportional
+
     bounds = [0.0] + cuts + [dur]
+    # Walk the boundaries so spans can never overlap or run backwards. The
+    # 0.05s minimum length pushed each span past the next one when there were
+    # more sentences than seconds, and subtitle() picks the FIRST span
+    # containing t, so out-of-order spans show the wrong line.
     out = []
+    prev = 0.0
     for k in range(n):
-        lo = bounds[k]
-        hi = max(bounds[k + 1], lo + 0.05)
-        out.append(lv.Sentence(parts[k], max(0.0, lo),
-                               min(dur, hi)))
+        lo = min(max(bounds[k], prev), dur)
+        hi = min(max(bounds[k + 1], lo + 0.05), dur)
+        if hi <= lo:
+            hi = min(lo + 0.05, dur)
+        out.append(lv.Sentence(parts[k], lo, hi))
+        prev = hi
     return out
 
 
