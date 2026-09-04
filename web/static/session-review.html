@@ -1861,7 +1861,11 @@ tailwind.config = {
   <script>
   (async function() {
     try {
-      const res = await fetch('/api/session-review');
+      // Recent Activity links here with the lesson it wants; without one
+      // this still shows the most recent, as before.
+      const want = new URLSearchParams(location.search).get('session') || '';
+      const res = await fetch('/api/session-review' +
+        (want ? '?session_id=' + encodeURIComponent(want) : ''));
       if (!res.ok) return;
       const d = await res.json();
 

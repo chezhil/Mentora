@@ -36,7 +36,8 @@ def _db() -> sqlite3.Connection:
 # ---------------------------------------------------------------------------
 
 @app.get("/api/session-review")
-def session_review(student_id: str = "student") -> dict:
+def session_review(student_id: str = "student",
+                   session_id: str = "") -> dict:
     """Return all data the Session Review HTML needs, in one call.
 
     Shape matches what the JS in the HTML expects:
@@ -55,27 +56,40 @@ def session_review(student_id: str = "student") -> dict:
     """
     conn = _db()
     try:
-        return _build_review(conn, student_id)
+        return _build_review(conn, student_id, session_id)
     finally:
         conn.close()
 
 
-def _build_review(conn: sqlite3.Connection, student_id: str) -> dict:
+def _build_review(conn: sqlite3.Connection, student_id: str,
+                  session_id: str = "") -> dict:
     cur = conn.cursor()
 
     # --- Latest report (the one we're reviewing) ---
-    cur.execute(
-        "SELECT * FROM reports WHERE student_id=? ORDER BY id DESC LIMIT 1",
-        (student_id,),
-    )
-    report = cur.fetchone()
+    # A named session, so Recent Activity can open the report for the lesson
+    # that was clicked rather than always the newest one.
+    if session_id:
+        cur.execute("SELECT * FROM reports WHERE student_id=? AND session_id=?",
+                    (student_id, session_id))
+        report = cur.fetchone()
+        cur.execute("SELECT * FROM study_sessions WHERE student_id=? AND session_id=?",
+                    (student_id, session_id))
+        session = cur.fetchone()
+    else:
+        report = session = None
 
-    # --- Latest study session ---
-    cur.execute(
-        "SELECT * FROM study_sessions WHERE student_id=? ORDER BY id DESC LIMIT 1",
-        (student_id,),
-    )
-    session = cur.fetchone()
+    if report is None:
+        cur.execute(
+            "SELECT * FROM reports WHERE student_id=? ORDER BY id DESC LIMIT 1",
+            (student_id,),
+        )
+        report = cur.fetchone()
+    if session is None:
+        cur.execute(
+            "SELECT * FROM study_sessions WHERE student_id=? ORDER BY id DESC LIMIT 1",
+            (student_id,),
+        )
+        session = cur.fetchone()
 
     # --- Topic ---
     topic = ""
@@ -330,6 +344,7 @@ def dashboard_api(student_id: str = "student") -> dict:
         recent = []
         for r in reports[:5]:
             recent.append({
+                "session_id": r.get("session_id", ""),
                 "topic": titles.get(r.get("session_id"))
                          or r.get("next_topic") or "Untitled",
                 "next_topic": r.get("next_topic", ""),

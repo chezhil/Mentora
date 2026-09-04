@@ -157,6 +157,7 @@
 <script>
   const sid = new URLSearchParams(location.search).get('sid') || '';
   let shownSegments = 0, currentQ = null, selected = null, polling = false;
+  let lastSegment = false, remaining = 0;
 
   const $ = id => document.getElementById(id);
 
@@ -190,6 +191,7 @@
 
     // Progress across the planned concepts.
     if (s.total) {
+      remaining = Math.max(0, s.total - s.current);
       $('bar').style.width = Math.round((s.current / s.total) * 100) + '%';
       $('pills').innerHTML = s.concepts.map((c, i) =>
         '<span class="pill ' + (i < s.current ? 'done' : i === s.current ? 'now' : '') +
@@ -216,8 +218,23 @@
     if (s.quiz && s.quiz.length) paintQuiz(s.quiz);
     if (s.report) paintReport(s.report);
 
-    $('nextBtn').disabled = running || !!s.report;
+    // A segment's question has to be answered -- right or wrong -- before the
+    // lesson moves on. Skipping it means the adaptation has nothing to read,
+    // so the next segment is pitched at a student the teacher knows nothing
+    // about.
+    const seg = (s.segments && s.segments.length)
+      ? s.segments[s.segments.length - 1] : null;
+    const owes = !!(seg && seg.question && !seg.answered);
+
+    // The last concept has no "next": ending it IS finishing.
+    lastSegment = !!(s.total && s.current >= s.total);
+
+    $('nextBtn').style.display = lastSegment ? 'none' : '';
+    $('nextBtn').disabled = running || owes || !!s.report;
+    $('nextBtn').textContent = owes ? 'Answer to continue' : 'Next segment';
     $('finishBtn').disabled = running || !!s.report;
+    $('finishBtn').textContent = lastSegment
+      ? 'Finish \u0026 get report' : 'Finish early';
     if (s.quiz && s.quiz.length && !s.report) $('quizSubmit').disabled = running;
     if (running) setTimeout(poll, 1500);
   }
@@ -336,6 +353,7 @@
       const data = await r.json();
       if (!r.ok) { showError(data.error || 'Could not grade that.'); return; }
       paintVerdict(data);
+      poll();                      // re-enables Next now that this is answered
     } catch (e) { showError(e.message); }
   };
 
@@ -362,6 +380,14 @@
   };
 
   $('finishBtn').onclick = async () => {
+    // Leaving early is a real choice with a real cost -- the untaught
+    // concepts still count against the report -- so it is worth a question.
+    if (!lastSegment && remaining > 0) {
+      const what = remaining === 1 ? '1 concept' : remaining + ' concepts';
+      if (!confirm('You still have ' + what + ' left to learn.\n\n' +
+                   'Finishing now marks the lesson on what you have covered ' +
+                   'so far. Continue to the report?')) return;
+    }
     $('finishBtn').disabled = true;
     await fetch('/api/lesson/finish?session_id=' + encodeURIComponent(sid), {method: 'POST'});
     poll();

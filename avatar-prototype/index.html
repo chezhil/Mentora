@@ -43,9 +43,17 @@
                 fill="#e8bf9c"/>
           <path class="v-m" d="M170 286 l60 0 l0 86 q-30 14 -60 0 z"
                 fill="#e3b795"/>
-          <path class="v-f" d="M92 460 q14 -112 108 -112 q94 0 108 112 z"
+          <!-- The shirt runs PAST the bottom of the 460-tall view and wider
+               than the shoulders need. It used to stop exactly on y=460, so
+               the moment the body drifted upward the frame edge appeared
+               underneath it and the teacher looked like a sticker peeling
+               off the board. Everything below the view is clipped, so the
+               overhang costs nothing and no amount of movement can open a
+               gap. The collar sits higher for the same reason: it has to
+               stay over the neck join however far the head turns. -->
+          <path class="v-f" d="M80 520 q14 -184 120 -184 q106 0 120 184 z"
                 fill="#4A7DFF"/>
-          <path class="v-m" d="M84 460 q16 -108 116 -108 q100 0 116 108 z"
+          <path class="v-m" d="M72 520 q16 -180 128 -180 q112 0 128 180 z"
                 fill="#2f6f5e"/>
         </g>
 

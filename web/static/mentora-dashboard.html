@@ -1721,54 +1721,20 @@ tailwind.config = {
 <aside class="w-80 hidden lg:flex flex-col bg-[#f4f1ea] border-r-[3px] border-black overflow-y-auto z-20">
   <div class="p-6 space-y-8">
     <div>
-      <span class="font-mono text-xs font-bold uppercase tracking-widest text-black/65 mb-4 block">01 / Materials</span>
+      <span class="font-mono text-xs font-bold uppercase tracking-widest text-black/65 mb-4 block">01 / Lessons</span>
       <div class="border-[3px] border-black p-5 shadow-[8px_8px_0_0_#000000] bg-white">
         <div class="mb-4 grid place-items-center w-12 h-12 border-[3px] border-black bg-[#e8ff00]">
           <iconify-icon icon="ph:file-pdf-bold" class="text-2xl"><template shadowrootmode="open"><style data-style="data-style">:host{display:inline-block;vertical-align:0}span,svg{display:block}</style><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 256 256"><path fill="currentColor" d="M200 164v8h12a12 12 0 0 1 0 24h-12v12a12 12 0 0 1-24 0v-56a12 12 0 0 1 12-12h32a12 12 0 0 1 0 24Zm-108 8a32 32 0 0 1-32 32h-4v4a12 12 0 0 1-24 0v-56a12 12 0 0 1 12-12h16a32 32 0 0 1 32 32m-24 0a8 8 0 0 0-8-8h-4v16h4a8 8 0 0 0 8-8m100 8a40 40 0 0 1-40 40h-16a12 12 0 0 1-12-12v-56a12 12 0 0 1 12-12h16a40 40 0 0 1 40 40m-24 0a16 16 0 0 0-16-16h-4v32h4a16 16 0 0 0 16-16M36 108V40a20 20 0 0 1 20-20h96a12 12 0 0 1 8.49 3.52l56 56A12 12 0 0 1 220 88v20a12 12 0 0 1-24 0v-4h-48a12 12 0 0 1-12-12V44H60v64a12 12 0 0 1-24 0m124-51v23h23Z"></path></svg></template></iconify-icon>
         </div>
-        <h3 class="font-black uppercase text-lg leading-none mb-2 text-black">Upload PDF</h3>
-        <p class="text-xs font-medium text-black/70 leading-relaxed mb-4">Mentora reads your slides and builds the curriculum.</p>
+        <h3 class="font-black uppercase text-lg leading-none mb-2 text-black">Start a lesson</h3>
+        <p class="text-xs font-medium text-black/70 leading-relaxed mb-4">Name a topic, or teach from material you have uploaded.</p>
         <button onclick="window.location='/upload'" class="w-full bg-black text-[#f4f1ea] font-black uppercase text-xs tracking-widest py-3 border-[3px] border-black shadow-[5px_5px_0_0_#000000] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none">
-          Select Files
+          Start Lesson
         </button>
       </div>
     </div>
 
-    <div>
-      <span class="font-mono text-xs font-bold uppercase tracking-widest text-black/65 mb-4 block">02 / Topic Config</span>
-      <div class="space-y-4">
-        <div class="group">
-          <label class="font-mono text-[10px] font-bold uppercase tracking-widest mb-1 block">Difficulty Level</label>
-          <select class="w-full bg-[#f4f1ea] border-[3px] border-black p-2.5 font-black uppercase text-xs cursor-pointer">
-            <option>Beginner (Fundamentals)</option>
-            <option>Intermediate (Standard)</option>
-            <option>Advanced (Technical)</option>
-          </select>
-        </div>
-        <div class="group">
-          <label class="font-mono text-[10px] font-bold uppercase tracking-widest mb-1 block">Avatar Persona</label>
-          <div class="grid grid-cols-2 gap-2">
-            <button onclick="document.querySelectorAll('.grid.grid-cols-2 button').forEach(b=>{b.classList.remove('bg-[#e8ff00]');b.classList.add('bg-[#f4f1ea]')});this.classList.remove('bg-[#f4f1ea]');this.classList.add('bg-[#e8ff00]');localStorage.setItem('mentora_persona','socratic')" class="border-[3px] border-black p-2 font-black text-[10px] uppercase shadow-[5px_5px_0_0_#000000] transition-all bg-[#e8ff00]">
-              Socratic
-            </button>
-            <button onclick="document.querySelectorAll('.grid.grid-cols-2 button').forEach(b=>{b.classList.remove('bg-[#e8ff00]');b.classList.add('bg-[#f4f1ea]')});this.classList.remove('bg-[#f4f1ea]');this.classList.add('bg-[#e8ff00]');localStorage.setItem('mentora_persona','strict')" class="border-[3px] border-black p-2 font-black text-[10px] uppercase shadow-[5px_5px_0_0_#000000] transition-all bg-[#f4f1ea] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none">
-              Strict
-            </button>
-          </div>
-        </div>
       </div>
-    </div>
-
-    <div>
-      <div class="bg-black text-[#f4f1ea] p-4 border-[3px] border-black shadow-[8px_8px_0_0_#000000]">
-        <div class="flex items-center gap-2 mb-2">
-          <iconify-icon icon="ph:lightning-bold" class="text-[#e8ff00]"><template shadowrootmode="open"><style data-style="data-style">:host{display:inline-block;vertical-align:0}span,svg{display:block}</style><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 256 256"><path fill="currentColor" d="M219.71 117.38a12 12 0 0 0-7.25-8.52l-51.18-20.47l10.59-70.61a12 12 0 0 0-20.64-10l-112 120a12 12 0 0 0 4.31 19.33l51.18 20.47l-10.59 70.64a12 12 0 0 0 20.64 10l112-120a12 12 0 0 0 2.94-10.84M113.6 203.55l6.27-41.77a12 12 0 0 0-7.41-12.92l-43.72-17.49l73.66-78.92l-6.27 41.77a12 12 0 0 0 7.41 12.92l43.72 17.49Z"></path></svg></template></iconify-icon>
-          <span class="font-black uppercase text-xs tracking-tighter">Mentora Pro active</span>
-        </div>
-        <p class="text-[10px] font-mono text-[#f4f1ea]/60 leading-tight uppercase">Unlimited context window enabled for this session.</p>
-      </div>
-    </div>
-  </div>
 </aside>
 </div>
 <!-- /component: SidebarControls (ff31add6-a2ea-4628-80d8-17adcc1789d2) -->
@@ -1798,7 +1764,7 @@ tailwind.config = {
                 <div class="flex-1 space-y-3 text-center md:text-left">
                   <div class="flex flex-wrap justify-center md:justify-start items-center gap-3">
                     <h2 class="text-3xl font-black uppercase tracking-tighter"><span id="dash-fullname">Student</span></h2>
-                    <span class="bg-ink text-paper px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider border-2 border-ink">&mdash;</span>
+                    <span class="bg-ink text-paper px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider border-2 border-ink" id="dash-level">&mdash;</span>
                   </div>
                   <p class="font-medium text-ink/80">
                     No lessons yet.
@@ -1807,10 +1773,6 @@ tailwind.config = {
                     <div class="flex items-center gap-2">
                       <iconify-icon icon="ph:fire-bold" class="text-xl"><template shadowrootmode="open"><style data-style="data-style">:host{display:inline-block;vertical-align:0}span,svg{display:block}</style><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 256 256"><path fill="currentColor" d="M177.62 159.6a52 52 0 0 1-34 34a12.2 12.2 0 0 1-3.6.55a12 12 0 0 1-3.6-23.45a28 28 0 0 0 18.32-18.32a12 12 0 0 1 22.9 7.2ZM220 144a92 92 0 0 1-184 0c0-28.81 11.27-58.18 33.48-87.28a12 12 0 0 1 17.9-1.33l19.69 19.11L127 19.89a12 12 0 0 1 18.94-5.12C168.2 33.25 220 82.85 220 144m-24 0c0-41.71-30.61-78.39-52.52-99.29l-20.21 55.4a12 12 0 0 1-19.63 4.5L80.71 82.36C67 103.38 60 124.06 60 144a68 68 0 0 0 136 0"></path></svg></template></iconify-icon>
                       <span class="font-mono text-xs font-bold uppercase"><span id="dash-streak">0</span> Day Streak</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <iconify-icon icon="ph:sketch-logo-bold" class="text-xl"><template shadowrootmode="open"><style data-style="data-style">:host{display:inline-block;vertical-align:0}span,svg{display:block}</style><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 256 256"><path fill="currentColor" d="m249 96.1l-56-64a12 12 0 0 0-9-4.1H72a12 12 0 0 0-9 4.1l-56 64a12 12 0 0 0 .26 16.09l112 120a12 12 0 0 0 17.54 0l112-120a12 12 0 0 0 .2-16.09M213.55 92H182l-30-40h26.55ZM71.88 116l21.19 53l-49.46-53Zm86.4 0L128 191.69L97.72 116ZM104 92l24-32l24 32Zm80.12 24h28.27l-49.46 53ZM77.45 52H104L74 92H42.45Z"></path></svg></template></iconify-icon>
-                      <span class="font-mono text-xs font-bold uppercase">Mentora Pro Member</span>
                     </div>
                   </div>
                 </div>
@@ -1984,22 +1946,24 @@ tailwind.config = {
         var borderColor = i === 0 ? 'border-l-acid' : 'border-l-paper';
         var statusLabel = lesson.score > 70 ? 'Completed' : 'In Progress';
         var statusClass = lesson.score > 70 ? 'bg-acid border-2 border-ink' : 'border-2 border-ink text-ink/40';
-        return '<div class="bg-white border-[3px] border-ink border-l-[12px] ' + borderColor + ' p-5 shadow-brutal-sm flex flex-col md:flex-row md:items-center justify-between gap-4">' +
+        var href = lesson.session_id
+          ? '/review?session=' + encodeURIComponent(lesson.session_id) : '/review';
+        return '<a href="' + href + '" class="bg-white border-[3px] border-ink border-l-[12px] ' + borderColor + ' p-5 shadow-brutal-sm flex flex-col md:flex-row md:items-center justify-between gap-4 no-underline text-ink hover:bg-acid transition-colors">' +
           '<div class="space-y-1">' +
           '<h4 class="font-black uppercase text-lg">' + (lesson.topic || 'Untitled') + '</h4>' +
           '<p class="font-mono text-[10px] font-bold uppercase text-ink/40">' + (lesson.date || 'Unknown date') + ' \u2022 Score: ' + (lesson.score || 0) + '%</p>' +
           '</div>' +
           '<span class="' + statusClass + ' px-3 py-1 font-black text-[10px] uppercase shadow-brutal-sm self-start">' + statusLabel + '</span>' +
-          '</div>';
+          '</a>';
       });
       // Remove old items and add new
-      var oldItems = activityFeed.querySelectorAll('.bg-white.border-\\[3px\\]');
+      var oldItems = activityFeed.querySelectorAll('.bg-white.border-\\[3px\\], a.bg-white');
       oldItems.forEach(function(el) { el.remove(); });
       items.forEach(function(html) { activityFeed.insertAdjacentHTML('beforeend', html); });
     }
 
     // Sidebar: level badge
-    var levelBadge = document.querySelector('.bg-ink.text-paper.px-2.py-0.5');
+    var levelBadge = document.getElementById('dash-level');
     if(levelBadge && d.level) {
       var levels = ['Beginner', 'Intermediate', 'Advanced'];
       levelBadge.textContent = levels[Math.min(d.level - 1, 2)] || 'Intermediate';
@@ -2020,20 +1984,6 @@ tailwind.config = {
       }
     }
 
-    // Restore persona selection from localStorage
-    var savedPersona = localStorage.getItem('mentora_persona');
-    if(savedPersona) {
-      document.querySelectorAll('.grid.grid-cols-2 button').forEach(function(b) {
-        b.classList.remove('bg-[#e8ff00]');
-        b.classList.add('bg-[#f4f1ea]');
-      });
-      document.querySelectorAll('.grid.grid-cols-2 button').forEach(function(b) {
-        if(b.textContent.trim().toLowerCase() === savedPersona) {
-          b.classList.remove('bg-[#f4f1ea]');
-          b.classList.add('bg-[#e8ff00]');
-        }
-      });
-    }
 
     // Footer mic button — restore style after voice input
     var micBtn = document.querySelector('footer button');
