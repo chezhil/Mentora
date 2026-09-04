@@ -71,33 +71,33 @@ def _friendly(exc: Exception) -> str:
 # can see the adaptation happen, live.
 # ---------------------------------------------------------------------------
 
-def _adaptation_panel(session) -> None:
-    st.sidebar.markdown("## Teacher reasoning")
+def _adaptation_panel(session, lang: str = "en") -> None:
+    st.sidebar.markdown(f"## {t('lesson.adaptation', lang)}")
 
     panel = orch.runtime(session).panel
 
     if panel.concept_name:
-        st.sidebar.caption("Now teaching")
+        st.sidebar.caption(t('lesson.teaching_now', lang))
         st.sidebar.markdown(f"**{panel.concept_name}**")
 
     if panel.retrieved:
         pages = ", ".join(str(p) for p in panel.grounded_pages) or "—"
-        st.sidebar.caption("Grounding")
+        st.sidebar.caption(t('lesson.grounding', lang))
         st.sidebar.markdown(f"{panel.retrieved} chunks · pages {pages}")
 
     st.sidebar.divider()
 
     if not panel.answered:
-        st.sidebar.caption("Waiting for the first answer.")
+        st.sidebar.caption(t('lesson.waiting', lang))
         return
 
     if panel.correct:
-        st.sidebar.success("Answer: correct")
+        st.sidebar.success(t('lesson.correct', lang))
     else:
-        st.sidebar.error("Answer: incorrect")
+        st.sidebar.error(t('lesson.incorrect', lang))
 
     if panel.misconception:
-        st.sidebar.markdown("**Misconception**")
+        st.sidebar.markdown(f"**{t('panel.misconception', lang)}**")
         # A warning alert: the CSS turns this into a red callout — the most
         # visible evidence that the teacher adapted.
         st.sidebar.warning(panel.misconception)
@@ -154,7 +154,7 @@ def _advance(session) -> None:
     if not _claim(token):
         st.stop()
     try:
-        with st.spinner("Preparing the next part…"):
+        with st.spinner(t('lesson.preparing', st.session_state.get('ui_lang', 'en'))):
             if rt.pending is not None or not orch.is_finished(session):
                 st.session_state.segment = orch.step(session)
             else:
@@ -178,24 +178,26 @@ def _render() -> None:
     # a chance to set defaults) falls through to the guard instead of raising.
     session = st.session_state.get("session")
     if session is None:
-        st.info("Start a lesson on the **Setup** page first.")
+        lang = st.session_state.get("ui_lang", "en")
+        st.info(t('lesson.setup_first', lang))
         st.stop()
 
     plan = session.plan
     segment = st.session_state.segment
 
     done = min(session.current_concept, len(plan.concepts))
-    bar, lang = st.columns([4, 1])
+    bar, lang_col = st.columns([4, 1])
     with bar:
         st.progress(
             done / len(plan.concepts),
             text=f"{plan.topic} · concept {min(done + 1, len(plan.concepts))} "
                  f"of {len(plan.concepts)}",
         )
-    with lang:
+    with lang_col:
         _language_switch(session)
 
-    _adaptation_panel(session)
+    lang = st.session_state.get("ui_lang", "en")
+    _adaptation_panel(session, lang)
 
     if st.session_state.get("lang_note"):
         st.success(st.session_state.pop("lang_note"))
@@ -204,18 +206,18 @@ def _render() -> None:
 
     if segment is None:
         # Whole lesson done.
-        st.success("That's the whole lesson.")
+        st.success(t('lesson.complete', lang))
         if st.session_state.report is not None:
-            st.info("The lesson is finished! Open the **Quiz** page to take your final assessment.")
+            st.info(t('lesson.finished_quiz_hint', lang))
             return
-        if st.button("Finish and take the Final Quiz", type="primary",
+        if st.button(t('lesson.finish_quiz', lang), type="primary",
                      disabled=_busy()):
             token = f"finish:{session.session_id}"
             if not _claim(token):
-                st.info("Preparing your quiz...")
+                st.info(t('lesson.preparing', lang))
                 st.stop()
             try:
-                with st.spinner("Preparing your final quiz..."):
+                with st.spinner(t('lesson.preparing_quiz', lang)):
                     st.session_state.report = orch.finish(session)
             except Exception as exc:
                 _release(token, completed=False)
@@ -235,7 +237,7 @@ def _render() -> None:
         if media.video_mp4 and os.path.exists(media.video_mp4):
             st.video(media.video_mp4)
         else:
-            st.info("Avatar video pending (Pair C) — teaching as text for now.")
+            st.info(t('lesson.no_video', lang))
         st.write(segment.script)
         if media.audio_wav and os.path.exists(media.audio_wav):
             st.audio(media.audio_wav)
@@ -251,30 +253,30 @@ def _render() -> None:
     # Citations — the proof the lesson is grounded in the student's material.
     if segment.citations:
         with st.expander(
-                f"From your material ({len(segment.citations)} passages)"):
+            f"{t('lesson.from_material', lang)} ({len(segment.citations)} passages)"):
             for c in segment.citations:
                 where = f"page {c.page}" if c.page else "unknown page"
                 st.markdown(f"**{where}** · relevance {c.score:.2f}")
                 st.caption(c.text)
     elif session.doc_id:
-        st.caption("Nothing in your material covers this — taught from general "
-                   "knowledge.")
+        st.caption(t('lesson.not_in_material', lang))
 
     # The student's own mid-lesson question (orchestrator.ask).
-    with st.expander("Ask me something about this"):
+    with st.expander(t('lesson.ask', lang)):
         with st.form(f"followup_{session.session_id}", clear_on_submit=True):
             question = st.text_input(
-                "Your question", label_visibility="collapsed",
-                placeholder="e.g. why does the water-pipe analogy work?")
-            asked = st.form_submit_button("Ask", disabled=_busy())
+                t('lesson.ask', lang), label_visibility="collapsed",
+                placeholder=t('lesson.ask_ph', lang))
+            asked = st.form_submit_button(t('lesson.ask_button', lang), disabled=_busy())
 
         if asked and question.strip():
+            st.session_state.busy = None  # Clear any stale lock from a killed run.
             token = f"ask:{session.session_id}:{len(session.turns)}"
             if not _claim(token):
-                st.info("Still answering your last question…")
+                st.info(t('lesson.thinking', lang))
                 st.stop()
             try:
-                with st.spinner("Thinking…"):
+                with st.spinner(t('lesson.thinking', lang)):
                     reply = orch.ask(session, question)
             except Exception as exc:
                 _release(token, completed=False)
@@ -290,7 +292,7 @@ def _render() -> None:
         st.write(a)
 
     if segment.question is None:
-        if st.button("Continue", disabled=_busy()):
+        if st.button(t('lesson.continue', lang), disabled=_busy()):
             _advance(session)
         return
 
@@ -298,20 +300,21 @@ def _render() -> None:
     with st.form("answer_form", clear_on_submit=True):
         st.markdown(f"**{segment.question.prompt}**")
         if segment.question.kind == "mcq" and segment.question.options:
-            reply = st.radio("Your answer", segment.question.options,
+            reply = st.radio(t('lesson.your_answer', lang), segment.question.options,
                              label_visibility="collapsed")
         else:
-            reply = st.text_input("Your answer", label_visibility="collapsed")
-        submitted = st.form_submit_button("Answer", type="primary",
+            reply = st.text_input(t('lesson.your_answer', lang), label_visibility="collapsed")
+        submitted = st.form_submit_button(t('lesson.answer', lang), type="primary",
                                           disabled=_busy())
 
     if submitted and reply:
+        st.session_state.busy = None  # Clear any stale lock from a killed run.
         token = f"answer:{session.session_id}:{segment.question.id}"
         if not _claim(token):
-            st.info("That answer is already being marked…")
+            st.info(t('lesson.marking', lang))
             st.stop()
         try:
-            with st.spinner("Marking your answer…"):
+            with st.spinner(t('lesson.marking', lang)):
                 evaluation = orch.answer(
                     session,
                     StudentResponse(question_id=segment.question.id,

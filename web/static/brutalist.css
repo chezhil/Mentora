@@ -1,0 +1,97 @@
+/* Mentora Brutalist Design System — shared across all pages */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400..900;1,400..900&family=Archivo+Black&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --paper: #f4f1ea;
+  --ink: #000000;
+  --acid: #e8ff00;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Archivo', sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+::selection { background: var(--acid); color: var(--ink); }
+
+.font-black { font-family: 'Archivo Black', sans-serif; }
+.font-mono { font-family: 'Space Mono', monospace; }
+
+.grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(0,0,0,0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* Brutalist shadows */
+.shadow-brutal { box-shadow: 8px 8px 0 0 #000; }
+.shadow-brutal-lg { box-shadow: 14px 14px 0 0 #000; }
+.shadow-brutal-sm { box-shadow: 5px 5px 0 0 #000; }
+
+/* Brutalist buttons */
+.btn-brutal {
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  cursor: pointer;
+}
+.btn-brutal:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 4px 4px 0 0 #000 !important;
+}
+.btn-brutal:active {
+  transform: translate(8px, 8px);
+  box-shadow: 0 0 0 0 #000 !important;
+}
+
+/* Header */
+header {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--paper);
+  border-bottom: 3px solid var(--ink);
+}
+header nav {
+  max-width: 1240px; margin: 0 auto;
+  padding: 0 1.25rem;
+  height: 68px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+/* Marquee */
+.marquee-track { animation: marquee 22s linear infinite; }
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* Form inputs */
+input, textarea, select {
+  font-family: 'Archivo', sans-serif;
+  border: 3px solid var(--ink);
+  background: var(--paper);
+  padding: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 5px 5px 0 0 #000;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--paper); }
+::-webkit-scrollbar-thumb { background: var(--ink); }
+
+/* Responsive */
+@media (max-width: 768px) {
+  header nav { padding: 0 1rem; }
+  .hide-mobile { display: none !important; }
+}

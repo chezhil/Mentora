@@ -17,15 +17,28 @@ def _badge_title(badge: dict, lang: str) -> str:
     return t(f"badge.{badge['id']}.title", lang)
 
 
-def _empty_card(title: str, hint: str) -> None:
-    st.markdown(
-        f"""
-        <div class="pd-card">
-          <div class="pd-card-title">{title}</div>
-          <div class="pd-card-hint">{hint}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+def _ring_html(value: float, max_val: float, label: str, color: str = "#eab308", size: int = 80) -> str:
+    """SVG donut ring for metrics."""
+    pct = min(value / max(max_val, 1), 1.0)
+    circumference = 2 * 3.14159 * (size // 2 - 6)
+    offset = circumference * (1 - pct)
+    return (
+        f'<div style="text-align:center;">'
+        f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">'
+        f'<circle cx="{size//2}" cy="{size//2}" r="{size//2-6}" fill="none"'
+        f' stroke="#27272a" stroke-width="5"/>'
+        f'<circle cx="{size//2}" cy="{size//2}" r="{size//2-6}" fill="none"'
+        f' stroke="{color}" stroke-width="5" stroke-linecap="round"'
+        f' stroke-dasharray="{circumference}" stroke-dashoffset="{offset}"'
+        f' transform="rotate(-90 {size//2} {size//2})"'
+        f' style="transition: stroke-dashoffset 1s ease;"/>'
+        f'<text x="{size//2}" y="{size//2+1}" text-anchor="middle" dominant-baseline="middle"'
+        f' font-family="JetBrains Mono" font-weight="800" font-size="{size//4}px"'
+        f' fill="{color}">{value:.0f}</text>'
+        f'</svg>'
+        f'<div style="font-size:0.65rem;font-weight:600;color:var(--text-tertiary);'
+        f' text-transform:uppercase;letter-spacing:0.08em;margin-top:0.2rem;">{label}</div>'
+        f'</div>'
     )
 
 
@@ -38,30 +51,57 @@ def render_path(session, lang: str = "en") -> None:
         st.info(t("path.locked", lang))
         return
 
-    st.subheader("📈 Progress Dashboard")
-    st.caption(f"Profile: **{student_id}** · every lesson, every answer, "
-               f"every review.")
-
-    # ------------------------------------------------------------------
-    # Headline metrics
-    # ------------------------------------------------------------------
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Lessons completed", stats["lessons"])
-    col2.metric("🔥 Day streak", stats["streak"])
-    col3.metric("⚡ XP", f"{stats['xp']}")
-    col4.metric("Avg score", f"{stats['avg_score']:.0f}%")
-
-    # Level ladder + progress to the next level.
-    level, into, need = stats["level"], stats["xp_into_level"], stats["xp_for_next"]
     st.markdown(
         f"""
-        <div class="pd-card">
-          <div class="pd-card-row">
-            <span class="pd-level">LEVEL {level}</span>
-            <span class="pd-card-hint">{into} / {need} XP to level {level + 1}</span>
-          </div>
-          <div class="pd-xpbar"><div class="pd-xpfill" style="width:{max(2, 100 * into // need)}%"></div></div>
+        <div class="hero-banner" style="padding:1rem 1rem 0.5rem 1rem;">
+          <h1 style="font-size:1.8rem; margin:0;">{t("path.dashboard_title", lang)}</h1>
+          <p class="hero-sub" style="font-size:0.9rem;">{student_id}</p>
         </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # ------------------------------------------------------------------
+    # Headline stats — modern stat card grid
+    # ------------------------------------------------------------------
+    # Ring stat cards
+    lessons_val = stats["lessons"]
+    streak_val = stats["streak"]
+    xp_val = stats["xp"]
+    score_val = int(stats["avg_score"])
+    level, into, need = stats["level"], stats["xp_into_level"], stats["xp_for_next"]
+
+    ring1 = _ring_html(lessons_val, max(lessons_val + 5, 10), t('path.ring_lessons', lang), '#eab308', 90)
+    ring2 = _ring_html(streak_val, max(streak_val + 5, 14), t('path.ring_streak', lang), '#ef4444', 90)
+    ring3 = _ring_html(xp_val, need, f"Lvl {level}", '#06b6d4', 90)
+    ring4 = _ring_html(score_val, 100, t('path.ring_score', lang), '#22c55e', 90)
+
+    st.markdown(
+        f"""
+        <div class="skel-row">
+        <div class="skel-ring-card" data-reveal>{ring1}</div>
+        <div class="skel-ring-card" data-reveal>{ring2}</div>
+        <div class="skel-ring-card" data-reveal>{ring3}</div>
+        <div class="skel-ring-card" data-reveal>{ring4}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Level progress bar (elevated card)
+    pct = max(2, 100 * into // need) if need > 0 else 0
+    st.markdown(
+        f"""
+        <div class="skel-card" style="border-left:3px solid var(--accent);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;">
+        <span class="skel-card-title" style="color:var(--accent);">{t('path.level', lang).format(level=level)}</span>
+        <span style="font-family:JetBrains Mono;font-size:0.8rem;color:var(--text-tertiary);">
+        {t('path.xp_progress', lang).format(xp_into=into, xp_need=need, next_level=level + 1)}</span>
+        </div>
+        <div style="background:var(--bg-tertiary);border-radius:6px;height:10px;overflow:hidden;">
+        <div style="background:linear-gradient(90deg, #eab308, #facc15);height:100%;
+        width:{pct}%;border-radius:6px;transition:width 0.8s ease;"></div>
+        </div></div>
         """,
         unsafe_allow_html=True,
     )
@@ -177,22 +217,22 @@ def render_path(session, lang: str = "en") -> None:
     left, right = st.columns(2)
 
     with left:
-        st.markdown("#### 📉 Score trend")
+        st.markdown(f'#### {t("path.score_trend", lang)}')
         scores = stats.get("score_history") or []
         if len(scores) >= 2:
             chart = {"Lesson": [f"{i + 1}" for i in range(len(scores))],
                      "Score": [s["score"] for s in scores]}
             st.line_chart(chart, x="Lesson", y="Score", color="#FFE600")
         elif len(scores) == 1:
-            st.write(f"Score: **{scores[0]['score']:.0f}%** "
-                     f"({scores[0]['topic'] or 'lesson'})")
-            st.caption("Finish a second lesson to see your trend line.")
+            st.write(t('path.score_single', lang).format(
+                score=f"{scores[0]['score']:.0f}",
+                topic=scores[0]['topic'] or 'lesson'))
+            st.caption(t('path.trend_hint', lang))
         else:
-            _empty_card("No lessons yet",
-                        "Start a lesson — your score trend appears here.")
+            st.info(t('path.no_lessons', lang) + ' — ' + t('path.no_lessons_hint', lang))
 
     with right:
-        st.markdown("#### 🎯 Concept mastery")
+        st.markdown(f'#### {t("path.concept_mastery", lang)}')
         mastery = stats.get("mastery") or []
         if mastery:
             chart = {
@@ -201,9 +241,7 @@ def render_path(session, lang: str = "en") -> None:
             }
             st.bar_chart(chart, x="Concept", y="Accuracy (%)", color="#00E5FF")
         else:
-            _empty_card("No answers yet",
-                        "Answer the lesson's questions and each concept's "
-                        "accuracy lands here.")
+            st.info(t('path.no_answers', lang) + ' — ' + t('path.no_answers_hint', lang))
 
     st.divider()
 
@@ -212,7 +250,7 @@ def render_path(session, lang: str = "en") -> None:
     # ------------------------------------------------------------------
     activity = stats.get("activity") or []
     if activity:
-        st.markdown("#### 🔥 Last 28 days")
+        st.markdown(f'#### {t("path.last_28_days", lang)}')
         tiles = "".join(
             f'<span class="pd-day {"pd-day-on" if d["active"] else ""}" '
             f'title="{d["date"]}"></span>'
@@ -220,26 +258,57 @@ def render_path(session, lang: str = "en") -> None:
         )
         st.markdown(f'<div class="pd-grid">{tiles}</div>',
                     unsafe_allow_html=True)
-        st.caption(f"Current streak: **{stats['streak']} day(s)**. "
-                   f"Every yellow tile is a day you studied.")
+        st.caption(t('path.streak_caption', lang).format(streak=stats['streak']))
 
     # ------------------------------------------------------------------
-    # Weak spots, gathered from every report.
-    # ------------------------------------------------------------------
+    # Weak + Strong concepts
     weak = list(dict.fromkeys(w for r in stats["reports"] for w in r.weak))
     miscon = list(dict.fromkeys(m for r in stats["reports"] for m in r.misconceptions))
-    if miscon or weak:
-        st.markdown("#### 🧠 Concepts to revisit")
-        for item in (weak or miscon)[:5]:
-            st.warning(item)
+    strong = list(dict.fromkeys(s for r in stats["reports"] for s in r.strong))
+    if weak or miscon or strong:
+        st.markdown(f'#### {t("path.concept_analysis", lang)}')
+        cw1, cw2 = st.columns(2)
+        with cw1:
+            items = (weak or miscon)[:5]
+            if items:
+                items_html = "".join(
+                    f'<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;'
+                    f'border-bottom:1px solid var(--border-subtle);">'
+                    f'<span style="color:var(--red);">⚠</span>'
+                    f'<span style="font-size:0.8rem;color:var(--text-secondary);">{item}</span>'
+                    f'</div>'
+                    for item in items
+                )
+                st.markdown(
+                    f'<div class="skel-card" style="border-left:3px solid var(--red);">'
+                    f'<div class="skel-card-title" style="color:var(--red);">{t("path.needs_work", lang)}</div>'
+                    f'{items_html}</div>',
+                    unsafe_allow_html=True,
+                )
+        with cw2:
+            if strong:
+                items_html = "".join(
+                    f'<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;'
+                    f'border-bottom:1px solid var(--border-subtle);">'
+                    f'<span style="color:var(--green);">✓</span>'
+                    f'<span style="font-size:0.8rem;color:var(--text-secondary);">{item}</span>'
+                    f'</div>'
+                    for item in strong[:5]
+                )
+                st.markdown(
+                    f'<div class="skel-card" style="border-left:3px solid var(--green);">'
+                    f'<div class="skel-card-title" style="color:var(--green);">{t("path.mastered", lang)}</div>'
+                    f'{items_html}</div>',
+                    unsafe_allow_html=True,
+                )
 
     # ------------------------------------------------------------------
     # Learning path (Section 15 of the brief) — kept, dark-styled.
     # ------------------------------------------------------------------
     if topic:
         st.divider()
-        st.markdown(f"### 🗺️ Learning path: {topic}")
-        st.caption("Foundations first, then what each step makes possible.")
+        st.markdown(f'### {t("path.learning_path", lang).format(topic=topic)}')
+        st.caption(t('path.learning_path_desc', lang))
 
         steps = orch.learning_path_for(topic)
         if steps:
@@ -253,7 +322,7 @@ def render_path(session, lang: str = "en") -> None:
 
                 is_current = (topic.lower() in title.lower()
                               or title.lower() in topic.lower())
-                here = ("<span class='pd-here'>YOU ARE HERE</span><br>"
+                here = (f"<span class='pd-here'>{t('path.you_are_here', lang)}</span><br>"
                         if is_current else "")
                 st.markdown(
                     f"""

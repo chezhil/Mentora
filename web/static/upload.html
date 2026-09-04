@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mentora — Upload Material</title>
+  <link rel="stylesheet" href="/static/brutalist.css">
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <style>
+    .upload-zone {
+      border: 3px dashed var(--ink);
+      padding: 3rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: white;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      background: var(--acid);
+      box-shadow: 8px 8px 0 0 #000;
+    }
+    .upload-zone input[type="file"] { display: none; }
+    .file-list { margin-top: 1rem; }
+    .file-item {
+      display: flex; align-items: center; justify-content: space-between;
+      border: 3px solid var(--ink);
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.5rem;
+      background: white;
+    }
+    .file-item .name { font-weight: 700; font-size: 0.85rem; }
+    .file-item .size { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: #666; }
+    .file-item .remove {
+      background: var(--ink); color: var(--acid);
+      border: none; padding: 0.25rem 0.75rem;
+      font-family: 'Archivo Black', sans-serif;
+      font-size: 0.7rem; text-transform: uppercase;
+      cursor: pointer;
+    }
+    .file-item .remove:hover { background: #333; }
+    .topic-input {
+      width: 100%;
+      padding: 1rem;
+      font-size: 1.1rem;
+      font-family: 'Archivo Black', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: -0.025em;
+    }
+    .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    @media (max-width: 640px) { .config-row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <nav>
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <a href="/dashboard" style="width:36px;height:36px;display:grid;place-items:center;background:var(--ink);color:var(--acid);font-family:'Archivo Black',sans-serif;font-size:1.1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;text-decoration:none;">M</a>
+        <div style="font-family:'Archivo Black',sans-serif;font-size:1rem;text-transform:uppercase;letter-spacing:-0.025em;">
+          Mentora <span style="color:rgba(0,0,0,0.3);margin:0 0.5rem;">/</span> <span style="color:rgba(0,0,0,0.6);">Material Upload</span>
+        </div>
+      </div>
+      <a href="/dashboard" style="background:var(--ink);color:var(--paper);font-family:'Archivo Black',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:0.02em;padding:0.625rem 1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;text-decoration:none;" class="btn-brutal">
+        Back to Dashboard <span style="color:var(--acid);">→</span>
+      </a>
+    </nav>
+  </header>
+
+  <!-- Main -->
+  <main class="grid-bg" style="flex:1;padding:2rem;overflow-y:auto;">
+    <div style="max-width:900px;margin:0 auto;">
+
+      <!-- Step indicator -->
+      <div style="margin-bottom:2rem;">
+        <span class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.5);">01 / Materials</span>
+      </div>
+
+      <!-- Upload zone -->
+      <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" multiple accept=".pdf,.docx,.pptx,.txt">
+        <div style="margin-bottom:1rem;">
+          <div style="display:inline-grid;place-items:center;width:64px;height:64px;border:3px solid var(--ink);background:var(--acid);">
+            <iconify-icon icon="ph:cloud-arrow-up-bold" style="font-size:2rem;"></iconify-icon>
+          </div>
+        </div>
+        <h2 class="font-black" style="font-size:1.5rem;text-transform:uppercase;margin-bottom:0.5rem;">Drop files here</h2>
+        <p style="font-size:0.85rem;color:rgba(0,0,0,0.6);margin-bottom:1rem;">or click to browse</p>
+        <p class="font-mono" style="font-size:11px;color:rgba(0,0,0,0.4);text-transform:uppercase;">PDF, DOCX, PPTX, TXT — Max 200MB per file</p>
+      </div>
+
+      <!-- File list -->
+      <div class="file-list" id="fileList"></div>
+
+      <!-- Topic config -->
+      <div style="margin-top:2rem;">
+        <span class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.5);display:block;margin-bottom:1rem;">02 / Topic Configuration</span>
+
+        <div style="margin-bottom:1rem;">
+          <label class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:0.25rem;">What do you want to learn?</label>
+          <input type="text" id="topicInput" class="topic-input" placeholder="Ohm's Law, or Chapter 4, or React hooks">
+        </div>
+
+        <div class="config-row">
+          <div>
+            <label class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:0.25rem;">Difficulty Level</label>
+            <select id="levelSelect" style="width:100%;">
+              <option value="beginner">Beginner (Fundamentals)</option>
+              <option value="intermediate" selected>Intermediate (Standard)</option>
+              <option value="advanced">Advanced (Technical)</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:0.25rem;">Time Available</label>
+            <select id="timeSelect" style="width:100%;">
+              <option value="5">5 minutes</option>
+              <option value="10">10 minutes</option>
+              <option value="15">15 minutes</option>
+              <option value="20" selected>20 minutes</option>
+              <option value="30">30 minutes</option>
+              <option value="45">45 minutes</option>
+              <option value="60">60 minutes</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom:1rem;">
+          <label class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:0.25rem;">Learning Goal (optional)</label>
+          <input type="text" id="goalInput" placeholder="pass the unit test on Friday" style="width:100%;">
+        </div>
+      </div>
+
+      <!-- Start button -->
+      <button id="startBtn" onclick="startLesson()" style="width:100%;padding:1.5rem;background:var(--ink);color:var(--acid);font-family:'Archivo Black',sans-serif;font-size:1.25rem;text-transform:uppercase;border:3px solid var(--ink);box-shadow:8px 8px 0 0 #000;margin-top:1.5rem;" class="btn-brutal">
+        Start Lesson →
+      </button>
+
+      <!-- Progress indicator -->
+      <div id="progress" style="display:none;margin-top:1rem;text-align:center;">
+        <p class="font-mono" style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;">Mentora is preparing your lesson...</p>
+        <div style="margin-top:0.5rem;height:6px;background:rgba(0,0,0,0.1);border:2px solid var(--ink);">
+          <div id="progressBar" style="height:100%;background:var(--acid);width:0%;transition:width 0.3s;"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer marquee -->
+  <div style="background:var(--ink);border-top:3px solid var(--ink);overflow:hidden;padding:0.625rem 0;">
+    <div class="marquee-track" style="display:flex;white-space:nowrap;font-family:'Archivo Black',sans-serif;text-transform:uppercase;color:var(--acid);font-size:0.875rem;letter-spacing:-0.025em;">
+      <div style="display:flex;flex-shrink:0;align-items:center;">
+        <span style="padding:0 1.5rem;">Upload Complete</span><span style="color:rgba(244,241,234,0.3);">/</span>
+        <span style="padding:0 1.5rem;">Material Indexed</span><span style="color:rgba(244,241,234,0.3);">/</span>
+        <span style="padding:0 1.5rem;">Curriculum Ready</span><span style="color:rgba(244,241,234,0.3);">/</span>
+      </div>
+      <div style="display:flex;flex-shrink:0;align-items:center;" aria-hidden="true">
+        <span style="padding:0 1.5rem;">Upload Complete</span><span style="color:rgba(244,241,234,0.3);">/</span>
+        <span style="padding:0 1.5rem;">Material Indexed</span><span style="color:rgba(244,241,234,0.3);">/</span>
+        <span style="padding:0 1.5rem;">Curriculum Ready</span><span style="color:rgba(244,241,234,0.3);">/</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    let uploadedFiles = [];
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      addFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', e => addFiles(e.target.files));
+
+    function addFiles(files) {
+      for (const f of files) {
+        if (!uploadedFiles.find(u => u.name === f.name)) {
+          uploadedFiles.push(f);
+        }
+      }
+      renderFiles();
+    }
+
+    function removeFile(name) {
+      uploadedFiles = uploadedFiles.filter(f => f.name !== name);
+      renderFiles();
+    }
+
+    function renderFiles() {
+      if (!uploadedFiles.length) { fileList.innerHTML = ''; return; }
+      fileList.innerHTML = uploadedFiles.map(f => {
+        const size = f.size > 1048576 ? (f.size/1048576).toFixed(1) + ' MB' : (f.size/1024).toFixed(0) + ' KB';
+        const icon = f.name.endsWith('.pdf') ? 'ph:file-pdf-bold' : f.name.endsWith('.docx') ? 'ph:file-doc-bold' : 'ph:file-bold';
+        return '<div class="file-item">' +
+          '<div style="display:flex;align-items:center;gap:0.75rem;">' +
+          '<iconify-icon icon="' + icon + '" style="font-size:1.5rem;"></iconify-icon>' +
+          '<div><div class="name">' + f.name + '</div><div class="size">' + size + '</div></div>' +
+          '</div>' +
+          '<button class="remove" onclick="removeFile(\'' + f.name.replace(/'/g, "\\'") + '\')">Remove</button>' +
+          '</div>';
+      }).join('');
+    }
+
+    async function startLesson() {
+      const topic = document.getElementById('topicInput').value.trim();
+      if (!topic) { alert('Please enter a topic.'); return; }
+
+      const level = document.getElementById('levelSelect').value;
+      const minutes = document.getElementById('timeSelect').value;
+      const goal = document.getElementById('goalInput').value;
+      const files = uploadedFiles.map(f => f.name);
+
+      document.getElementById('progress').style.display = 'block';
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('startBtn').style.opacity = '0.5';
+
+      // Save config so Streamlit picks it up
+      try {
+        localStorage.setItem('mentora_config', JSON.stringify({
+          topic, level, minutes: parseInt(minutes), goal,
+          files: files,
+          persona: localStorage.getItem('mentora_persona') || 'socratic',
+          language: (JSON.parse(localStorage.getItem('mentora_config') || '{}')).language || 'en'
+        }));
+      } catch(e) {}
+
+      let pct = 0;
+      const iv = setInterval(() => {
+        pct += Math.random() * 15 + 5;
+        if (pct >= 100) {
+          pct = 100;
+          clearInterval(iv);
+          // Check if Streamlit is running, then redirect
+          fetch('http://127.0.0.1:8501/_stcore/health')
+            .then(function(r) {
+              if (r.ok) {
+                window.location.href = 'http://127.0.0.1:8501';
+              } else {
+                showLessonReady(topic, level, minutes);
+              }
+            })
+            .catch(function() {
+              showLessonReady(topic, level, minutes);
+            });
+        }
+        document.getElementById('progressBar').style.width = pct + '%';
+      }, 300);
+    }
+
+    function showLessonReady(topic, level) {
+      document.getElementById('progress').innerHTML =
+        '<div style="border:3px solid var(--ink);padding:1.5rem;background:var(--acid);box-shadow:8px 8px 0 0 #000;margin-top:1rem;">' +
+        '<p class="font-black" style="font-size:1.1rem;text-transform:uppercase;margin-bottom:0.5rem;">Lesson Ready!</p>' +
+        '<p style="font-size:0.85rem;">Topic: <strong>' + topic + '</strong> (' + level + ')</p>' +
+        '<p style="font-size:0.8rem;color:rgba(0,0,0,0.6);margin-top:0.5rem;">' +
+        'The interactive lesson will start in the Mentora app. Make sure the Streamlit server is running on port 8501.</p>' +
+        '<button onclick="window.location.href=\'http://127.0.0.1:8501\'" style="margin-top:1rem;padding:1rem 2rem;background:var(--ink);color:var(--acid);font-family:Archivo Black,sans-serif;text-transform:uppercase;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;cursor:pointer;">Open Mentora App</button>' +
+        '</div>';
+    }
+  </script>
+</body>
+</html>

@@ -36,6 +36,10 @@ ENGLISH: dict[str, str] = {
     "nav.report": "Report",
     "nav.classroom": "Classroom",
     "nav.flashcards": "Flashcards",
+    "nav.exam": "Exam Mode",
+    "nav.learning": "My Learning",
+    "nav.library": "Library",
+    "nav.planner": "Planner",
 
     # Setup
     "setup.role": "I am a",
@@ -52,9 +56,16 @@ ENGLISH: dict[str, str] = {
     "setup.time": "Time I have (minutes)",
     "setup.start": "Start lesson",
     "setup.welcome_back": "Welcome back",
+    "setup.hero_tag": "AI-Powered Adaptive Tutor",
+    "setup.hero_sub": "Upload your material or name a topic. Mentora adapts to how you learn — adjusting difficulty, re-teaching with new analogies, and tracking every concept.",
+    "setup.quick_start": "Quick Start",
+    "setup.past_lessons": "Your past lessons",
+    "setup.no_past": "No lessons yet — start your first one below.",
+    "setup.pick_role": "Choose your role",
     "level.beginner": "Beginner",
     "level.intermediate": "Intermediate",
     "level.advanced": "Advanced",
+    "setup.enter_topic": "⚠️ Enter a topic or upload your material first.",
 
     # Lesson
     "lesson.concept": "Concept",
@@ -76,8 +87,70 @@ ENGLISH: dict[str, str] = {
     "lesson.planning": "Reading your material and planning the lesson…",
     "lesson.marking": "Marking your answer…",
     "lesson.preparing": "Preparing the next part…",
+    "lesson.already_starting": "Already starting that lesson…",
+    "lesson.already_building": "Already building your report…",
     "lesson.thinking": "Thinking…",
     "lesson.no_video": "Teaching as text for now.",
+    "lesson.setup_first": "Start a lesson on the **Setup** page first.",
+    "lesson.finished_quiz_hint": "The lesson is finished! Open the **Quiz** page to take your final assessment.",
+    "lesson.finish_quiz": "Finish and take the Final Quiz",
+    "lesson.preparing_quiz": "Preparing your final quiz…",
+    "lesson.adaptation": "Teacher reasoning",
+    "lesson.teaching_now": "Now teaching",
+    "lesson.grounding": "Grounding",
+    "lesson.waiting": "Waiting for the first answer.",
+    "lesson.correct": "Answer: correct",
+    "lesson.incorrect": "Answer: incorrect",
+
+    # Socratic chips
+    "socratic.simpler": "Explain simpler",
+    "socratic.example": "Give an example",
+    "socratic.check": "Check understanding",
+    "socratic.connect": "Connect concepts",
+
+    # Exam Mode
+    "exam.title": "Exam Mode",
+    "exam.desc": "Simulate a timed exam from your lesson material. No hints, no re-explanations — just you and the questions.",
+    "exam.no_session": "Start a lesson first to generate exam questions.",
+    "exam.no_questions": "No questions available. Finish a lesson to generate quiz questions.",
+    "exam.duration": "Exam duration (minutes)",
+    "exam.question_count": "Questions",
+    "exam.start": "Start Exam",
+    "exam.placeholder": "Type your answer…",
+    "exam.prev": "Previous",
+    "exam.next": "Next",
+    "exam.submit": "Submit Exam",
+    "exam.answered": "answered",
+    "exam.results": "Exam Results",
+    "exam.score": "Score",
+    "exam.correct": "correct",
+    "exam.time_taken": "Time taken",
+    "exam.try_again": "Try Again",
+
+    # My Learning
+    "learning.title": "My Learning",
+    "learning.desc": "Continue where you left off.",
+    "learning.no_lessons": "No lessons yet. Start one from the Setup tab.",
+    "learning.resume": "Resume",
+    "learning.score": "Score",
+    "learning.weak": "Weak spots",
+    "learning.no_material": "No uploaded material",
+
+    # Library
+    "library.title": "Library",
+    "library.desc": "Your uploaded materials and lesson history.",
+    "library.empty": "No materials uploaded yet. Upload a PDF, DOCX, or TXT when starting a lesson.",
+    "library.upload_count": "uploads",
+
+    # Planner
+    "planner.title": "Study Planner",
+    "planner.desc": "Plan your study sessions and track daily goals.",
+    "planner.no_goal": "Set a daily review goal on the Path tab to start planning.",
+    "planner.today": "Today",
+    "planner.this_week": "This Week",
+    "planner.streak": "Day Streak",
+    "planner.goal": "Daily Goal",
+    "planner.reviews": "Reviews Today",
 
     # Flashcards
     "flashcards.empty": "No cards yet. Start a lesson — its concepts and "
@@ -95,6 +168,7 @@ ENGLISH: dict[str, str] = {
                                   "already queued to come back — review them "
                                   "once more while they are fresh.",
     "flashcards.title": "🗂️ Flashcards",
+    "flashcards.view_label": "Card view",
     "flashcards.view_all": "All cards",
     "flashcards.view_due": "Due now",
     "flashcards.view_browse": "Browse deck",
@@ -194,6 +268,36 @@ ENGLISH: dict[str, str] = {
     "path.badges_next_label": "Next badge:",
     "path.badges_to_go": "{n} to go",
     "path.badges_progress": "{value}/{target}",
+    # Dashboard UI strings (ring labels, sections, empty states)
+    "path.dashboard_title": "📈 Progress Dashboard",
+    "path.ring_lessons": "Lessons",
+    "path.ring_streak": "Day Streak",
+    "path.ring_score": "Avg Score",
+    "path.level": "Level {level}",
+    "path.xp_progress": "{xp_into} / {xp_need} XP → Level {next_level}",
+    "path.score_trend": "📉 Score trend",
+    "path.score_single": "Score: **{score}%** ({topic})",
+    "path.trend_hint": "Finish a second lesson to see your trend line.",
+    "path.no_lessons": "No lessons yet",
+    "path.no_lessons_hint": "Start a lesson — your score trend appears here.",
+    "path.concept_mastery": "🎯 Concept mastery",
+    "path.no_answers": "No answers yet",
+    "path.no_answers_hint": "Answer the lesson's questions and each concept's accuracy lands here.",
+    "path.last_28_days": "🔥 Last 28 days",
+    "path.streak_caption": "Current streak: **{streak} day(s)**. Every yellow tile is a day you studied.",
+    "path.concept_analysis": "🧠 Concept Analysis",
+    "path.needs_work": "Needs Work",
+    "path.mastered": "Mastered",
+    "path.learning_path": "🗺️ Learning path: {topic}",
+    "path.learning_path_desc": "Foundations first, then what each step makes possible.",
+    "path.you_are_here": "YOU ARE HERE",
+    # Lesson screen strings (hardcoded in app.py)
+    "lesson.still_answering": "Still answering your last question…",
+    "lesson.answer_marked": "That answer is already being marked…",
+    "lesson.read_aloud": "🔊 Read aloud",
+    "lesson.explain_differently": "🔄 Explain differently (Regenerate)",
+    "lesson.preparing_fresh": "Preparing fresh explanation with new analogy...",
+    "lesson.switch_help": "Switch mid-lesson. Updates the current explanation immediately.",
 
     # Achievement badges — titles and "how" lines per badge id.
     "badge.first_lesson.title": "First lesson",
@@ -218,6 +322,7 @@ ENGLISH: dict[str, str] = {
     "badge.flawless.how": "Score 100% on a lesson.",
     "history.empty": "Nothing yet.",
     "history.turns": "turns",
+    "history.past_sessions": "Past Sessions",
 
     # Teacher role
     "teacher.title": "Classroom",
@@ -228,6 +333,8 @@ ENGLISH: dict[str, str] = {
     "teacher.avg": "Class average",
     "teacher.lessons": "Lessons taught",
     "teacher.common_gaps": "Where the class is struggling",
+    "teacher.weakest": "No misconception is shared yet. Weakest concepts so far:",
+    "teacher.no_reteach": "Nothing to reteach — nobody has got anything wrong yet.",
     "teacher.preview": "Preview this lesson as a student",
 }
 

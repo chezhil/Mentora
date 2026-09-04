@@ -331,6 +331,7 @@ def start_session(topic: str, profile: LearnerProfile,
         profile=profile,
         plan=plan,
         doc_id=doc_id,
+        started_at=_now(),
     )
     _RUNTIME[session.session_id] = Runtime(student_id=student_id)
     _persist("record_study_start", session.session_id, student_id,

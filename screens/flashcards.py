@@ -86,7 +86,7 @@ def review_card(student_id: str, card: dict, lang: str, ns: str,
     if not revealed:
         st.markdown(
             f"""
-            <div class="fc-card">
+            <div class="fc-card shine-hover" data-tilt>
               <span class="fc-tag">{tag}</span>
               <div class="fc-front">{front}</div>
             </div>
@@ -101,7 +101,7 @@ def review_card(student_id: str, card: dict, lang: str, ns: str,
 
     st.markdown(
         f"""
-        <div class="fc-card fc-open">
+        <div class="fc-card fc-open shine-hover" data-tilt>
           <span class="fc-tag">{tag}</span>
           <div class="fc-front">{front}</div>
           <div class="fc-divider"></div>
@@ -289,8 +289,9 @@ def render_flashcards(session, lang: str = "en") -> None:
             done=str(today["done"]), goal=str(today["goal"])))
 
     view = st.radio(
-        "", [t("flashcards.view_all", lang), t("flashcards.view_due", lang),
-             t("flashcards.view_browse", lang)],
+        t("flashcards.view_label", lang),
+        [t("flashcards.view_all", lang), t("flashcards.view_due", lang),
+         t("flashcards.view_browse", lang)],
         horizontal=True, label_visibility="collapsed",
         key=f"fc_view_{student_id}",
     )

@@ -86,11 +86,11 @@ def _reteach_list(rows: list[dict], lang: str) -> None:
             st.warning(f"**{count} of {len(rows)} students** — {name}")
             st.progress(min(share, 1.0))
     elif weak:
-        st.caption("No misconception is shared yet. Weakest concepts so far:")
+        st.caption(t('teacher.weakest', lang))
         for name, count in weak.most_common(6):
             st.write(f"• {name} — {count} student{'s' if count > 1 else ''}")
     else:
-        st.caption("Nothing to reteach — nobody has got anything wrong yet.")
+        st.caption(t('teacher.no_reteach', lang))
 
 
 def _student_table(rows: list[dict], lang: str) -> None:

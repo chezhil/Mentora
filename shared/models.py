@@ -5,7 +5,7 @@ Nobody edits this file alone. Propose changes to Chezhil.
 
 from pydantic import BaseModel
 from typing import Literal
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class LearnerProfile(BaseModel):
@@ -113,3 +113,4 @@ class SessionState(BaseModel):
     current_concept: int = 0
     attempts: dict[str, int] = {}      # concept_id -> times re-explained
     evaluations: list[Evaluation] = []
+    started_at: datetime | None = None  # set when the lesson begins, for elapsed timer

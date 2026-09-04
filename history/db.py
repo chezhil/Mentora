@@ -113,11 +113,22 @@ def _init_db():
         student_id TEXT PRIMARY KEY,
         daily_goal INTEGER NOT NULL DEFAULT 0,
         updated_at TEXT NOT NULL,
-        perfect_lesson INTEGER NOT NULL DEFAULT 0
+        perfect_lesson INTEGER NOT NULL DEFAULT 0,
+        persona TEXT NOT NULL DEFAULT 'socratic',
+        language TEXT NOT NULL DEFAULT 'en',
+        difficulty TEXT NOT NULL DEFAULT 'intermediate'
     )
     """)
     _ensure_column(conn, "preferences", "perfect_lesson",
                    "perfect_lesson INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(conn, "preferences", "persona",
+                   "persona TEXT NOT NULL DEFAULT 'socratic'")
+    _ensure_column(conn, "preferences", "language",
+                   "language TEXT NOT NULL DEFAULT 'en'")
+    _ensure_column(conn, "preferences", "difficulty",
+                   "difficulty TEXT NOT NULL DEFAULT 'intermediate'")
+    _ensure_column(conn, "preferences", "pending_uploads",
+                   "pending_uploads TEXT NOT NULL DEFAULT '[]'")
 
     # One row per lesson session, so we can show time studied and streaks.
     cur.execute("""
@@ -265,6 +276,25 @@ def load_history(student_id: str = "default_student") -> List[LessonReport]:
     return reports
 
 
+def load_session_summaries(student_id: str = "default_student") -> list[dict]:
+    """Past sessions with date, score, and topic — for the History tab recap."""
+    _init_db()
+    conn = _get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+    SELECT session_id, score, next_topic, created_at
+    FROM reports
+    WHERE student_id = ?
+    ORDER BY created_at DESC
+    LIMIT 20
+    """, (student_id,))
+    rows = cur.fetchall()
+    conn.close()
+    return [{"session_id": r["session_id"], "score": r["score"],
+             "topic": r["next_topic"], "date": r["created_at"]}
+            for r in rows]
+
+
 def record_answer(session_id: str, student_id: str, concept_id: str | None,
                   question_kind: str, correct: bool,
                   concept_name: str | None = None) -> None:
@@ -384,6 +414,71 @@ def set_daily_goal(student_id: str, goal: int) -> None:
         daily_goal = excluded.daily_goal,
         updated_at = excluded.updated_at
     """, (student_id, max(0, int(goal)), datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+
+
+def get_preferences(student_id: str) -> dict:
+    """Return all preferences for a student, or defaults."""
+    _init_db()
+    conn = _get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM preferences WHERE student_id = ?",
+                (student_id,))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return {"daily_goal": 0, "persona": "socratic",
+                "language": "en", "difficulty": "intermediate"}
+    result = {
+        "daily_goal": int(row["daily_goal"]),
+        "persona": row["persona"],
+        "language": row["language"],
+        "difficulty": row["difficulty"],
+    }
+    try:
+        result["pending_uploads"] = json.loads(row.get("pending_uploads", "[]") or "[]")
+    except Exception:
+        result["pending_uploads"] = []
+    return result
+
+
+def set_preferences(student_id: str, prefs: dict) -> None:
+    """Merge prefs into the student's preferences row."""
+    _init_db()
+    conn = _get_connection()
+    cur = conn.cursor()
+    now = datetime.now().isoformat()
+    # Read existing row first to avoid overwriting unmentioned fields.
+    cur.execute("SELECT * FROM preferences WHERE student_id = ?",
+                (student_id,))
+    existing = cur.fetchone()
+    base = dict(existing) if existing else {}
+    merged = {
+        "daily_goal": int(prefs.get("daily_goal", base.get("daily_goal", 0))),
+        "persona": prefs.get("persona", base.get("persona", "socratic")),
+        "language": prefs.get("language", base.get("language", "en")),
+        "difficulty": prefs.get("difficulty", base.get("difficulty", "intermediate")),
+    }
+    # pending_uploads is JSON-encoded in the DB
+    pending = prefs.get("pending_uploads", None)
+    if pending is not None:
+        merged["pending_uploads"] = json.dumps(pending) if not isinstance(pending, str) else pending
+    else:
+        merged["pending_uploads"] = base.get("pending_uploads", "[]")
+    cur.execute("""
+    INSERT INTO preferences (student_id, daily_goal, persona, language, difficulty, pending_uploads, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(student_id) DO UPDATE SET
+        daily_goal = excluded.daily_goal,
+        persona = excluded.persona,
+        language = excluded.language,
+        difficulty = excluded.difficulty,
+        pending_uploads = excluded.pending_uploads,
+        updated_at = excluded.updated_at
+    """, (student_id, merged["daily_goal"], merged["persona"],
+           merged["language"], merged["difficulty"],
+           merged.get("pending_uploads", "[]"), now))
     conn.commit()
     conn.close()
 
