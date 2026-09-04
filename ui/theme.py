@@ -7,6 +7,7 @@ it is re-read on every rerun, so save the file and the browser updates.
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 CSS_PATH = Path(__file__).resolve().parent / "style.css"
 
@@ -53,11 +54,18 @@ def _set_direction(lang: str) -> None:
     except Exception:
         rtl = False
 
+    # This MUST go through components.html, not st.markdown. Streamlit strips
+    # <script> out of markdown even with unsafe_allow_html=True, so the
+    # markdown version ran nothing at all and Urdu and Arabic have been
+    # rendering left-to-right since the feature landed. components.html is the
+    # supported way to get a script onto the page: a real (zero-height) iframe
+    # whose window.parent is the app document.
     direction = "rtl" if rtl else "ltr"
-    st.markdown(
+    components.html(
         f"""<script>
-        const root = window.parent.document.querySelector('.stApp');
-        if (root) {{ root.setAttribute('dir', '{direction}'); }}
+        const doc = window.parent.document;
+        const root = doc.querySelector('.stApp');
+        if (root) {{ root.setAttribute('dir', {direction!r}); }}
         </script>""",
-        unsafe_allow_html=True,
+        height=0, width=0,
     )

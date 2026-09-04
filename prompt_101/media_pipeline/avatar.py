@@ -113,45 +113,49 @@ def _generate_liveportrait(audio_path: str, photo_path: str, output_path: Path) 
 
 def _create_placeholder_avatar(audio_path: str, output_path: Path) -> Path:
     """Create a placeholder avatar video when LivePortrait is unavailable.
-    
-    Generates a simple colored rectangle video with the audio track.
-    This allows the pipeline to test without Replicate access.
+
+    A flat colour card carrying the real audio, so the compositor still has a
+    video stream and the lesson keeps its narration.
+
+    The ffmpeg call used to sit INSIDE `except ImportError`, so on the normal
+    path -- imageio-ffmpeg installed, which requirements.txt pins -- the
+    function ran no ffmpeg at all and fell off the end returning None. The
+    caller tests the result with `if mp4:`, so a clone without the Wav2Lip
+    weights produced no video and reported nothing. Verified: it returned None
+    and created no file.
     """
+    import subprocess
+
     try:
         import imageio_ffmpeg
         ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-    except ImportError:
+    except Exception:
         ffmpeg_exe = "ffmpeg"
-        
-        duration = get_audio_duration(audio_path)
-        
-        # Create a simple colored video with text overlay
-        cmd = [
-            ffmpeg_exe,
-            "-y",  # Overwrite
-            "-f", "lavfi", "-i",
-            f"color=c=0x667eea:s=320x240:d={duration}",
-            "-i", audio_path,
-            "-vf", "drawtext=text='AI Teacher':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2",
-            "-c:v", "libx264", "-pix_fmt", "yuv420p",
-            "-c:a", "aac",
-            "-shortest",
-            str(output_path),
-        ]
-        
-        import subprocess
-        subprocess.run(cmd, capture_output=True, check=True, timeout=120)
-        
-        if output_path.exists():
-            return output_path
-        else:
-            raise RuntimeError("ffmpeg did not create output file")
-            
-    except Exception as e:
-        print(f"[avatar] Placeholder creation failed: {e}")
-        # Create empty MP4 as last resort
-        output_path.write_bytes(b"")
-        return output_path
+
+    duration = get_audio_duration(audio_path)
+    base = [ffmpeg_exe, "-y", "-loglevel", "error",
+            "-f", "lavfi", "-i", f"color=c=0x667eea:s=320x240:d={duration}",
+            "-i", str(audio_path)]
+    tail = ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+            "-shortest", str(output_path)]
+    captioned = base + [
+        "-vf", "drawtext=text='AI Teacher':fontsize=24:fontcolor=white:"
+               "x=(w-text_w)/2:y=(h-text_h)/2"] + tail
+
+    # drawtext needs libfreetype, which some ffmpeg builds omit; a plain card
+    # with the narration on it is still a usable segment.
+    for cmd in (captioned, base + tail):
+        try:
+            subprocess.run(cmd, capture_output=True, check=True, timeout=120)
+            if output_path.exists() and output_path.stat().st_size > 0:
+                return output_path
+        except Exception as exc:
+            print(f"[avatar] placeholder attempt failed: {exc}")
+
+    # Never leave a zero-byte MP4: it exists, so every `if mp4:` and
+    # os.path.exists() downstream treats it as a real video.
+    output_path.unlink(missing_ok=True)
+    raise RuntimeError("could not build a placeholder avatar")
 
 
 def validate_photo(photo_path: str) -> dict:
