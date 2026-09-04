@@ -987,7 +987,8 @@ def _wav_for(audio: Path, ffmpeg: str, work: Path) -> Path:
 
 
 def encode(out: Path, elements: list[Element], kind: str, caption: str,
-           narration: Narration, variant: str | None = None) -> int:
+           narration: Narration, variant: str | None = None,
+           teacher: str | None = None) -> int:
     """Draw and mux a narrated board video into `out`.
 
     Factored out of build() so the rest of Mentora can render the same
@@ -1010,9 +1011,14 @@ def encode(out: Path, elements: list[Element], kind: str, caption: str,
     # part of the picture. Failing to build her must not cost us the board,
     # so anything here degrades to the board alone.
     poses = shapes_ = None
+    palette = {}
     try:
         avatar_render = _avatar_module()
         shapes_ = avatar_render.shapes()
+        who = avatar_render.teacher(teacher_id) if teacher_id else None
+        if who:
+            variant = who.get("variant") or variant
+        palette = (who or {}).get("palette") or {}
         wav = _wav_for(Path(narration.audio), ffmpeg, out.parent)
         poses = avatar_render.analyse(wav, FPS, int(total * FPS),
                                       gaze=gaze_track(elements, kind))
@@ -1032,6 +1038,7 @@ def encode(out: Path, elements: list[Element], kind: str, caption: str,
         variant = os.environ.get("MENTORA_AVATAR_VARIANT", "f")
     if variant not in ("f", "m"):
         variant = "f"
+    teacher_id = teacher or os.environ.get("MENTORA_TEACHER") or ""
 
     silent = out.parent / f".{out.stem}_silent.mp4"
     fig = plt.figure(figsize=(W / DPI, H / DPI), dpi=DPI, facecolor=PAPER)
@@ -1047,7 +1054,8 @@ def encode(out: Path, elements: list[Element], kind: str, caption: str,
                 if poses:
                     avatar_render.draw_avatar(
                         ax, shapes_, poses[min(f, len(poses) - 1)],
-                        AVATAR_X, AVATAR_Y, AVATAR_W, variant)
+                        AVATAR_X, AVATAR_Y, AVATAR_W, variant,
+                        palette=palette)
                 writer.grab_frame(facecolor=PAPER)
     finally:
         plt.close(fig)

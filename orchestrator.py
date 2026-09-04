@@ -283,6 +283,7 @@ def _build_media(session: SessionState,
                     audio_wav=out.audio_wav,
                     max_seconds=MAX_AVATAR_SECONDS,
                     avatar=session.profile.avatar,
+                    teacher=getattr(session.profile, "teacher", None),
                 )
                 if board:
                     out.video_mp4 = board

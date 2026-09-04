@@ -106,7 +106,6 @@
     if (muted || !synth) { target = 0; done(); return; }
     synth.cancel();
     var u = new SpeechSynthesisUtterance(text);
-    voice = voice || pickVoice();
     if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = lang; }
     u.rate = 1.0;
     u.pitch = 1.0;
@@ -124,29 +123,74 @@
   }
 
   // ---- the exchange -------------------------------------------------------
+  // One request in flight, one cancel for it. Every send path checks `busy`
+  // and every control that could start or stop a turn is disabled while it
+  // runs, so a second click cannot queue a second question, and Cancel cannot
+  // be pressed twice into an already-aborted request.
+  var inflight = null, ticker = null, startedAt = 0;
+
+  function workOn(label) {
+    startedAt = performance.now();
+    $('work').style.display = 'block';
+    $('workLabel').textContent = label;
+    $('elapsed').textContent = '0.0s';
+    $('cancel').disabled = false;
+    $('cancel').textContent = 'Cancel';
+    clearInterval(ticker);
+    ticker = setInterval(function () {
+      $('elapsed').textContent = ((performance.now() - startedAt) / 1000).toFixed(1) + 's';
+    }, 100);
+    gate(true);
+  }
+
+  function workOff() {
+    clearInterval(ticker);
+    ticker = null;
+    $('work').style.display = 'none';
+    inflight = null;
+    gate(false);
+  }
+
+  function gate(on) {
+    ['talk', 'send', 'preview', 'teacher', 'lang', 'voice'].forEach(function (id) {
+      var el = $(id);
+      if (el) el.disabled = on;
+    });
+    $('typed').disabled = on;
+  }
+
   async function ask(text) {
-    if (busy) return;
+    if (busy) return;                    // second click while thinking: ignored
     busy = true;
     add('student', text);
     say('Thinking');
-    $('hint').textContent = 'Thinking…';
+    workOn('Thinking');
 
     var d;
     try {
+      inflight = new AbortController();
       var r = await fetch('/api/voice/reply', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({text: text, history: history.slice(0, -1)}),
+        body: JSON.stringify({text: text, history: history.slice(0, -1),
+                              language: langCode()}),
+        signal: inflight.signal,
       });
       d = await r.json();
       if (!r.ok) throw new Error(d.error || 'The teacher could not answer.');
     } catch (e) {
       busy = false;
+      workOff();
       say('Ready');
-      add('teacher', 'Sorry — ' + e.message);
-      $('hint').textContent = 'Something went wrong. Try again.';
-      if (listening) start();
+      if (e.name !== 'AbortError') {
+        add('teacher', 'Sorry — ' + e.message);
+        $('hint').textContent = 'Something went wrong. Try again.';
+      } else {
+        $('hint').textContent = 'Cancelled.';
+      }
+      if (listening && e.name !== 'AbortError') start();
       return;
     }
+    workOff();
 
     if (d.image) {
       $('board').style.display = 'block';
@@ -219,6 +263,14 @@
   }
 
   // ---- wiring -------------------------------------------------------------
+  $('cancel').onclick = function () {
+    // Disabled immediately: an abort cannot be issued twice, and the button
+    // should not look live once it has done its job.
+    $('cancel').disabled = true;
+    $('cancel').textContent = 'Cancelling…';
+    if (inflight) { try { inflight.abort(); } catch (e) {} }
+  };
+
   $('talk').onclick = function () {
     if (!SR) {
       $('hint').textContent = 'This browser cannot listen. Chrome can; ' +
@@ -253,6 +305,7 @@
     $('typed').value = '';
     ask(v);
   }
+  function langCode() { return ($('lang') && $('lang').value) || lang; }
   $('send').onclick = sendTyped;
   $('typed').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); sendTyped(); }
@@ -268,16 +321,126 @@
     } catch (e) {}
   };
 
-  // Settings decide the language and which teacher appears.
-  fetch('/api/settings').then(function (r) { return r.json(); }).then(function (s) {
-    if (s.avatar && svg) svg.setAttribute('data-variant', s.avatar);
-    var map = {en: 'en-US', hi: 'hi-IN', ta: 'ta-IN', te: 'te-IN',
-               kn: 'kn-IN', mr: 'mr-IN', bn: 'bn-IN', es: 'es-ES'};
-    lang = map[s.language] || 'en-US';
-    voice = null;
-  }).catch(function () {});
+  // ---- pickers ------------------------------------------------------------
+  var LOCALE = {en: 'en-US', hi: 'hi-IN', ta: 'ta-IN', te: 'te-IN',
+                kn: 'kn-IN', mr: 'mr-IN', bn: 'bn-IN', es: 'es-ES'};
 
-  if (synth) synth.onvoiceschanged = function () { voice = pickVoice(); };
+  function remember(key, value) {
+    try { localStorage.setItem('mentora_voice_' + key, value); } catch (e) {}
+  }
+  function recall(key) {
+    try { return localStorage.getItem('mentora_voice_' + key); } catch (e) { return null; }
+  }
+
+  function fillTeachers(selected) {
+    var list = window.MENTORA_TEACHERS || [];
+    $('teacher').innerHTML = list.map(function (t) {
+      return '<option value="' + t.id + '">' + t.name + ' — ' + t.note + '</option>';
+    }).join('');
+    $('teacher').value = selected || list[0].id;
+    applyTeacher();
+  }
+
+  function applyTeacher() {
+    var t = window.teacherById($('teacher').value);
+    window.paintTeacher(svg, t);
+    remember('teacher', t.id);
+    // Persist it: the same teacher should appear in the rendered lessons, not
+    // only here. avatar keeps the rig (f/m); teacher carries the palette.
+    fetch('/api/settings', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({teacher: t.id, avatar: t.variant}),
+    }).catch(function () {});
+  }
+
+  function fillLanguages(list, selected) {
+    $('lang').innerHTML = list.map(function (l) {
+      return '<option value="' + l.code + '">' + l.name + '</option>';
+    }).join('');
+    $('lang').value = selected || 'en';
+  }
+
+  // Which voices the platform actually has for this language. The list is
+  // asynchronous in Chrome, so this runs again on voiceschanged.
+  function fillVoices() {
+    if (!synth) return;
+    var code = ($('lang').value || 'en');
+    lang = LOCALE[code] || 'en-US';
+    var base = lang.split('-')[0];
+    var all = synth.getVoices();
+    var pool = all.filter(function (v) { return v.lang.replace('_', '-').indexOf(base) === 0; });
+
+    if (!pool.length) {
+      $('voice').innerHTML = '<option value="">No ' + code +
+        ' voice installed — she will use the default</option>';
+      voice = null;
+      $('preview').disabled = true;
+      return;
+    }
+    $('preview').disabled = false;
+    // macOS ships a pile of novelty voices -- Bad News, Bahh, Bells, Zarvox --
+    // and they sort to the top alphabetically, so the first thing offered as
+    // a teacher was a joke. Rank by how much it sounds like a person.
+    var NOVELTY = /^(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|junior|kathy|princess|deranged|hysterical|bruce|fred|ralph|agnes|grandma|grandpa|rocko|shelley|sandy|flo|eddy|reed|rishi)/i;
+    var GOOD = /natural|neural|premium|enhanced|google|microsoft|siri/i;
+    pool.sort(function (a, b) {
+      var rank = function (v) {
+        if (NOVELTY.test(v.name)) return 3;
+        if (GOOD.test(v.name)) return 0;
+        return v.default ? 0 : 1;
+      };
+      return rank(a) - rank(b) || a.name.localeCompare(b.name);
+    });
+    $('voice').innerHTML = pool.map(function (v) {
+      return '<option value="' + v.name + '">' + v.name + ' (' + v.lang + ')</option>';
+    }).join('');
+    var want = recall('voice');
+    if (want && pool.some(function (v) { return v.name === want; })) $('voice').value = want;
+    voice = pool.filter(function (v) { return v.name === $('voice').value; })[0] || pool[0];
+  }
+
+  $('teacher').addEventListener('change', applyTeacher);
+  $('lang').addEventListener('change', function () {
+    remember('lang', $('lang').value);
+    voice = null;
+    fillVoices();
+  });
+  $('voice').addEventListener('change', function () {
+    var all = synth ? synth.getVoices() : [];
+    voice = all.filter(function (v) { return v.name === $('voice').value; })[0] || null;
+    remember('voice', $('voice').value);
+  });
+  $('preview').addEventListener('click', function () {
+    var sample = {en: 'This is how I will sound.', hi: 'मैं ऐसे बोलूँगी।',
+                  ta: 'நான் இப்படி பேசுவேன்.', te: 'నేను ఇలా మాట్లాడతాను.',
+                  kn: 'ನಾನು ಹೀಗೆ ಮಾತನಾಡುತ್ತೇನೆ.', mr: 'मी अशी बोलेन.',
+                  bn: 'আমি এভাবে কথা বলব।', es: 'Así es como sonaré.'};
+    speak(sample[$('lang').value] || sample.en, function () {});
+  });
+
+  Promise.all([fetch('/api/settings').then(function (r) { return r.json(); }),
+               window.teachersReady]).then(function (both) {
+    var s = both[0];
+    fillLanguages(s.languages || [{code: 'en', name: 'English'}],
+                  recall('lang') || s.language || 'en');
+    // A saved teacher wins over the Settings avatar: it is the more specific
+    // choice, and it was made on this screen.
+    var saved = recall('teacher');
+    if (!saved) {
+      var byVariant = (window.MENTORA_TEACHERS || []).filter(function (t) {
+        return t.variant === (s.avatar || 'f');
+      })[0];
+      saved = byVariant ? byVariant.id : null;
+    }
+    fillTeachers(saved);
+    fillVoices();
+  }).catch(function () {
+    fillLanguages([{code: 'en', name: 'English'}], 'en');
+    fillTeachers(recall('teacher'));
+    fillVoices();
+  });
+
+  if (synth) synth.onvoiceschanged = fillVoices;
 
   // Restore anything said earlier this session.
   try {

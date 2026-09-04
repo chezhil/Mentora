@@ -150,6 +150,8 @@ def _init_db():
                    "avatar TEXT NOT NULL DEFAULT 'f'")
     _ensure_column(conn, "preferences", "auto_quiz",
                    "auto_quiz INTEGER NOT NULL DEFAULT 1")
+    _ensure_column(conn, "preferences", "teacher",
+                   "teacher TEXT NOT NULL DEFAULT 'maya'")
 
     # One row per lesson session, so we can show time studied and streaks.
     cur.execute("""
@@ -452,7 +454,8 @@ def get_preferences(student_id: str) -> dict:
     if not row:
         return {"daily_goal": 0, "persona": "socratic", "language": "en",
                 "difficulty": "intermediate", "avatar": "f",
-                "auto_quiz": True, "pending_uploads": []}
+                "auto_quiz": True, "teacher": "maya",
+                "pending_uploads": []}
     result = {
         "daily_goal": int(row["daily_goal"]),
         "persona": row["persona"],
@@ -460,6 +463,7 @@ def get_preferences(student_id: str) -> dict:
         "difficulty": row["difficulty"],
         "avatar": (row["avatar"] if "avatar" in row.keys() else "f") or "f",
         "auto_quiz": bool(row["auto_quiz"] if "auto_quiz" in row.keys() else 1),
+        "teacher": (row["teacher"] if "teacher" in row.keys() else "maya") or "maya",
     }
     try:
         result["pending_uploads"] = json.loads(row.get("pending_uploads", "[]") or "[]")
@@ -487,6 +491,7 @@ def set_preferences(student_id: str, prefs: dict) -> None:
         "avatar": prefs.get("avatar", base.get("avatar", "f")) or "f",
         "auto_quiz": int(bool(prefs.get("auto_quiz",
                                         base.get("auto_quiz", 1)))),
+        "teacher": prefs.get("teacher", base.get("teacher", "maya")) or "maya",
     }
     # pending_uploads is JSON-encoded in the DB
     pending = prefs.get("pending_uploads", None)
@@ -495,8 +500,8 @@ def set_preferences(student_id: str, prefs: dict) -> None:
     else:
         merged["pending_uploads"] = base.get("pending_uploads", "[]")
     cur.execute("""
-    INSERT INTO preferences (student_id, daily_goal, persona, language, difficulty, avatar, auto_quiz, pending_uploads, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO preferences (student_id, daily_goal, persona, language, difficulty, avatar, auto_quiz, teacher, pending_uploads, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(student_id) DO UPDATE SET
         daily_goal = excluded.daily_goal,
         persona = excluded.persona,
@@ -504,11 +509,13 @@ def set_preferences(student_id: str, prefs: dict) -> None:
         difficulty = excluded.difficulty,
         avatar = excluded.avatar,
         auto_quiz = excluded.auto_quiz,
+        teacher = excluded.teacher,
         pending_uploads = excluded.pending_uploads,
         updated_at = excluded.updated_at
     """, (student_id, merged["daily_goal"], merged["persona"],
            merged["language"], merged["difficulty"], merged["avatar"],
-           merged["auto_quiz"], merged.get("pending_uploads", "[]"), now))
+           merged["auto_quiz"], merged["teacher"],
+           merged.get("pending_uploads", "[]"), now))
     conn.commit()
     conn.close()
 

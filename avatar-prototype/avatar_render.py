@@ -348,7 +348,33 @@ def _group_transform(chain, p, variant) -> Affine2D:
     return total
 
 
-def draw_avatar(ax, shapes_, p, x, y, width, variant="f", z=30) -> None:
+TEACHERS_FILE = "teachers.json"
+
+
+def teachers() -> list[dict]:
+    """The teacher presets, read from the SAME file the browser reads.
+
+    A second copy of these palettes in Python would drift from the JS one --
+    that has already happened three times in this repo with duplicated
+    markup -- so both sides read teachers.json.
+    """
+    import json
+    path = Path(__file__).resolve().parent / TEACHERS_FILE
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def teacher(teacher_id: str | None) -> dict:
+    found = [t for t in teachers() if t.get("id") == teacher_id]
+    if found:
+        return found[0]
+    return {"id": "maya", "variant": "f", "palette": {}}
+
+
+def draw_avatar(ax, shapes_, p, x, y, width, variant="f", z=30,
+                palette=None) -> None:
     """Draw the character with its bottom-left at (x, y), `width` units wide.
 
     SVG is y-down and the board axes are y-up, so the base transform flips as
@@ -375,8 +401,11 @@ def draw_avatar(ax, shapes_, p, x, y, width, variant="f", z=30) -> None:
         if sh.eid == "blush" or alpha <= 0.001:
             continue
         tr = _group_transform(sh.groups, p, variant) + base
+        # A teacher is this rig in different colours, so the swap happens at
+        # draw time rather than by shipping six near-identical SVGs.
+        fill = (palette or {}).get(sh.fill, sh.fill) if sh.fill else sh.fill
         ax.add_patch(PathPatch(
-            path.transformed(tr), facecolor=sh.fill or "none",
+            path.transformed(tr), facecolor=fill or "none",
             edgecolor=sh.stroke or "none",
             linewidth=sh.lw * s * 80.0 if sh.stroke else 0.0,
             alpha=alpha, zorder=z, joinstyle="round", capstyle="round"))

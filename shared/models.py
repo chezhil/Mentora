@@ -22,6 +22,7 @@ class LearnerProfile(BaseModel):
     # either in the UI did nothing at all.
     persona: str = "socratic"
     avatar: Literal["f", "m"] = "f"
+    teacher: str = "maya"        # a preset in teachers.json
 
 
 class SourceChunk(BaseModel):

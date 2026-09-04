@@ -283,6 +283,7 @@ def lesson_start(body: StartBody) -> JSONResponse:
         goal=(body.goal or "").strip() or None,
         persona=body.persona or prefs.get("persona") or "socratic",
         avatar=avatar if avatar in ("f", "m") else "f",
+        teacher=prefs.get("teacher") or "maya",
     )
 
     session_id, live = _new_live()
@@ -444,6 +445,7 @@ def _settings(student_id: str) -> dict:
         "difficulty": prefs.get("difficulty") or "intermediate",
         "persona": prefs.get("persona") or "socratic",
         "avatar": prefs.get("avatar") or "f",
+        "teacher": prefs.get("teacher") or "maya",
         "auto_quiz": bool(prefs.get("auto_quiz", True)),
         "daily_goal": prefs.get("daily_goal") or 0,
         "languages": [{"code": c, "name": n} for c, n in LANGUAGES],
@@ -466,6 +468,7 @@ class SettingsBody(BaseModel):
     difficulty: str | None = None
     persona: str | None = None
     avatar: str | None = None
+    teacher: str | None = None
     daily_goal: int | None = None
     auto_quiz: bool | None = None
 
@@ -481,6 +484,8 @@ def save_settings(body: SettingsBody) -> JSONResponse:
         patch["persona"] = body.persona
     if body.avatar in ("f", "m"):
         patch["avatar"] = body.avatar
+    if body.teacher:
+        patch["teacher"] = body.teacher
     if body.daily_goal is not None:
         patch["daily_goal"] = int(body.daily_goal)
     if body.auto_quiz is not None:
@@ -945,3 +950,15 @@ def serve_materials():
     if page.exists():
         return HTMLResponse(page.read_text(encoding="utf-8"))
     return HTMLResponse("<h1>materials.html not found</h1>", status_code=404)
+
+
+@router.get("/api/teachers")
+def teacher_presets() -> JSONResponse:
+    """The teacher presets, served from the one file the renderer reads."""
+    import json
+    path = _ROOT / "avatar-prototype" / "teachers.json"
+    try:
+        return JSONResponse(json.loads(path.read_text(encoding="utf-8")))
+    except Exception:
+        return JSONResponse([{"id": "maya", "name": "Ms. Maya", "variant": "f",
+                              "note": "Default", "palette": {}}])

@@ -191,10 +191,31 @@
           </div>
 
           <div class="panel" style="margin-top:1.25rem;">
+            <div class="label">Teacher</div>
+            <select id="teacher" style="width:100%;margin:0.4rem 0 0.9rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
+
+            <div class="label">Language</div>
+            <select id="lang" style="width:100%;margin:0.4rem 0 0.9rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
+
+            <div class="label">Voice</div>
+            <select id="voice" style="width:100%;margin:0.4rem 0 0.25rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
+            <div class="row" style="margin-bottom:1rem;">
+              <button class="btn" id="preview" style="flex:1;font-size:0.72rem;">Hear this voice</button>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top:1.25rem;">
             <button class="btn talk" id="talk">Start talking</button>
             <div class="row" style="margin-top:0.7rem;">
               <button class="btn" id="stop" style="flex:1;" disabled>Stop</button>
               <button class="btn" id="mute" style="flex:1;">Mute</button>
+            </div>
+            <div id="work" style="display:none;margin-top:0.9rem;border:3px solid var(--ink);background:var(--paper);padding:0.75rem 0.9rem;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+                <span class="label" id="workLabel">Thinking</span>
+                <span class="label" id="elapsed" style="color:var(--ink);">0.0s</span>
+              </div>
+              <button class="btn" id="cancel" style="width:100%;margin-top:0.6rem;font-size:0.72rem;">Cancel</button>
             </div>
             <p class="hint" style="margin-top:0.9rem;" id="hint">
               Press Start, ask out loud, then pause. She answers aloud and
@@ -230,6 +251,7 @@
   </main>
 
   <script src="/static/ask-rail.js"></script>
+  <script src="/static/teachers.js"></script>
   <script src="/static/voice.js"></script>
 </body>
 </html>

@@ -1,0 +1,76 @@
+[
+  {
+    "id": "maya",
+    "name": "Ms. Maya",
+    "variant": "f",
+    "note": "Dark hair, blue top",
+    "palette": {}
+  },
+  {
+    "id": "arjun",
+    "name": "Mr. Arjun",
+    "variant": "m",
+    "note": "Dark hair, green top",
+    "palette": {}
+  },
+  {
+    "id": "sara",
+    "name": "Ms. Sara",
+    "variant": "f",
+    "note": "Auburn hair, rust top",
+    "palette": {
+      "#151226": "#5a2d1c",
+      "#241d33": "#4a2416",
+      "#2e2542": "#6b3722",
+      "#4A7DFF": "#c85a3c",
+      "#e8bf9c": "#f0c9a8",
+      "#f0c9a8": "#f7d9bd"
+    }
+  },
+  {
+    "id": "noor",
+    "name": "Ms. Noor",
+    "variant": "f",
+    "note": "Deeper skin, teal top",
+    "palette": {
+      "#151226": "#1a1410",
+      "#241d33": "#120e0b",
+      "#2e2542": "#241a13",
+      "#4A7DFF": "#128a7d",
+      "#e8bf9c": "#a9724c",
+      "#f0c9a8": "#b87e56",
+      "#f7d9bd": "#c98f63",
+      "#efc9a4": "#b07850"
+    }
+  },
+  {
+    "id": "omar",
+    "name": "Mr. Omar",
+    "variant": "m",
+    "note": "Deeper skin, plum top",
+    "palette": {
+      "#151226": "#150f0c",
+      "#241d33": "#0f0b09",
+      "#2e2542": "#20160f",
+      "#2f6f5e": "#6b2f5e",
+      "#e3b795": "#a06a44",
+      "#efc9a4": "#ad7550",
+      "#f0c9a8": "#b07d57",
+      "#f7d9bd": "#c08d63"
+    }
+  },
+  {
+    "id": "kenji",
+    "name": "Mr. Kenji",
+    "variant": "m",
+    "note": "Grey hair, slate top",
+    "palette": {
+      "#151226": "#4a4a52",
+      "#241d33": "#3c3c44",
+      "#2e2542": "#5a5a63",
+      "#2f6f5e": "#3f5570",
+      "#e3b795": "#eec6a4",
+      "#efc9a4": "#f4d3b4"
+    }
+  }
+]
