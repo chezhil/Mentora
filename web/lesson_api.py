@@ -279,7 +279,7 @@ def lesson_start(body: StartBody) -> JSONResponse:
     profile = LearnerProfile(
         level=level,
         language=body.language or prefs.get("language") or "en",
-        time_minutes=max(5, min(int(body.minutes or 20), 60)),
+        time_minutes=max(1, min(int(body.minutes or 5), 10)),
         goal=(body.goal or "").strip() or None,
         persona=body.persona or prefs.get("persona") or "socratic",
         avatar=avatar if avatar in ("f", "m") else "f",

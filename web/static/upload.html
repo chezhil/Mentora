@@ -116,16 +116,14 @@
             </select>
           </div>
           <div>
-            <label class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:0.25rem;">Time Available</label>
-            <select id="timeSelect" style="width:100%;">
-              <option value="5">5 minutes</option>
-              <option value="10">10 minutes</option>
-              <option value="15">15 minutes</option>
-              <option value="20" selected>20 minutes</option>
-              <option value="30">30 minutes</option>
-              <option value="45">45 minutes</option>
-              <option value="60">60 minutes</option>
-            </select>
+            <label class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:0.25rem;">
+              Time Available &mdash; <span id="timeValue" class="font-black">5</span> min
+            </label>
+            <input type="range" id="timeSlider" min="1" max="10" step="1" value="5"
+                   style="width:100%;accent-color:var(--ink);height:2.6rem;">
+            <div class="font-mono" style="display:flex;justify-content:space-between;font-size:10px;color:rgba(0,0,0,0.45);">
+              <span>1 min</span><span>10 min</span>
+            </div>
           </div>
         </div>
 
@@ -238,6 +236,11 @@
         '<option value="' + l.code + '">' + l.name + '</option>').join('');
       sel.value = s.language || 'en';
       if (s.difficulty) document.getElementById('levelSelect').value = s.difficulty;
+
+      const slider = document.getElementById('timeSlider');
+      const show = () => document.getElementById('timeValue').textContent = slider.value;
+      slider.addEventListener('input', show);
+      show();
       loadMaterials();
     }
 
@@ -302,7 +305,7 @@
       if (!topic) { alert('Please enter a topic.'); return; }
 
       const level = document.getElementById('levelSelect').value;
-      const minutes = parseInt(document.getElementById('timeSelect').value, 10);
+      const minutes = parseInt(document.getElementById('timeSlider').value, 10);
       const goal = document.getElementById('goalInput').value;
       const language = document.getElementById('langSelect').value;
 

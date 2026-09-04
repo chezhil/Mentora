@@ -1658,7 +1658,7 @@ tailwind.config = {
     <div class="hidden md:flex items-center gap-6">
       <div class="flex flex-col items-end">
         <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-black/50">Current Lesson</span>
-        <span class="font-black text-sm uppercase tracking-tight" id="hdr-lesson">{{ lessonTitle }}</span>
+        <span class="font-black text-sm uppercase tracking-tight" id="hdr-lesson">Session review</span>
       </div>
       <button 
         @click="$emit('openSettings')" 
@@ -1763,7 +1763,7 @@ tailwind.config = {
             <div class="flex-1 space-y-4 text-center md:text-left" data-sd-id="9">
               <h1 class="font-black uppercase text-3xl md:text-5xl tracking-tighter leading-none text-ink" data-sd-id="10">You crushed it today.</h1>
               <p class="text-lg md:text-xl font-medium leading-relaxed max-w-2xl" data-sd-id="11">
-                Mentora has analyzed your session on <span class="underline decoration-[3px] decoration-acid" id="rv-topic">Wave-Particle Duality</span>. <span id="rv-improvement">Your conceptual grasp of decoherence jumped by 42% since the start of the lesson.</span>
+                Mentora has analyzed your session on <span class="underline decoration-[3px] decoration-acid" id="rv-topic">&mdash;</span>. <span id="rv-improvement">Finish a lesson to see your review here.</span>
               </p>
             </div>
           </div>
@@ -1774,21 +1774,21 @@ tailwind.config = {
           <div class="border-[3px] border-ink bg-white p-6 shadow-brutal-sm" data-sd-id="14">
             <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-ink/50" data-sd-id="15">Total Learning Time</span>
             <div class="flex items-end gap-2 mt-2" data-sd-id="16">
-              <span class="font-black text-4xl uppercase leading-none" id="rv-time">45</span>
+              <span class="font-black text-4xl uppercase leading-none" id="rv-time">00</span>
               <span class="font-black text-lg uppercase pb-0.5" data-sd-id="18">Minutes</span>
             </div>
           </div>
           <div class="border-[3px] border-ink bg-acid p-6 shadow-brutal-sm" data-sd-id="19">
             <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-ink/50" data-sd-id="20">Concepts Mastered</span>
             <div class="flex items-end gap-2 mt-2" data-sd-id="21">
-              <span class="font-black text-4xl uppercase leading-none" id="rv-concepts">04</span>
+              <span class="font-black text-4xl uppercase leading-none" id="rv-concepts">00</span>
               <span class="font-black text-lg uppercase pb-0.5" data-sd-id="23">Topics</span>
             </div>
           </div>
           <div class="border-[3px] border-ink bg-white p-6 shadow-brutal-sm" data-sd-id="24">
             <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-ink/50" data-sd-id="25">Questions Handled</span>
             <div class="flex items-end gap-2 mt-2" data-sd-id="26">
-              <span class="font-black text-4xl uppercase leading-none" id="rv-questions">18</span>
+              <span class="font-black text-4xl uppercase leading-none" id="rv-questions">00</span>
               <span class="font-black text-lg uppercase pb-0.5" data-sd-id="28">Interactions</span>
             </div>
           </div>
@@ -1801,34 +1801,6 @@ tailwind.config = {
             <div class="h-[3px] bg-ink flex-1" data-sd-id="32"></div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="rv-concepts-grid" data-sd-id="33">
-            <div class="border-[3px] border-ink bg-white p-5 flex justify-between items-center group transition-colors hover:bg-paper" data-sd-id="34">
-              <div class="space-y-1" data-sd-id="35">
-                <h4 class="font-black uppercase text-lg leading-tight" data-sd-id="36">Planck's Constant</h4>
-                <p class="text-xs font-mono font-bold uppercase text-ink/40" data-sd-id="37">E = hf Relationship</p>
-              </div>
-              <div class="bg-acid border-[2px] border-ink px-3 py-1 font-black text-xs uppercase shadow-brutal-sm" data-sd-id="38">Mastered</div>
-            </div>
-            <div class="border-[3px] border-ink bg-white p-5 flex justify-between items-center group transition-colors hover:bg-paper" data-sd-id="39">
-              <div class="space-y-1" data-sd-id="40">
-                <h4 class="font-black uppercase text-lg leading-tight" data-sd-id="41">De Broglie Wavelength</h4>
-                <p class="text-xs font-mono font-bold uppercase text-ink/40" data-sd-id="42">λ = h / p Calculus</p>
-              </div>
-              <div class="bg-acid border-[2px] border-ink px-3 py-1 font-black text-xs uppercase shadow-brutal-sm" data-sd-id="43">Mastered</div>
-            </div>
-            <div class="border-[3px] border-ink bg-white p-5 flex justify-between items-center group transition-colors hover:bg-paper" data-sd-id="44">
-              <div class="space-y-1" data-sd-id="45">
-                <h4 class="font-black uppercase text-lg leading-tight" data-sd-id="46">Probability Fields</h4>
-                <p class="text-xs font-mono font-bold uppercase text-ink/40" data-sd-id="47">Schrödinger's Overview</p>
-              </div>
-              <div class="bg-acid border-[2px] border-ink px-3 py-1 font-black text-xs uppercase shadow-brutal-sm text-ink/20 border-ink/20 shadow-none grayscale" data-sd-id="48">Partial</div>
-            </div>
-            <div class="border-[3px] border-ink bg-white p-5 flex justify-between items-center group transition-colors hover:bg-paper" data-sd-id="49">
-              <div class="space-y-1" data-sd-id="50">
-                <h4 class="font-black uppercase text-lg leading-tight" data-sd-id="51">Wavefront Collapsing</h4>
-                <p class="text-xs font-mono font-bold uppercase text-ink/40" data-sd-id="52">Measurement Effect</p>
-              </div>
-              <div class="bg-acid border-[2px] border-ink px-3 py-1 font-black text-xs uppercase shadow-brutal-sm" data-sd-id="53">Mastered</div>
-            </div>
           </div>
         </div>
 
@@ -1837,10 +1809,8 @@ tailwind.config = {
           <div class="flex flex-col md:flex-row gap-8 items-center" data-sd-id="55">
             <div class="flex-1 space-y-4" data-sd-id="56">
               <span class="font-mono text-xs font-bold uppercase tracking-widest text-acid" data-sd-id="57">Next Step Recommended</span>
-              <h3 class="font-black uppercase text-2xl md:text-3xl tracking-tight leading-tight" id="rv-next-title" data-sd-id="58">Intro to Heisenberg's Uncertainty Principle</h3>
-              <p class="text-sm md:text-base font-mono leading-relaxed text-paper/70 uppercase" id="rv-next-desc" data-sd-id="59">
-                Building on your mastery of measurement effects, we'll dive into why certain variables cannot be measured simultaneously. Ready to level up?
-              </p>
+              <h3 class="font-black uppercase text-2xl md:text-3xl tracking-tight leading-tight" id="rv-next-title" data-sd-id="58">&mdash;</h3>
+              <p class="text-sm md:text-base font-mono leading-relaxed text-paper/70 uppercase" id="rv-next-desc" data-sd-id="59">Your next topic is suggested once a lesson is marked.</p>
             </div>
             <a href="#start-next" class="w-full md:w-auto px-8 py-5 bg-acid text-ink font-black uppercase text-sm border-[3px] border-ink btn-brutal shadow-brutal shadow-paper/20 whitespace-nowrap" data-sd-id="60">
               Queue Lesson →
@@ -1927,6 +1897,11 @@ tailwind.config = {
 
       // Concept cards
       const grid = document.getElementById('rv-concepts-grid');
+      if (grid && !(d.concepts && d.concepts.length)) {
+        grid.innerHTML = '<div class="border-[3px] border-ink bg-white p-5">' +
+          '<p class="text-xs font-mono font-bold uppercase text-ink/40">' +
+          'No concepts recorded yet.</p></div>';
+      }
       if (grid && d.concepts && d.concepts.length) {
         grid.innerHTML = d.concepts.map(c => {
           const isMastered = c.status === 'Mastered';
