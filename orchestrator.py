@@ -370,7 +370,20 @@ def start_session(topic: str, profile: LearnerProfile,
             "weak_concepts": list(dict.fromkeys(profile.weak_concepts + carried)),
         })
 
-    doc_id = wiring.ingest(file_path) if file_path else None
+    # An unreadable upload must not cost the student their lesson. Teaching
+    # from a topic alone is a first-class path here -- doc_id=None is the
+    # normal no-document case -- so a corrupt or empty file degrades to it
+    # rather than raising out of start_session and blocking the lesson
+    # entirely. PyMuPDF and python-docx raise their own types for this
+    # (EmptyFileError, FileDataError, PackageNotFoundError), so catch broadly
+    # and say what happened on the transcript.
+    doc_id = None
+    ingest_error: str | None = None
+    if file_path:
+        try:
+            doc_id = wiring.ingest(file_path)
+        except Exception as exc:
+            ingest_error = f"{type(exc).__name__}: {exc}"
 
     plan = wiring.plan(topic, profile, doc_id)
 
@@ -384,10 +397,20 @@ def start_session(topic: str, profile: LearnerProfile,
     _persist("record_study_start", session.session_id, student_id,
              topic, profile.time_minutes)
 
-    source = f"from {file_path}" if file_path else "with no uploaded material"
+    source = ("with no uploaded material" if not file_path
+              else f"from {file_path}" if doc_id
+              else f"WITHOUT {file_path}, which could not be read")
     _log(session, "system",
          f"Session opened: {topic}, {profile.level}, {profile.language}, "
          f"{profile.time_minutes} min, {source}.")
+
+    if ingest_error:
+        # Say so on the transcript. A lesson that quietly ignores the document
+        # the student uploaded looks like the document was used.
+        _log(session, "system",
+             f"Could not read the uploaded material ({ingest_error}). "
+             f"Teaching {topic} from general knowledge instead; nothing in "
+             f"this lesson is grounded in that file.")
 
     if previous:
         weak = ", ".join(profile.weak_concepts[:3]) or "nothing in particular"
