@@ -3,6 +3,8 @@
 Renders function plots and data graphs filling the full canvas.
 Designed for phone viewing: large axis labels, thick lines.
 """
+import ast
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -12,6 +14,56 @@ import numpy as np
 
 from .payload import enrich
 from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, ACCENT_COLORS
+
+
+# ---------------------------------------------------------------------------
+# Plotting a model-authored expression
+#
+# `data["function"]` is written by the LLM from the student's topic and their
+# uploaded document, so it is not trusted input. Handing it to eval() with an
+# emptied __builtins__ is NOT a sandbox: numpy is in the namespace, and
+#
+#     np.__class__.__mro__[-1].__subclasses__()
+#
+# reaches 356 classes from there, which is the ordinary route to arbitrary
+# code execution. Measured, not theorised.
+#
+# So the expression is parsed and every node checked against a whitelist
+# before anything is evaluated. Arithmetic, numbers, `x`, and the handful of
+# named functions below are allowed; attributes are allowed only as `np.<fn>`
+# for those same names. Anything else -- subscripts, comprehensions, lambdas,
+# dunders -- is refused.
+# ---------------------------------------------------------------------------
+
+_ALLOWED_FUNCS = frozenset(
+    {"sin", "cos", "tan", "exp", "log", "log10", "sqrt", "abs",
+     "arcsin", "arccos", "arctan", "sinh", "cosh", "tanh", "power"})
+_ALLOWED_NAMES = _ALLOWED_FUNCS | {"x", "pi", "e", "np"}
+_ALLOWED_NODES = (
+    ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant, ast.Name,
+    ast.Call, ast.Load, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv,
+    ast.Pow, ast.Mod, ast.USub, ast.UAdd, ast.Attribute,
+)
+
+
+def _check_expression(source: str) -> ast.Expression:
+    """Parse `source` and refuse anything outside the whitelist."""
+    tree = ast.parse(source, mode="eval")
+    for node in ast.walk(tree):
+        if not isinstance(node, _ALLOWED_NODES):
+            raise ValueError(f"{type(node).__name__} is not allowed")
+        if isinstance(node, ast.Constant) and not isinstance(
+                node.value, (int, float)):
+            raise ValueError("only numeric literals are allowed")
+        if isinstance(node, ast.Name) and node.id not in _ALLOWED_NAMES:
+            raise ValueError(f"name {node.id!r} is not allowed")
+        if isinstance(node, ast.Attribute):
+            # Only np.<whitelisted function>; nothing else, and never a dunder.
+            if (not isinstance(node.value, ast.Name)
+                    or node.value.id != "np"
+                    or node.attr not in _ALLOWED_FUNCS):
+                raise ValueError(f"attribute {node.attr!r} is not allowed")
+    return tree
 
 
 @register("graph")
@@ -62,9 +114,12 @@ def render_graph(content: str, subject: str, data: dict) -> str:
                 "exp": np.exp, "log": np.log, "sqrt": np.sqrt,
                 "pi": np.pi, "abs": np.abs,
             }
+            checked = _check_expression(func_str)
             with np.errstate(divide="ignore", invalid="ignore"):
-                y = np.asarray(eval(func_str, {"__builtins__": {}}, safe_ns),
-                               dtype=float)
+                y = np.asarray(
+                    eval(compile(checked, "<visual>", "eval"),
+                         {"__builtins__": {}}, safe_ns),
+                    dtype=float)
 
             finite = np.isfinite(y)
             x, y = x[finite], y[finite]

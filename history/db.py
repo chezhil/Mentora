@@ -19,7 +19,22 @@ def _get_connection() -> sqlite3.Connection:
     return conn
 
 
+# _init_db() ran at the top of EVERY call — twenty-odd public functions, each
+# opening a connection to re-issue the same CREATE TABLE IF NOT EXISTS and the
+# ALTER migrations before doing any work. The orchestrator logs several turns
+# per segment, so that is the hot path. The schema cannot change under us
+# mid-process, so do it once PER DATABASE.
+#
+# Keyed on the path, not a bare flag: the tests point DB_PATH at a fresh
+# temporary file in setUp, and a boolean latch meant only the first of them
+# ever got a schema — every later test then queried tables that did not exist.
+_schema_for: str | None = None
+
+
 def _init_db():
+    global _schema_for
+    if _schema_for == str(DB_PATH):
+        return
     conn = _get_connection()
     cur = conn.cursor()
 
@@ -135,6 +150,7 @@ def _init_db():
 
     conn.commit()
     conn.close()
+    _schema_for = str(DB_PATH)
 
 
 def _ensure_column(conn, table: str, column: str, ddl: str) -> None:

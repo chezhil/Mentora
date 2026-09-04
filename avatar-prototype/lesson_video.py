@@ -425,6 +425,8 @@ def layered(elements) -> list[tuple[float, float, float, float]]:
     bottom-left, so the edges ran the full diagonal of the frame and crossed
     each other. Ranking by depth makes every edge short and downward.
     """
+    if not elements:
+        return []                     # grid(0) returns []; match it
     depths = _depth_of(elements)
     rows: dict[int, list[int]] = {}
     for i, d in enumerate(depths):

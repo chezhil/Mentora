@@ -142,11 +142,26 @@ def remember_question(session: SessionState, question: Question | None) -> None:
     rt = runtime(session)
     rt.questions[question.id] = question
     _GLOBAL_QUESTIONS[question.id] = question
+    while len(_GLOBAL_QUESTIONS) > MAX_GLOBAL_QUESTIONS:
+        _GLOBAL_QUESTIONS.pop(next(iter(_GLOBAL_QUESTIONS)))
     _cache_question(session.session_id, question)
 
 
+# Neither table ever dropped anything. A Runtime holds every question, every
+# rendered media path and the panel state for a whole lesson, and server.py
+# runs for as long as the demo does, so both only ever grew. Bounded FIFO:
+# far more than any session will open, and it cannot grow without limit.
+MAX_LIVE_SESSIONS = 64
+MAX_GLOBAL_QUESTIONS = 2000
+
+
 def runtime(session: SessionState) -> Runtime:
-    return _RUNTIME.setdefault(session.session_id, Runtime())
+    rt = _RUNTIME.get(session.session_id)
+    if rt is None:
+        rt = _RUNTIME[session.session_id] = Runtime()
+        while len(_RUNTIME) > MAX_LIVE_SESSIONS:
+            _RUNTIME.pop(next(iter(_RUNTIME)))
+    return rt
 
 
 def media_for(session: SessionState, segment: TeachingSegment) -> SegmentMedia:
