@@ -66,6 +66,7 @@ class _Live:
         self.segments: list[dict] = []
         self.report: dict | None = None
         self.quiz: list[dict] | None = None
+        self.notes: str = ""
         self.auto_quiz: bool = True
         self.student_id: str = "student"
         self.job: dict = {"state": "idle", "phase": "", "error": ""}
@@ -190,15 +191,35 @@ def _build_quiz(live: _Live) -> None:
     finish() built a quiz and then wrote the report without ever asking it,
     so "auto-generate quiz" produced a quiz nobody ever saw and a score drawn
     only from mid-lesson questions.
+
+    The quiz is the LAST thing a lesson does and the least important. If
+    writing it fails -- a rate limit at the end of a long lesson is the
+    obvious case -- the student must still get the report they earned, not an
+    error where their result should be. Any failure degrades to the report.
     """
-    questions = orch.quiz_questions(live.session)
-    live.quiz = [_question_dict(q) for q in questions if q is not None]
+    try:
+        questions = orch.quiz_questions(live.session)
+        live.quiz = [_question_dict(q) for q in questions if q is not None]
+    except Exception as exc:
+        traceback.print_exc()
+        live.quiz = []
+        live.notes = f"The final quiz could not be written ({type(exc).__name__}); " \
+                     "this report is marked on the lesson itself."
     if not live.quiz:
         _finish(live)
 
 
 def _submit_quiz(live: _Live, answers: dict) -> None:
-    report = orch.submit_quiz(live.session, answers)
+    try:
+        report = orch.submit_quiz(live.session, answers)
+    except Exception as exc:
+        # Same rule: a marking failure must not cost the student the report.
+        traceback.print_exc()
+        live.notes = f"The quiz could not be marked ({type(exc).__name__}); " \
+                     "this report covers the lesson itself."
+        live.quiz = None
+        _finish(live)
+        return
     live.quiz = None
     live.report = _report_dict(report)
 
@@ -215,7 +236,17 @@ def _report_dict(report) -> dict:
 
 
 def _finish(live: _Live) -> None:
-    report = orch.finish(live.session)
+    try:
+        report = orch.finish(live.session)
+    except Exception as exc:
+        traceback.print_exc()
+        # Even here there is something honest to show: the lesson happened.
+        live.notes = (live.notes or "") + \
+            f" The report could not be generated ({type(exc).__name__})."
+        live.report = {"score": 0.0, "strong": [], "weak": [],
+                       "misconceptions": [], "revise": [],
+                       "next_topic": ""}
+        return
     live.report = _report_dict(report)
 
 
@@ -232,6 +263,11 @@ def _state(session_id: str, live: _Live) -> dict:
     plan = getattr(session, "plan", None)
     return {
         "session_id": session_id,
+        # The handle above is this module's; the orchestrator has its own, and
+        # that is what turns, reports and study_sessions are keyed on. Without
+        # it the page cannot link to the transcript or the report of the very
+        # lesson it just finished.
+        "lesson_id": getattr(session, "session_id", "") if session else "",
         "job": live.job,
         "ready": session is not None,
         "topic": getattr(plan, "topic", "") if plan else "",
@@ -241,6 +277,7 @@ def _state(session_id: str, live: _Live) -> dict:
         "total": len(plan.concepts) if plan else 0,
         "finished": live.report is not None,
         "quiz": live.quiz,
+        "notes": live.notes,
         "segments": live.segments,
         "report": live.report,
     }
@@ -640,12 +677,26 @@ def upload_material(body: UploadBody) -> JSONResponse:
 # back. Clicking a past lesson now opens what was actually said in it.
 # ---------------------------------------------------------------------------
 
+def _lesson_id(session_id: str) -> str:
+    """Accept either id: this module's live handle, or the stored lesson id.
+
+    Links made during a lesson carry the handle; links made from the
+    dashboard carry the stored id. Translating here means every link works
+    rather than only half of them.
+    """
+    live = _LIVE.get(session_id)
+    if live is not None and live.session is not None:
+        return getattr(live.session, "session_id", session_id) or session_id
+    return session_id
+
+
 @router.get("/api/transcript")
 def transcript(session_id: str, student_id: str = "student") -> JSONResponse:
     import sqlite3
 
     if not session_id:
         return JSONResponse({"error": "Which lesson?"}, status_code=400)
+    session_id = _lesson_id(session_id)
 
     db = _ROOT / "mentora.db"
     if not db.exists():

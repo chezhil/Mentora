@@ -139,9 +139,11 @@
         <div class="label">Lesson report</div>
         <div class="score" id="score">0</div>
         <div class="label" style="margin-top:0.25rem;">out of 100</div>
+        <div class="cite" id="reportNote" style="display:none;margin-top:0.75rem;"></div>
         <div id="reportBody" style="margin-top:1.25rem;"></div>
         <div class="row" style="margin-top:1.5rem;">
           <a class="btn btn-brutal" href="/upload" style="text-decoration:none;">Teach me something else</a>
+          <a class="btn ghost btn-brutal" id="seeTranscript" href="/transcript" style="text-decoration:none;">Transcript</a>
           <a class="btn ghost btn-brutal" href="/dashboard" style="text-decoration:none;">Dashboard</a>
         </div>
       </div>
@@ -216,6 +218,15 @@
     }
 
     if (s.quiz && s.quiz.length) paintQuiz(s.quiz);
+    // Link to the lesson's OWN transcript, by the id the database knows.
+    if (s.lesson_id) {
+      const t = $('seeTranscript');
+      if (t) t.href = '/transcript?session=' + encodeURIComponent(s.lesson_id);
+    }
+    if (s.notes) {
+      const n = $('reportNote');
+      if (n) { n.textContent = s.notes; n.style.display = 'block'; }
+    }
     if (s.report) paintReport(s.report);
 
     // A segment's question has to be answered -- right or wrong -- before the

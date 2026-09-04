@@ -521,8 +521,28 @@ def fit_label(ax, text: str, bw: float, bh: float, max_fs: float):
     return "\n".join(_wrap_lines(text, 14)), 8.0
 
 
+# Constructs that are legal in LaTeX and fatal in matplotlib's mathtext.
+_MATH_BREAK = re.compile(r"\\\\+")          # \\ is a newline; illegal inline
+_MATH_TRAILING = re.compile(r"\\+$")
+
+
 def mathtext(term: str) -> str:
-    return f"${term}$" if term not in ("=", "+", "-") else term
+    """Wrap a term for mathtext, defusing what mathtext cannot parse.
+
+    matplotlib parses mathtext LAZILY, at draw time, so a bad term does not
+    raise where it is created -- it raises inside savefig and takes the whole
+    video with it. One real payload contained `R\\ I`: legal LaTeX, a line
+    break in mathtext, and a ParseException that killed the render and left
+    the segment with no board at all. Cheaper to defuse the string than to
+    lose the lesson over it.
+    """
+    if term in ("=", "+", "-"):
+        return term
+    safe = _MATH_BREAK.sub(" ", term or "")
+    safe = _MATH_TRAILING.sub("", safe)
+    safe = safe.replace("$", "")            # a stray $ closes our own math
+    safe = safe.strip()
+    return f"${safe}$" if safe else ""
 
 
 def _rgb(hexcolour: str) -> list[float]:
@@ -1010,6 +1030,16 @@ def encode(out: Path, elements: list[Element], kind: str, caption: str,
     # it cannot survive download or upload either. Burnt in, she is simply
     # part of the picture. Failing to build her must not cost us the board,
     # so anything here degrades to the board alone.
+    # Caller's choice wins; the environment stays as the CLI's way in. This
+    # used to read the environment only, so "male teacher" in the UI could not
+    # reach the renderer -- and setting it per render from a request thread
+    # would have raced, since os.environ is process-wide.
+    if variant not in ("f", "m"):
+        variant = os.environ.get("MENTORA_AVATAR_VARIANT", "f")
+    if variant not in ("f", "m"):
+        variant = "f"
+    teacher_id = teacher or os.environ.get("MENTORA_TEACHER") or ""
+
     poses = shapes_ = None
     palette = {}
     try:
@@ -1030,15 +1060,6 @@ def encode(out: Path, elements: list[Element], kind: str, caption: str,
               file=sys.stderr)
         import traceback
         traceback.print_exc()
-    # Caller's choice wins; the environment stays as the CLI's way in. This
-    # used to read the environment only, so "male teacher" in the UI could not
-    # reach the renderer -- and setting it per render from a request thread
-    # would have raced, since os.environ is process-wide.
-    if variant not in ("f", "m"):
-        variant = os.environ.get("MENTORA_AVATAR_VARIANT", "f")
-    if variant not in ("f", "m"):
-        variant = "f"
-    teacher_id = teacher or os.environ.get("MENTORA_TEACHER") or ""
 
     silent = out.parent / f".{out.stem}_silent.mp4"
     fig = plt.figure(figsize=(W / DPI, H / DPI), dpi=DPI, facecolor=PAPER)

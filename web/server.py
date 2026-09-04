@@ -54,6 +54,14 @@ def session_review(student_id: str = "student",
       "difficulty": str,
     }
     """
+    # A lesson just finished in the browser hands us the live handle, not the
+    # stored id; translate before looking anything up.
+    try:
+        import lesson_api
+        session_id = lesson_api._lesson_id(session_id) if session_id else session_id
+    except Exception:
+        pass
+
     conn = _db()
     try:
         return _build_review(conn, student_id, session_id)
