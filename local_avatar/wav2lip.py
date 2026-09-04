@@ -228,10 +228,17 @@ PERIODS = (5.7, 4.3, 6.9, 8.1)   # seconds; no common multiple
 
 def _speech_envelope(wav_path: str, n_frames: int) -> np.ndarray:
     """Per-frame loudness in 0..1, so motion tracks the voice."""
+    # The resting amplitude the formula at the end floors at. Returning ones
+    # here instead would ask for MAXIMUM motion, which is backwards: this
+    # module's whole point is that "the head settles when the teacher stops
+    # talking". Silence and an unreadable WAV both mean "no voice to follow",
+    # so both get the resting level, not the liveliest one. The silent
+    # placeholder WAV that voice.py falls back to hits this exactly.
+    rest = np.full(n_frames, 0.45, dtype=np.float32)
     try:
         samples = w2l_audio.load_wav(wav_path, 16000)
     except Exception:
-        return np.ones(n_frames, dtype=np.float32)
+        return rest
 
     per_frame = int(16000 / FPS)
     env = np.zeros(n_frames, dtype=np.float32)
@@ -240,7 +247,7 @@ def _speech_envelope(wav_path: str, n_frames: int) -> np.ndarray:
         env[i] = float(np.sqrt(np.mean(chunk ** 2))) if len(chunk) else 0.0
     peak = env.max()
     if peak <= 0:
-        return np.ones(n_frames, dtype=np.float32)
+        return rest
     env = env / peak
     # Smooth, or the head jitters on every syllable.
     kernel = np.ones(9, dtype=np.float32) / 9.0
