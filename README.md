@@ -122,5 +122,25 @@ demoing.
 ## Docs for the team
 
 - `CONTRACT.txt` — the interfaces. Authoritative.
-- `PAIR_A_SPLIT.txt` — how Chezhil and Utkarsh divide Pair A
-- `GIT_WORKFLOW.txt` — branch rules. Nobody commits to main.
+- `PAIR_A_SPLIT.txt` - how Chezhil and Utkarsh divide Pair A
+- `GIT_WORKFLOW.txt` - branch rules. Nobody commits to main.
+
+## Real-Time AI Avatar Tutor (New)
+
+The Mentora application now includes an interactive, low-latency 3D conversational avatar feature designed to replace the legacy Wav2Lip backend video rendering.
+
+### Architecture Highlights
+- **WebGL Frontend:** A procedurally animated 3D avatar using `Three.js` directly in the browser (zero server encoding costs).
+- **Push-To-Talk (STT):** Uses the browser's native Web Speech API to instantly capture voice and route it to the backend.
+- **Real-Time Lip Sync:** Driven by the Web Audio API (`AnalyserNode`), which procedurally maps the text-to-speech frequency data to the avatar's jaw bone at 60fps.
+- **LLM Gesture Sync:** The LLM injects contextual tags (e.g., `[nod]`, `[smile]`) directly into its response, which the backend extracts and the frontend syncs to the audio timeline.
+
+### How to Run Locally (Docker)
+We have containerized the new API server, a Redis session store, and an Nginx reverse proxy configured for long-lived LLM streams.
+
+1. Create a `.env` file containing your `GEMINI_API_KEY`.
+2. Build and start the services:
+   ```bash
+   docker-compose up --build -d
+   ```
+3. Navigate to **http://localhost** to use the new Academic Wireframe UI and the real-time AI Tutor Avatar.
