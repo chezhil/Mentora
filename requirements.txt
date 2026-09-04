@@ -21,7 +21,7 @@ google-genai>=1.0              # NOT google-generativeai
 openai>=1.40                   # Groq and Ollama speak the OpenAI API
 
 # Pair C — prompt_101/media_pipeline (Santosh, Hamza)
-imageio-ffmpeg>=1.4            # NOT a system ffmpeg
+imageio-ffmpeg>=0.4.9          # NOT a system ffmpeg
 
 # Local avatar (local_avatar/) — free alternative to Replicate
 torch>=2.2                     # Wav2Lip inference in local_avatar/
