@@ -701,3 +701,106 @@ def serve_transcript():
     if page.exists():
         return HTMLResponse(page.read_text(encoding="utf-8"))
     return HTMLResponse("<h1>transcript.html not found</h1>", status_code=404)
+
+
+# ---------------------------------------------------------------------------
+# Flashcards
+#
+# The deck, the SM-2 scheduler and the review-recording have been in the
+# orchestrator since it shipped, and 16 real cards are sitting in the table.
+# The web UI had no way to reach any of it: the sidebar's flashcard count
+# linked to the review page, which does not review cards.
+# ---------------------------------------------------------------------------
+
+@router.get("/api/flashcards")
+def flashcards(student_id: str = "student") -> JSONResponse:
+    due = orch.due_reviews(student_id)
+    every = orch.browse_flashcards(student_id)
+    due_keys = {c.get("card_key") for c in due}
+    return JSONResponse({
+        "due": due,
+        "all": every,
+        "counts": {"due": len(due), "total": len(every),
+                   "later": len([c for c in every
+                                 if c.get("card_key") not in due_keys])},
+    })
+
+
+class ReviewBody(BaseModel):
+    card_key: str
+    front: str = ""
+    back: str = ""
+    source: str = "lesson"
+    ease: str = "good"          # again | hard | good | easy
+    student_id: str = "student"
+
+
+@router.post("/api/flashcards/review")
+def review_flashcard(body: ReviewBody) -> JSONResponse:
+    if body.ease not in ("again", "hard", "good", "easy"):
+        return JSONResponse({"error": "Unknown rating."}, status_code=400)
+    interval = orch.record_flashcard(
+        body.student_id,
+        {"card_key": body.card_key, "front": body.front,
+         "back": body.back, "source": body.source},
+        body.ease,
+    )
+    if interval is None:
+        return JSONResponse({"error": "Could not save that review."},
+                            status_code=500)
+    days = float(interval)
+    return JSONResponse({
+        "ok": True,
+        "interval_days": days,
+        "next": "again today" if days < 1
+                else ("tomorrow" if days < 2 else f"in {round(days)} days"),
+    })
+
+
+@router.get("/flashcards")
+def serve_flashcards():
+    page = STATIC_DIR / "flashcards.html"
+    if page.exists():
+        return HTMLResponse(page.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>flashcards.html not found</h1>", status_code=404)
+
+
+@router.get("/api/summary")
+def summary(session_id: str, student_id: str = "student") -> JSONResponse:
+    """A plain-text summary of one lesson, for the download button.
+
+    The button existed and pointed at #download-summary, which does nothing
+    at all.
+    """
+    data = transcript(session_id, student_id)
+    import json as _json
+    d = _json.loads(bytes(data.body).decode("utf-8"))
+    if "error" in d:
+        return data
+
+    lines = [f"MENTORA - {d['topic']}", "=" * (10 + len(d["topic"])), ""]
+    if d.get("started"):
+        lines.append(f"Date       : {d['started'][:10]}")
+    if d.get("score") is not None:
+        lines.append(f"Score      : {round(d['score'])}/100")
+    lines += [f"Concepts   : {d['concepts']}",
+              f"Exchanges  : {len(d['turns'])}"]
+    if d.get("next_topic"):
+        lines.append(f"Next topic : {d['next_topic']}")
+    lines += ["", "TRANSCRIPT", "-" * 10, ""]
+    who = {"teacher": "Mentora", "student": "You", "system": "Lesson"}
+    section = -1
+    for t in d["turns"]:
+        if t["concept"] != section:
+            section = t["concept"]
+            lines += ["", f"[{'Concept ' + str(section) if section else 'Lesson'}]", ""]
+        lines.append(f"{who.get(t['role'], t['role'])}: {t['content']}")
+        lines.append("")
+
+    safe = "".join(c if c.isalnum() or c in "-_ " else "" for c in d["topic"]).strip()
+    name = (safe.replace(" ", "-").lower() or "lesson") + ".txt"
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(
+        "\n".join(lines),
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )

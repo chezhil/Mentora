@@ -1644,7 +1644,7 @@ tailwind.config = {
     
     <!-- Header Component -->
     <!-- component: HeaderNav (e186f640-4cf0-4369-8268-daf0d95ba8c5) -->
-<div v-scope="{ ...{&quot;homeHref&quot;:&quot;#&quot;,&quot;endSessionHref&quot;:&quot;#end-session&quot;,&quot;lessonTitle&quot;:&quot;Quantum Mechanics Overview&quot;}, $emit() {} }">
+<div v-scope="{ ...{&quot;homeHref&quot;:&quot;/dashboard&quot;,&quot;endSessionHref&quot;:&quot;/&quot;,&quot;lessonTitle&quot;:&quot;Quantum Mechanics Overview&quot;}, $emit() {} }">
 <header class="sticky top-0 z-50 bg-[#f4f1ea] border-b-[3px] border-black">
   <nav class="mx-auto w-full px-5 md:px-8 h-[68px] flex items-center justify-between">
     <div class="flex items-center gap-3">
@@ -1667,7 +1667,8 @@ tailwind.config = {
         <iconify-icon icon="ph:gear-six-bold" class="text-xl"></iconify-icon>
       </button>
       <a 
-        :href="endSessionHref" 
+        :href="endSessionHref"
+        onclick="if(!confirm('End this session and return to the start screen?')){event.preventDefault();return false}try{localStorage.clear();sessionStorage.clear()}catch(e){}" 
         class="bg-black text-[#f4f1ea] font-black text-[13px] uppercase tracking-wide px-4 py-2.5 shadow-[5px_5px_0_0_#000000] border-[3px] border-black transition-all duration-75 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none"
       >
         End Session <span class="text-[#e8ff00]">-></span>
@@ -1754,7 +1755,7 @@ tailwind.config = {
               <h3 class="font-black uppercase text-2xl md:text-3xl tracking-tight leading-tight" id="rv-next-title" data-sd-id="58">&mdash;</h3>
               <p class="text-sm md:text-base font-mono leading-relaxed text-paper/70 uppercase" id="rv-next-desc" data-sd-id="59">Your next topic is suggested once a lesson is marked.</p>
             </div>
-            <a href="#start-next" class="w-full md:w-auto px-8 py-5 bg-acid text-ink font-black uppercase text-sm border-[3px] border-ink btn-brutal shadow-brutal shadow-paper/20 whitespace-nowrap" data-sd-id="60">
+            <a href="/upload" class="w-full md:w-auto px-8 py-5 bg-acid text-ink font-black uppercase text-sm border-[3px] border-ink btn-brutal shadow-brutal shadow-paper/20 whitespace-nowrap" data-sd-id="60">
               Queue Lesson →
             </a>
           </div>
@@ -1768,13 +1769,13 @@ tailwind.config = {
     <!-- Action Footer (Custom action buttons replaces standard BottomInputBar) -->
     <footer class="sticky bottom-0 z-50 bg-paper border-t-[3px] border-ink p-6 md:p-8" data-sd-id="62">
       <div class="mx-auto max-w-6xl flex flex-col md:flex-row gap-4 md:gap-6" data-sd-id="63">
-        <a href="/dashboard" id="btn-start-next" class="flex-1 bg-acid text-ink border-[3px] border-ink p-6 font-black uppercase text-xl shadow-brutal btn-brutal text-center" data-sd-id="64">
+        <a href="/upload" id="btn-start-next" class="flex-1 bg-acid text-ink border-[3px] border-ink p-6 font-black uppercase text-xl shadow-brutal btn-brutal text-center" data-sd-id="64">
           Start Next Lesson
         </a>
-        <a href="/mentora-interactive-discussion" id="btn-review-transcript" class="flex-1 bg-white text-ink border-[3px] border-ink p-6 font-black uppercase text-xl shadow-brutal-sm btn-brutal text-center" data-sd-id="65">
+        <a href="/transcript" id="btn-review-transcript" class="flex-1 bg-white text-ink border-[3px] border-ink p-6 font-black uppercase text-xl shadow-brutal-sm btn-brutal text-center" data-sd-id="65">
           Review Transcript
         </a>
-        <a href="#download-summary" id="btn-download-pdf" class="w-full md:w-20 bg-ink text-paper border-[3px] border-ink p-6 grid place-items-center shadow-brutal-sm btn-brutal" data-sd-id="66">
+        <a href="/api/summary" id="btn-download-pdf" download class="w-full md:w-20 bg-ink text-paper border-[3px] border-ink p-6 grid place-items-center shadow-brutal-sm btn-brutal" data-sd-id="66">
           <iconify-icon icon="ph:download-bold" class="text-2xl"></iconify-icon>
         </a>
       </div>
@@ -1806,10 +1807,29 @@ tailwind.config = {
       // Recent Activity links here with the lesson it wants; without one
       // this still shows the most recent, as before.
       const want = new URLSearchParams(location.search).get('session') || '';
+      // The transcript and download buttons need to point at THIS lesson.
+      // They shipped pointing at a route that does not exist and at an
+      // anchor that does nothing.
+      var aim = function (id, base) {
+        var el = document.getElementById(id);
+        if (el) el.href = base + (want ? '?session=' + encodeURIComponent(want) : '');
+      };
       const res = await fetch('/api/session-review' +
         (want ? '?session_id=' + encodeURIComponent(want) : ''));
       if (!res.ok) return;
       const d = await res.json();
+      // Fall back to whichever session the API resolved, so these work on a
+      // bare /review as well as on /review?session=...
+      var sid = want || d.session_id || '';
+      aim = function (id, base) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        if (sid) el.href = base + (base.indexOf('/api/') === 0
+          ? '?session_id=' : '?session=') + encodeURIComponent(sid);
+        else el.style.display = 'none';
+      };
+      aim('btn-review-transcript', '/transcript');
+      aim('btn-download-pdf', '/api/summary');
 
       // Header lesson title
       const hdr = document.getElementById('hdr-lesson');

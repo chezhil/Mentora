@@ -183,6 +183,10 @@ def _build_review(conn: sqlite3.Connection, student_id: str,
 
     return {
         "has_session": has_session,
+        # Which lesson this review is actually about. Without it, the
+        # transcript and download buttons on a bare /review have no session
+        # to point at: the download 422s and the transcript bounces home.
+        "session_id": session_id or "",
         "lesson_title": topic or "Welcome to Mentora",
         "topic": topic or "your first lesson",
         "score": score,
@@ -402,6 +406,42 @@ def discuss_api(payload: dict = None) -> dict:
     student_id = payload.get("student_id", "student")
     if not question:
         return {"answer": "Please ask a question!", "role": "teacher"}
+
+    # Actually answer it. Everything below this was a set of keyword branches
+    # over the student's own report rows -- so "what is Ohm's law?" came back
+    # as "Great question! We've been working on ...", which is not an answer
+    # to anything. Ask the model that teaches the lessons, and keep the
+    # history-shaped reply below as the fallback for when there is no key or
+    # the call fails.
+    try:
+        import llm
+        from history import db as _hdb
+
+        prefs = _hdb.get_preferences(student_id)
+        recent = _hdb.list_reports(student_id)[:2] if hasattr(_hdb, "list_reports") else []
+        context = ""
+        if recent:
+            weak_bits = []
+            for r in recent:
+                weak_bits += (r.get("weak") or [])
+            if weak_bits:
+                context = ("\nThe student has recently struggled with: "
+                           + "; ".join(weak_bits[:5]) + ".")
+
+        answer = llm.generate_json(
+            "You are Mentora, the student's tutor, answering a follow-up "
+            "question between lessons. Answer it directly and concretely in "
+            f"at most 90 words, in the language with code '{prefs.get('language', 'en')}'. "
+            "Do not greet, do not restate the question, do not mention their "
+            "progress unless they asked about it." + context +
+            f"\n\nQuestion: {question}\n\n"
+            'Return ONLY {"answer": "..."} as JSON.'
+        )
+        text = (answer or {}).get("answer")
+        if isinstance(text, str) and text.strip():
+            return {"answer": text.strip(), "role": "teacher"}
+    except Exception:
+        pass
 
     conn = _db()
     try:

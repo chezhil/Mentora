@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mentora — Flashcards</title>
+  <link rel="stylesheet" href="/static/brutalist.css">
+  <style>
+    .wrap { max-width: 760px; margin: 0 auto; padding: 2rem 1.25rem 5rem; }
+    .panel {
+      border: 3px solid var(--ink); background: #fff;
+      box-shadow: 8px 8px 0 0 #000; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .label {
+      font-family: 'Space Mono', monospace; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.12em; color: rgba(0,0,0,0.45);
+    }
+    h1 {
+      font-family: 'Archivo Black', sans-serif;
+      font-size: clamp(1.6rem, 4vw, 2.4rem); text-transform: uppercase;
+      line-height: 1.05; margin: 0.35rem 0 0.5rem;
+    }
+    .counts { display: flex; gap: 1.5rem; }
+    .counts .v { font-family: 'Archivo Black', sans-serif; font-size: 1.6rem; line-height: 1; }
+    .card {
+      border: 3px solid var(--ink); background: var(--acid);
+      box-shadow: 8px 8px 0 0 #000; padding: 2.5rem 1.5rem; text-align: center;
+      min-height: 190px; display: grid; place-items: center; cursor: pointer;
+    }
+    .card .front { font-size: 1.25rem; font-weight: 700; line-height: 1.45; }
+    .card .back {
+      margin-top: 1.25rem; padding-top: 1.25rem; border-top: 3px solid var(--ink);
+      font-size: 1.1rem; line-height: 1.5;
+    }
+    .btn {
+      font-family: 'Archivo Black', sans-serif; text-transform: uppercase;
+      border: 3px solid var(--ink); padding: 0.85rem 1.1rem; font-size: 0.8rem;
+      background: #fff; color: var(--ink); box-shadow: 5px 5px 0 0 #000;
+      cursor: pointer; text-decoration: none; display: inline-block;
+    }
+    .btn.dark { background: var(--ink); color: var(--acid); }
+    .row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
+    .bar { height: 12px; border: 3px solid var(--ink); background: #fff; overflow: hidden; }
+    .bar > div { height: 100%; background: var(--acid); width: 0; transition: width .3s; }
+    .done { text-align: center; padding: 2rem 1rem; }
+    .done .big { font-family: 'Archivo Black', sans-serif; font-size: 2.5rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 2px solid rgba(0,0,0,0.12); }
+    th { font-family: 'Space Mono', monospace; font-size: 10px; text-transform: uppercase;
+         letter-spacing: 0.1em; color: rgba(0,0,0,0.5); }
+  </style>
+</head>
+<body>
+  <header style="border-bottom:3px solid var(--ink);padding:0.9rem 1.25rem;background:var(--paper);">
+    <nav style="display:flex;align-items:center;gap:0.75rem;max-width:760px;margin:0 auto;">
+      <a href="/dashboard" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:0.75rem;">
+        <div style="width:36px;height:36px;display:grid;place-items:center;background:var(--ink);color:var(--acid);font-family:'Archivo Black',sans-serif;font-size:1.1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;">M</div>
+        <div style="font-family:'Archivo Black',sans-serif;font-size:1rem;text-transform:uppercase;">Mentora</div>
+      </a>
+      <div class="label">/ Flashcards</div>
+    </nav>
+  </header>
+
+  <main class="grid-bg" style="flex:1;">
+    <div class="wrap">
+      <div class="panel">
+        <div class="label">Spaced repetition</div>
+        <h1 id="title">Flashcards</h1>
+        <div class="counts">
+          <div><span class="label">Due now</span><span class="v" id="cDue">0</span></div>
+          <div><span class="label">Scheduled</span><span class="v" id="cLater">0</span></div>
+          <div><span class="label">Total</span><span class="v" id="cTotal">0</span></div>
+        </div>
+      </div>
+
+      <div id="review" style="display:none;">
+        <div class="panel">
+          <div class="label" id="progressLabel">Card 1</div>
+          <div class="bar" style="margin:0.5rem 0 1.25rem;"><div id="bar"></div></div>
+          <div class="card" id="card">
+            <div>
+              <div class="front" id="front"></div>
+              <div class="back" id="back" style="display:none;"></div>
+            </div>
+          </div>
+          <div class="row" style="margin-top:1.25rem;" id="revealRow">
+            <button class="btn dark" id="reveal">Show answer</button>
+          </div>
+          <div id="gradeRow" style="display:none;margin-top:1.25rem;">
+            <div class="label" style="margin-bottom:0.5rem;">How well did you know it?</div>
+            <div class="grades">
+              <button class="btn" data-ease="again">Again</button>
+              <button class="btn" data-ease="hard">Hard</button>
+              <button class="btn" data-ease="good">Good</button>
+              <button class="btn" data-ease="easy">Easy</button>
+            </div>
+            <div class="label" id="lastResult" style="margin-top:0.75rem;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel done" id="empty" style="display:none;">
+        <div class="big" id="emptyBig">All done</div>
+        <p class="label" id="emptyNote" style="margin-top:0.5rem;">Nothing due right now.</p>
+        <div class="row" style="justify-content:center;margin-top:1.5rem;">
+          <a class="btn dark" href="/upload">Start a lesson</a>
+          <a class="btn" href="/dashboard">Dashboard</a>
+        </div>
+      </div>
+
+      <div class="panel" id="deckPanel" style="display:none;">
+        <div class="label">Whole deck</div>
+        <div style="overflow-x:auto;margin-top:0.75rem;">
+          <table id="deck"></table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/ask-rail.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,
+      c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+    let queue = [], at = 0, shown = false;
+
+    async function load() {
+      let d;
+      try {
+        const r = await fetch('/api/flashcards');
+        d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Could not load your cards.');
+      } catch (e) {
+        $('empty').style.display = 'block';
+        $('emptyBig').textContent = 'Not available';
+        $('emptyNote').textContent = e.message;
+        return;
+      }
+
+      $('cDue').textContent = d.counts.due;
+      $('cLater').textContent = d.counts.later;
+      $('cTotal').textContent = d.counts.total;
+
+      if (d.all.length) {
+        $('deckPanel').style.display = 'block';
+        $('deck').innerHTML =
+          '<tr><th>Front</th><th>Answer</th><th>Next review</th></tr>' +
+          d.all.map(c =>
+            '<tr><td>' + esc((c.front || '').slice(0, 70)) + '</td>' +
+            '<td>' + esc((c.back || '').slice(0, 40)) + '</td>' +
+            '<td>' + esc((c.next_review || '').slice(0, 10)) + '</td></tr>').join('');
+      }
+
+      // Due cards first; if nothing is due there is still value in drilling
+      // the deck, so fall back to it rather than showing an empty screen.
+      queue = d.due.length ? d.due : [];
+      if (!queue.length) {
+        $('empty').style.display = 'block';
+        $('emptyNote').textContent = d.counts.total
+          ? 'Nothing due right now — your deck is below.'
+          : 'No cards yet. They are made from the questions you get wrong.';
+        return;
+      }
+      $('title').textContent = 'Review ' + queue.length + ' card' + (queue.length === 1 ? '' : 's');
+      $('review').style.display = 'block';
+      show();
+    }
+
+    function show() {
+      const c = queue[at];
+      shown = false;
+      $('front').textContent = c.front || '';
+      $('back').textContent = c.back || '';
+      $('back').style.display = 'none';
+      $('revealRow').style.display = 'flex';
+      $('gradeRow').style.display = 'none';
+      $('progressLabel').textContent = 'Card ' + (at + 1) + ' of ' + queue.length;
+      $('bar').style.width = Math.round((at / queue.length) * 100) + '%';
+    }
+
+    function reveal() {
+      if (shown) return;
+      shown = true;
+      $('back').style.display = 'block';
+      $('revealRow').style.display = 'none';
+      $('gradeRow').style.display = 'block';
+    }
+
+    $('reveal').onclick = reveal;
+    $('card').onclick = reveal;
+
+    document.querySelectorAll('[data-ease]').forEach(b => b.onclick = async () => {
+      const c = queue[at];
+      document.querySelectorAll('[data-ease]').forEach(x => x.disabled = true);
+      let msg = '';
+      try {
+        const r = await fetch('/api/flashcards/review', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({card_key: c.card_key, front: c.front,
+                                back: c.back, source: c.source || 'lesson',
+                                ease: b.dataset.ease}),
+        });
+        const d = await r.json();
+        msg = r.ok ? 'Saved — next review ' + d.next : (d.error || 'Could not save.');
+      } catch (e) { msg = e.message; }
+      document.querySelectorAll('[data-ease]').forEach(x => x.disabled = false);
+
+      at += 1;
+      if (at >= queue.length) {
+        $('review').style.display = 'none';
+        $('empty').style.display = 'block';
+        $('emptyBig').textContent = 'Deck cleared';
+        $('emptyNote').textContent = msg;
+        return;
+      }
+      show();
+      $('lastResult').textContent = msg;
+    });
+
+    // Keyboard: space reveals, 1-4 grade. Drilling cards with a mouse is slow.
+    document.addEventListener('keydown', e => {
+      if ($('review').style.display === 'none') return;
+      if (e.code === 'Space') { e.preventDefault(); reveal(); return; }
+      if (!shown) return;
+      const map = {Digit1: 'again', Digit2: 'hard', Digit3: 'good', Digit4: 'easy'};
+      const ease = map[e.code];
+      if (ease) document.querySelector('[data-ease="' + ease + '"]').click();
+    });
+
+    load();
+  </script>
+</body>
+</html>

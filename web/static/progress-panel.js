@@ -44,7 +44,7 @@
                '<div class="mt-1">' + label('Avg score') + '</div>') +
         '</div>' +
 
-        '<a href="/review" class="block border-[3px] border-black bg-[#e8ff00] p-3 ' +
+        '<a href="/flashcards" class="block border-[3px] border-black bg-[#e8ff00] p-3 ' +
         'shadow-[5px_5px_0_0_#000000] mb-4" style="text-decoration:none;color:#000;">' +
           '<div class="font-black text-sm uppercase leading-none" data-p="cards">0 flashcards</div>' +
           '<div class="mt-1">' + label('<span data-p="due">Nothing due</span>', 'text-black/60') + '</div>' +
