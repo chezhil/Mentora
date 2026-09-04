@@ -18,10 +18,12 @@ in its own module merges cleanly.
 
 from __future__ import annotations
 
+import os
 import sys
 import threading
 import traceback
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -215,12 +217,17 @@ def _state(session_id: str, live: _Live) -> dict:
 
 class StartBody(BaseModel):
     topic: str = ""
-    level: str = "intermediate"
     minutes: int = 20
     goal: str = ""
-    language: str = "en"
     student_id: str = "student"
     file_path: str | None = None
+    # Unset means "use what is saved in settings". A plain default here would
+    # silently override the student's own choice every time the page omitted
+    # a field, which is exactly how these settings came to do nothing.
+    level: str | None = None
+    language: str | None = None
+    persona: str | None = None
+    avatar: str | None = None
 
 
 @router.post("/api/lesson/start")
@@ -229,13 +236,18 @@ def lesson_start(body: StartBody) -> JSONResponse:
     if not topic:
         return JSONResponse({"error": "Name a topic to learn."}, status_code=400)
 
-    level = body.level if body.level in ("beginner", "intermediate", "advanced") \
-        else "intermediate"
+    prefs = hdb.get_preferences(body.student_id)
+    level = body.level or prefs.get("difficulty") or "intermediate"
+    if level not in ("beginner", "intermediate", "advanced"):
+        level = "intermediate"
+    avatar = body.avatar or prefs.get("avatar") or "f"
     profile = LearnerProfile(
         level=level,
-        language=body.language or "en",
+        language=body.language or prefs.get("language") or "en",
         time_minutes=max(5, min(int(body.minutes or 20), 60)),
         goal=(body.goal or "").strip() or None,
+        persona=body.persona or prefs.get("persona") or "socratic",
+        avatar=avatar if avatar in ("f", "m") else "f",
     )
 
     session_id, live = _new_live()
@@ -341,3 +353,214 @@ def serve_lesson():
     if page.exists():
         return HTMLResponse(page.read_text(encoding="utf-8"))
     return HTMLResponse("<h1>lesson.html not found</h1>", status_code=404)
+
+
+# ---------------------------------------------------------------------------
+# Settings, API keys and uploaded material
+#
+# The settings page wrote to localStorage and nothing else, so preferences did
+# not survive a different browser, and no other page could read them. They now
+# live in the preferences table, which is also where the Streamlit app reads
+# them from -- one set of settings for both surfaces.
+# ---------------------------------------------------------------------------
+
+import history.db as hdb                                        # noqa: E402
+
+_UPLOAD_DIR = (_ROOT / "out" / "uploads").resolve()
+_KEY_ENV = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY"}
+
+LANGUAGES = [
+    ("en", "English"), ("hi", "\u0939\u093f\u0928\u094d\u0926\u0940 (Hindi)"),
+    ("ta", "\u0ba4\u0bae\u0bbf\u0bb4\u0bcd (Tamil)"),
+    ("te", "\u0c24\u0c46\u0c32\u0c41\u0c17\u0c41 (Telugu)"),
+    ("kn", "\u0c95\u0ca8\u0ccd\u0ca8\u0ca1 (Kannada)"),
+    ("mr", "\u092e\u0930\u093e\u0920\u0940 (Marathi)"),
+    ("bn", "\u09ac\u09be\u0982\u09b2\u09be (Bengali)"),
+    ("es", "Espa\u00f1ol (Spanish)"),
+]
+
+
+def _settings(student_id: str) -> dict:
+    prefs = hdb.get_preferences(student_id)
+    return {
+        "language": prefs.get("language") or "en",
+        "difficulty": prefs.get("difficulty") or "intermediate",
+        "persona": prefs.get("persona") or "socratic",
+        "avatar": prefs.get("avatar") or "f",
+        "daily_goal": prefs.get("daily_goal") or 0,
+        "languages": [{"code": c, "name": n} for c, n in LANGUAGES],
+        # Whether a key exists, never the key. Reading one back to the browser
+        # would put it in the DOM, in logs and in any screenshot of the page.
+        "keys": {name: bool(os.environ.get(env))
+                 for name, env in _KEY_ENV.items()},
+        "provider": os.environ.get("AI_TEACHER_PROVIDER", "groq"),
+    }
+
+
+@router.get("/api/settings")
+def get_settings(student_id: str = "student") -> JSONResponse:
+    return JSONResponse(_settings(student_id))
+
+
+class SettingsBody(BaseModel):
+    student_id: str = "student"
+    language: str | None = None
+    difficulty: str | None = None
+    persona: str | None = None
+    avatar: str | None = None
+    daily_goal: int | None = None
+
+
+@router.post("/api/settings")
+def save_settings(body: SettingsBody) -> JSONResponse:
+    patch: dict = {}
+    if body.language:
+        patch["language"] = body.language
+    if body.difficulty in ("beginner", "intermediate", "advanced"):
+        patch["difficulty"] = body.difficulty
+    if body.persona:
+        patch["persona"] = body.persona
+    if body.avatar in ("f", "m"):
+        patch["avatar"] = body.avatar
+    if body.daily_goal is not None:
+        patch["daily_goal"] = int(body.daily_goal)
+    if patch:
+        hdb.set_preferences(body.student_id, patch)
+    return JSONResponse(_settings(body.student_id))
+
+
+class KeysBody(BaseModel):
+    provider: str | None = None
+    groq: str | None = None
+    gemini: str | None = None
+
+
+@router.post("/api/keys")
+def save_keys(body: KeysBody) -> JSONResponse:
+    """Store API keys in .env and apply them to the running process.
+
+    Writing .env as well as os.environ is what makes the key survive a
+    restart; .env is gitignored, so it does not end up committed.
+    """
+    import llm
+
+    updates: dict[str, str] = {}
+    for name, env in _KEY_ENV.items():
+        value = (getattr(body, name, None) or "").strip()
+        if value:
+            updates[env] = value
+    provider = (body.provider or "").strip().lower()
+    if provider in ("groq", "gemini", "ollama", "local"):
+        updates["AI_TEACHER_PROVIDER"] = provider
+
+    if not updates:
+        return JSONResponse({"error": "Nothing to save."}, status_code=400)
+
+    for env, value in updates.items():
+        os.environ[env] = value
+
+    env_path = _ROOT / ".env"
+    try:
+        lines = env_path.read_text(encoding="utf-8").splitlines() \
+            if env_path.exists() else []
+    except OSError:
+        lines = []
+    kept = [ln for ln in lines
+            if not any(ln.strip().startswith(k + "=") for k in updates)]
+    kept += [f"{k}={v}" for k, v in updates.items()]
+    try:
+        env_path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    except OSError as exc:
+        return JSONResponse({"error": f"Could not write .env: {exc}"},
+                            status_code=500)
+
+    # llm caches the client and the key at import, so setting the environment
+    # alone would not take effect until a restart.
+    try:
+        llm.configure(
+            provider=updates.get("AI_TEACHER_PROVIDER"),
+            api_key=updates.get(_KEY_ENV.get(
+                updates.get("AI_TEACHER_PROVIDER",
+                            os.environ.get("AI_TEACHER_PROVIDER", "groq")), "")),
+        )
+    except Exception:
+        pass
+    return JSONResponse({"ok": True, "saved": sorted(updates)})
+
+
+@router.get("/api/materials")
+def list_materials(student_id: str = "student") -> JSONResponse:
+    """Everything this student has uploaded, newest first."""
+    prefs = hdb.get_preferences(student_id)
+    topics = {}
+    for entry in prefs.get("pending_uploads") or []:
+        if isinstance(entry, dict) and entry.get("name"):
+            topics[entry["name"]] = entry.get("topic") or ""
+
+    out = []
+    if _UPLOAD_DIR.is_dir():
+        for f in _UPLOAD_DIR.iterdir():
+            if not f.is_file() or f.name.startswith("."):
+                continue
+            stat = f.stat()
+            out.append({
+                "name": f.name,
+                "size": stat.st_size,
+                "uploaded": datetime.fromtimestamp(
+                    stat.st_mtime, timezone.utc).isoformat(),
+                "topic": topics.get(f.name, ""),
+                "kind": f.suffix.lstrip(".").upper() or "FILE",
+                "path": str(f.relative_to(_ROOT)),
+            })
+    out.sort(key=lambda m: m["uploaded"], reverse=True)
+    return JSONResponse({"materials": out, "count": len(out)})
+
+
+class UploadBody(BaseModel):
+    name: str
+    content: str = ""          # base64, with or without a data: prefix
+    topic: str = ""
+    student_id: str = "student"
+
+
+@router.post("/api/materials/upload")
+def upload_material(body: UploadBody) -> JSONResponse:
+    """Store one uploaded document so a lesson can be built from it.
+
+    The page used to collect files, list them, and then throw them away: no
+    request ever carried the bytes, so "your material" was decoration and the
+    material list was always empty.
+    """
+    import base64
+    import re
+
+    name = Path(body.name or "").name          # basename only; no traversal
+    if not name:
+        return JSONResponse({"error": "No filename."}, status_code=400)
+    if Path(name).suffix.lower() not in (".pdf", ".docx", ".pptx", ".txt", ".md"):
+        return JSONResponse({"error": f"{name}: unsupported file type."},
+                            status_code=400)
+
+    raw = re.sub(r"^data:[^;]*;base64,", "", body.content or "")
+    try:
+        data = base64.b64decode(raw, validate=True)
+    except Exception:
+        return JSONResponse({"error": f"{name}: could not read the file."},
+                            status_code=400)
+    if not data:
+        return JSONResponse({"error": f"{name} is empty."}, status_code=400)
+    if len(data) > 200 * 1024 * 1024:
+        return JSONResponse({"error": f"{name} is over 200MB."}, status_code=400)
+
+    _UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    target = _UPLOAD_DIR / name
+    target.write_bytes(data)
+
+    prefs = hdb.get_preferences(body.student_id)
+    pending = [e for e in (prefs.get("pending_uploads") or [])
+               if not (isinstance(e, dict) and e.get("name") == name)]
+    pending.append({"name": name, "size": len(data), "topic": body.topic or ""})
+    hdb.set_preferences(body.student_id, {"pending_uploads": pending})
+
+    return JSONResponse({"ok": True, "name": name, "size": len(data),
+                         "path": str(target.relative_to(_ROOT))})

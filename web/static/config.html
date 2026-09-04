@@ -169,6 +169,55 @@
         </select>
       </div>
 
+      <!-- Teacher -->
+      <div class="config-card">
+        <h2 class="font-black" style="font-size:1.25rem;text-transform:uppercase;margin-bottom:1rem;">Your Teacher</h2>
+        <p style="font-size:0.85rem;color:rgba(0,0,0,0.6);margin-bottom:1rem;">Who appears in the lesson video.</p>
+        <div style="display:flex;gap:0.75rem;">
+          <button class="persona-btn" id="avatar-f" onclick="selectAvatar(this,'f')" style="flex:1;">
+            Ms. Mentora<br><span style="font-family:'Space Mono',monospace;font-size:10px;font-weight:400;text-transform:none;">Female teacher</span>
+          </button>
+          <button class="persona-btn" id="avatar-m" onclick="selectAvatar(this,'m')" style="flex:1;">
+            Mr. Mentora<br><span style="font-family:'Space Mono',monospace;font-size:10px;font-weight:400;text-transform:none;">Male teacher</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- API keys -->
+      <div class="config-card">
+        <h2 class="font-black" style="font-size:1.25rem;text-transform:uppercase;margin-bottom:0.5rem;">API Keys</h2>
+        <p style="font-size:0.85rem;color:rgba(0,0,0,0.6);margin-bottom:1rem;">
+          Mentora needs a model to teach with. Groq is free —
+          <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:var(--ink);">console.groq.com/keys</a>.
+          Saved to <span class="font-mono">.env</span> on this machine; keys are never shown again.
+        </p>
+
+        <div style="margin-bottom:1rem;">
+          <div class="font-mono" style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.5);margin-bottom:0.35rem;">Provider</div>
+          <select id="providerSelect" style="width:100%;padding:1rem;font-size:1rem;">
+            <option value="groq">Groq (recommended, free tier)</option>
+            <option value="gemini">Google Gemini</option>
+            <option value="ollama">Ollama (local, no key)</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:1rem;">
+          <div class="font-mono" style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.5);margin-bottom:0.35rem;">
+            Groq key <span id="groqSet" style="color:#128a3d;"></span>
+          </div>
+          <input type="password" id="groqKey" placeholder="gsk_..." autocomplete="off"
+                 style="width:100%;padding:1rem;font-size:1rem;font-family:'Space Mono',monospace;border:3px solid var(--ink);">
+        </div>
+
+        <div>
+          <div class="font-mono" style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.5);margin-bottom:0.35rem;">
+            Gemini key <span id="geminiSet" style="color:#128a3d;"></span>
+          </div>
+          <input type="password" id="geminiKey" placeholder="AIza..." autocomplete="off"
+                 style="width:100%;padding:1rem;font-size:1rem;font-family:'Space Mono',monospace;border:3px solid var(--ink);">
+        </div>
+      </div>
+
       <!-- Save -->
       <button onclick="saveConfig()" style="width:100%;padding:1.5rem;background:var(--acid);color:var(--ink);font-family:'Archivo Black',sans-serif;font-size:1.25rem;text-transform:uppercase;border:3px solid var(--ink);box-shadow:8px 8px 0 0 #000;margin-top:1rem;" class="btn-brutal">
         Save Settings ✓
@@ -184,28 +233,46 @@
     let selectedLevel = 'intermediate';
 
     // Restore saved config on load
-    (function() {
+    let selectedAvatar = 'f';
+
+    // Settings live in the database, not in this browser. They used to be
+    // written to localStorage and only mirrored to the server, and never read
+    // back from it -- so a setting chosen here was invisible to the lesson
+    // page, to the Streamlit app, and to this same page in another browser.
+    async function loadSettings() {
+      let s = {};
       try {
-        var saved = JSON.parse(localStorage.getItem('mentora_config') || '{}');
-        if(saved.persona) selectedPersona = saved.persona;
-        if(saved.level) selectedLevel = saved.level;
-        if(saved.language) document.getElementById('langSelect').value = saved.language;
-        if(saved.voice !== undefined) { var el = document.getElementById('toggleVoice'); if(el) { el.classList.toggle('on', saved.voice); } }
-        if(saved.quiz !== undefined) { var el = document.getElementById('toggleQuiz'); if(el) { el.classList.toggle('on', saved.quiz); } }
-        if(saved.flashcards !== undefined) { var el = document.getElementById('toggleFlash'); if(el) { el.classList.toggle('on', saved.flashcards); } }
-        if(saved.pro !== undefined) { var el = document.getElementById('togglePro'); if(el) { el.classList.toggle('on', saved.pro); } }
-        // Set active states on persona buttons
-        document.querySelectorAll('.config-card:nth-child(2) .persona-btn').forEach(function(b) {
-          b.classList.remove('active');
-          if(b.textContent.trim().toLowerCase().includes(selectedPersona)) b.classList.add('active');
-        });
-        // Set active states on level buttons
-        document.querySelectorAll('.config-card:nth-child(3) .persona-btn').forEach(function(b) {
-          b.classList.remove('active');
-          if(b.textContent.trim().toLowerCase().includes(selectedLevel)) b.classList.add('active');
-        });
-      } catch(e) {}
-    })();
+        const r = await fetch('/api/settings');
+        if (r.ok) s = await r.json();
+      } catch (e) {}
+
+      selectedPersona = s.persona || 'socratic';
+      selectedLevel = s.difficulty || 'intermediate';
+      selectedAvatar = s.avatar || 'f';
+      if (s.language) document.getElementById('langSelect').value = s.language;
+      if (s.provider) document.getElementById('providerSelect').value = s.provider;
+
+      // Say which keys already exist without ever sending their values back.
+      if (s.keys) {
+        document.getElementById('groqSet').textContent = s.keys.groq ? '· saved' : '';
+        document.getElementById('geminiSet').textContent = s.keys.gemini ? '· saved' : '';
+        if (s.keys.groq) document.getElementById('groqKey').placeholder = 'Saved — type to replace';
+        if (s.keys.gemini) document.getElementById('geminiKey').placeholder = 'Saved — type to replace';
+      }
+
+      mark('.config-card:nth-child(2) .persona-btn', selectedPersona);
+      mark('.config-card:nth-child(3) .persona-btn', selectedLevel);
+      document.querySelectorAll('#avatar-f,#avatar-m').forEach(b => b.classList.remove('active'));
+      const av = document.getElementById('avatar-' + selectedAvatar);
+      if (av) av.classList.add('active');
+    }
+
+    function mark(sel, value) {
+      document.querySelectorAll(sel).forEach(function (b) {
+        b.classList.toggle('active',
+          b.textContent.trim().toLowerCase().indexOf(value) === 0);
+      });
+    }
 
     function selectPersona(btn, persona) {
       document.querySelectorAll('.config-card:nth-child(2) .persona-btn').forEach(b => b.classList.remove('active'));
@@ -217,31 +284,65 @@
       btn.classList.add('active');
       selectedLevel = level;
     }
-    function saveConfig() {
-      const config = {
-        persona: selectedPersona,
-        level: selectedLevel,
-        language: document.getElementById('langSelect').value,
-        voice: document.getElementById('toggleVoice').classList.contains('on'),
-        quiz: document.getElementById('toggleQuiz').classList.contains('on'),
-        flashcards: document.getElementById('toggleFlash').classList.contains('on'),
-        pro: document.getElementById('togglePro').classList.contains('on')
-      };
-      localStorage.setItem('mentora_config', JSON.stringify(config));
-      localStorage.setItem('mentora_persona', config.persona);
-      // Bridge: also save to DB so Streamlit picks it up
-      fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ persona: config.persona, language: config.language, difficulty: config.level })
-      }).catch(function(e) { console.log('Config bridge save failed:', e); });
-      var toast = document.createElement('div');
-      toast.className = 'toast';
-      toast.textContent = 'Settings saved!';
-      document.body.appendChild(toast);
-      setTimeout(() => toast.classList.add('hide'), 2000);
-      setTimeout(() => toast.remove(), 2500);
+    function selectAvatar(btn, who) {
+      document.querySelectorAll('#avatar-f,#avatar-m').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedAvatar = who;
     }
+
+    function toast(text) {
+      var t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = text;
+      document.body.appendChild(t);
+      setTimeout(() => t.classList.add('hide'), 2200);
+      setTimeout(() => t.remove(), 2700);
+    }
+
+    async function saveConfig() {
+      const language = document.getElementById('langSelect').value;
+      try {
+        const r = await fetch('/api/settings', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            persona: selectedPersona, difficulty: selectedLevel,
+            language: language, avatar: selectedAvatar,
+          }),
+        });
+        if (!r.ok) throw new Error('save failed');
+      } catch (e) { toast('Could not save settings'); return; }
+
+      // Keys go separately: they are written to .env, not to the student row.
+      const groq = document.getElementById('groqKey').value.trim();
+      const gemini = document.getElementById('geminiKey').value.trim();
+      const provider = document.getElementById('providerSelect').value;
+      if (groq || gemini || provider) {
+        try {
+          const r = await fetch('/api/keys', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({provider, groq: groq || null, gemini: gemini || null}),
+          });
+          if (r.ok) {
+            document.getElementById('groqKey').value = '';
+            document.getElementById('geminiKey').value = '';
+          }
+        } catch (e) {}
+      }
+
+      // Kept only so other pages that still read it stay in step.
+      try {
+        localStorage.setItem('mentora_config', JSON.stringify({
+          persona: selectedPersona, level: selectedLevel,
+          language: language, avatar: selectedAvatar,
+        }));
+        localStorage.setItem('mentora_persona', selectedPersona);
+      } catch (e) {}
+
+      await loadSettings();
+      toast('Settings saved');
+    }
+
+    loadSettings();
   </script>
 </body>
 </html>

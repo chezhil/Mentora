@@ -940,7 +940,7 @@ def _wav_for(audio: Path, ffmpeg: str, work: Path) -> Path:
 
 
 def encode(out: Path, elements: list[Element], kind: str, caption: str,
-           narration: Narration) -> int:
+           narration: Narration, variant: str | None = None) -> int:
     """Draw and mux a narrated board video into `out`.
 
     Factored out of build() so the rest of Mentora can render the same
@@ -977,7 +977,14 @@ def encode(out: Path, elements: list[Element], kind: str, caption: str,
               file=sys.stderr)
         import traceback
         traceback.print_exc()
-    variant = os.environ.get("MENTORA_AVATAR_VARIANT", "f")
+    # Caller's choice wins; the environment stays as the CLI's way in. This
+    # used to read the environment only, so "male teacher" in the UI could not
+    # reach the renderer -- and setting it per render from a request thread
+    # would have raced, since os.environ is process-wide.
+    if variant not in ("f", "m"):
+        variant = os.environ.get("MENTORA_AVATAR_VARIANT", "f")
+    if variant not in ("f", "m"):
+        variant = "f"
 
     silent = out.parent / f".{out.stem}_silent.mp4"
     fig = plt.figure(figsize=(W / DPI, H / DPI), dpi=DPI, facecolor=PAPER)

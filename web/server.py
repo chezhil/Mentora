@@ -250,11 +250,27 @@ def dashboard_api(student_id: str = "student") -> dict:
         sessions = [dict(r) for r in cur.fetchall()]
 
         # Total stats
+        # Time actually spent, not time planned. Summing minutes_planned
+        # credited a full 20 minutes to a lesson abandoned after one segment,
+        # so "hours learned" only ever went up.
         cur.execute(
-            "SELECT COALESCE(SUM(minutes_planned), 0) FROM study_sessions WHERE student_id=?",
-            (student_id,),
+            "SELECT started_at, ended_at, minutes_planned FROM study_sessions "
+            "WHERE student_id=?", (student_id,),
         )
-        total_minutes = cur.fetchone()[0]
+        total_minutes = 0.0
+        for row in cur.fetchall():
+            spent = None
+            if row["started_at"] and row["ended_at"]:
+                try:
+                    spent = (datetime.fromisoformat(row["ended_at"])
+                             - datetime.fromisoformat(row["started_at"])
+                             ).total_seconds() / 60.0
+                except Exception:
+                    spent = None
+            if spent is None or spent < 0:
+                spent = 0.0
+            total_minutes += min(spent, float(row["minutes_planned"] or 0) + 30)
+        total_minutes = round(total_minutes, 1)
 
         cur.execute(
             "SELECT COUNT(DISTINCT session_id) FROM reports WHERE student_id=?",
@@ -305,11 +321,18 @@ def dashboard_api(student_id: str = "student") -> dict:
         weak = list(dict.fromkeys(weak))[:5]
         strong = list(dict.fromkeys(strong))[:5]
 
-        # Recent lessons for the dashboard list
+        # Recent lessons for the dashboard list. The topic lives on
+        # study_sessions; reports only carries next_topic, which is what to
+        # study NEXT -- so every row in "recent activity" was labelled with a
+        # subject the student had not been taught yet.
+        titles = {row["session_id"]: (row["topic"] or "").strip()
+                  for row in sessions}
         recent = []
         for r in reports[:5]:
             recent.append({
-                "topic": r.get("next_topic", "Untitled"),
+                "topic": titles.get(r.get("session_id"))
+                         or r.get("next_topic") or "Untitled",
+                "next_topic": r.get("next_topic", ""),
                 "score": r.get("score", 0),
                 "date": r.get("created_at", "")[:10],
                 "strong": json.loads(r.get("strong_json", "[]")),

@@ -207,7 +207,15 @@ def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk
     # Calculate difficulty
     # "Two wrong answers in a row -> simpler language, more basic examples."
     # "Two quick correct answers -> harder questions, more technical depth."
-    difficulty_level = "standard"
+    # Start from what the STUDENT asked for, then let the lesson adapt away
+    # from it. This was hardcoded to "standard", so choosing beginner or
+    # advanced in the UI changed the plan but never the teaching: the first
+    # segment of an "advanced" lesson was pitched identically to a beginner's,
+    # and stayed there until two evaluations in a row moved it.
+    difficulty_level = {
+        "beginner": "simplify",
+        "advanced": "harden",
+    }.get(getattr(state.profile, "level", ""), "standard")
     if len(state.evaluations) >= 2:
         last_two_actions = [e.action for e in state.evaluations[-2:]]
         if last_two_actions == ["harden", "harden"]:
@@ -222,6 +230,7 @@ def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk
         .replace("<<TOPIC>>", plan.topic) \
         .replace("<<LANGUAGE>>", state.profile.language) \
         .replace("<<DIFFICULTY>>", difficulty_level) \
+        .replace("<<PERSONA>>", getattr(state.profile, "persona", "") or "socratic") \
         .replace("<<CONCEPT>>", concept.name) \
         .replace("<<MINUTES>>", str(concept.minutes)) \
         .replace("<<HISTORY>>", history_str) \

@@ -282,6 +282,7 @@ def _build_media(session: SessionState,
                     out_dir=os.path.join(VISUAL_DIR, "board"),
                     audio_wav=out.audio_wav,
                     max_seconds=MAX_AVATAR_SECONDS,
+                    avatar=session.profile.avatar,
                 )
                 if board:
                     out.video_mp4 = board

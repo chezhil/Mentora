@@ -16,6 +16,12 @@ class LearnerProfile(BaseModel):
     goal: str | None = None
     known_concepts: list[str] = []
     weak_concepts: list[str] = []
+    # How the teacher sounds and who the student sees. Both were stored in the
+    # preferences table and read by nothing: persona never reached a prompt and
+    # the avatar could only be changed with an environment variable, so picking
+    # either in the UI did nothing at all.
+    persona: str = "socratic"
+    avatar: Literal["f", "m"] = "f"
 
 
 class SourceChunk(BaseModel):

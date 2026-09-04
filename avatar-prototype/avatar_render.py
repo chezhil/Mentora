@@ -171,6 +171,19 @@ GAZE_REST_MS = 520.0      # ... and come back to the viewer unhurriedly
 GAZE_HEAD_X = 6.0         # degrees of head turn at full sideways gaze
 GAZE_HEAD_Y = 3.5         # degrees of head tilt at full vertical gaze
 
+# Head motion. The idle drift alone read as a portrait that happened to be
+# breathing: enough to look alive, not enough to look like someone talking.
+# A speaking head swings wider, and it NODS -- a beat of emphasis every few
+# seconds, which is most of what separates a person explaining something from
+# a face with a moving mouth. Amplitudes scale with the voice, so she settles
+# when she stops.
+SWING_X, SWING_Y, SWING_Z = 5.2, 3.6, 4.0
+NOD_MIN, NOD_MAX = 2.4, 5.6   # seconds between nods, while speaking
+NOD_MS = 620.0                # one nod: down and back
+NOD_DEG = 5.4                 # peak pitch of a nod
+EMPHASIS = 1.6                # extra pitch that tracks how open the mouth is
+SPEAKING = 0.12               # smoothed level above which nodding starts
+
 
 def _drift(t: float, seed: float) -> float:
     return (math.sin(t * 0.31 + seed) * 0.55
@@ -206,6 +219,7 @@ def analyse(wav_path, fps: int, frames: int, seed: int = 7,
     rng = np.random.default_rng(seed)
     gz = sorted(gaze or [], key=lambda g: g[0])
     gi, gx, gy = 0, 0.0, 0.0
+    next_nod, nod_until = 1.5, -1.0
     out = []
     for i in range(frames):
         t = i * dt
@@ -254,7 +268,18 @@ def analyse(wav_path, fps: int, frames: int, seed: int = 7,
         gx += (tx - gx) * coef
         gy += (ty - gy) * coef
 
-        life = 0.35 + energy * 0.9
+        # A nod is one smooth down-and-back, so sin over half a period. It
+        # fires only while she is actually talking -- nodding into silence is
+        # what makes an idle avatar look broken rather than resting.
+        if energy > SPEAKING and t > next_nod and t > nod_until:
+            nod_until = t + NOD_MS / 1000.0
+            next_nod = t + NOD_MIN + float(rng.random()) * (NOD_MAX - NOD_MIN)
+        nod = 0.0
+        if t < nod_until:
+            phase = 1.0 - (nod_until - t) / (NOD_MS / 1000.0)
+            nod = math.sin(phase * math.pi) * NOD_DEG
+
+        life = 0.35 + energy * 1.35
         # SVG is y-down while the board is y-up, so the vertical terms invert:
         # looking UP at the board is a NEGATIVE offset in the character's own
         # coordinates. The head turn rides on top of the idle drift rather
@@ -262,9 +287,10 @@ def analyse(wav_path, fps: int, frames: int, seed: int = 7,
         out.append(dict(
             mouthOpen=mouth, mouthForm=form, eyeOpen=eye_open,
             eyeX=gx, eyeY=-gy,
-            angleX=_drift(t, 1.7) * 3.4 * life + gx * GAZE_HEAD_X,
-            angleY=_drift(t, 4.2) * 2.6 * life - gy * GAZE_HEAD_Y,
-            angleZ=_drift(t, 8.9) * 2.8 * life,
+            angleX=_drift(t, 1.7) * SWING_X * life + gx * GAZE_HEAD_X,
+            angleY=(_drift(t, 4.2) * SWING_Y * life - gy * GAZE_HEAD_Y
+                    + nod + mouth * EMPHASIS),
+            angleZ=_drift(t, 8.9) * SWING_Z * life,
             breath=(math.sin(t * 1.1) + 1.0) / 2.0, brow=energy * 0.7))
     return out
 

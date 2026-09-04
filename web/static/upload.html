@@ -91,6 +91,12 @@
       <!-- File list -->
       <div class="file-list" id="fileList"></div>
 
+      <!-- Previously uploaded material -->
+      <div style="margin-top:2rem;">
+        <span class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.5);display:block;margin-bottom:0.75rem;">Your material</span>
+        <div id="materials"></div>
+      </div>
+
       <!-- Topic config -->
       <div style="margin-top:2rem;">
         <span class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.5);display:block;margin-bottom:1rem;">02 / Topic Configuration</span>
@@ -121,6 +127,14 @@
               <option value="60">60 minutes</option>
             </select>
           </div>
+        </div>
+
+        <div style="margin-bottom:1rem;">
+          <label class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:0.25rem;">Teaching Language</label>
+          <select id="langSelect" style="width:100%;"></select>
+          <p class="font-mono" style="font-size:10px;color:rgba(0,0,0,0.45);margin-top:0.35rem;">
+            The whole lesson &mdash; narration, board and questions &mdash; is written in this language.
+          </p>
         </div>
 
         <div style="margin-bottom:1rem;">
@@ -204,6 +218,85 @@
       }).join('');
     }
 
+    let chosenMaterial = null;   // repo-relative path of the file to teach from
+
+    // Every control starts on what the student saved in Settings, so the two
+    // pages cannot disagree. They previously defaulted to whatever was hard
+    // coded in the markup, which is why a saved language or difficulty looked
+    // ignored the moment you opened this page.
+    async function loadDefaults() {
+      let s = {};
+      try {
+        const r = await fetch('/api/settings');
+        if (r.ok) s = await r.json();
+      } catch (e) {}
+
+      const langs = (s.languages && s.languages.length) ? s.languages
+        : [{code: 'en', name: 'English'}];
+      const sel = document.getElementById('langSelect');
+      sel.innerHTML = langs.map(l =>
+        '<option value="' + l.code + '">' + l.name + '</option>').join('');
+      sel.value = s.language || 'en';
+      if (s.difficulty) document.getElementById('levelSelect').value = s.difficulty;
+      loadMaterials();
+    }
+
+    function human(bytes) {
+      if (bytes > 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+      if (bytes > 1024) return Math.round(bytes / 1024) + ' KB';
+      return bytes + ' B';
+    }
+
+    async function loadMaterials() {
+      const box = document.getElementById('materials');
+      let data = {materials: []};
+      try {
+        const r = await fetch('/api/materials');
+        if (r.ok) data = await r.json();
+      } catch (e) {}
+
+      if (!data.materials.length) {
+        box.innerHTML = '<p class="font-mono" style="font-size:11px;color:rgba(0,0,0,0.45);">' +
+          'Nothing uploaded yet. Anything you add above is kept here for next time.</p>';
+        return;
+      }
+      box.innerHTML = data.materials.map(m =>
+        '<div class="mat" data-path="' + m.path + '" style="display:flex;justify-content:space-between;' +
+        'align-items:center;gap:1rem;border:3px solid var(--ink);background:#fff;padding:0.75rem 1rem;' +
+        'margin-bottom:0.5rem;cursor:pointer;">' +
+          '<div style="min-width:0;">' +
+            '<div class="font-black" style="font-size:0.85rem;text-transform:uppercase;overflow:hidden;' +
+            'text-overflow:ellipsis;white-space:nowrap;">' + m.name + '</div>' +
+            '<div class="font-mono" style="font-size:10px;color:rgba(0,0,0,0.5);">' +
+              m.kind + ' · ' + human(m.size) + (m.topic ? ' · ' + m.topic : '') +
+              ' · ' + new Date(m.uploaded).toLocaleDateString() +
+            '</div>' +
+          '</div>' +
+          '<span class="pickLabel font-mono" style="font-size:10px;text-transform:uppercase;' +
+          'border:2px solid var(--ink);padding:0.3rem 0.6rem;white-space:nowrap;">Teach from this</span>' +
+        '</div>').join('');
+
+      box.querySelectorAll('.mat').forEach(el => el.onclick = () => {
+        const already = chosenMaterial === el.dataset.path;
+        chosenMaterial = already ? null : el.dataset.path;
+        box.querySelectorAll('.mat').forEach(o => {
+          const on = !already && o === el;
+          o.style.background = on ? 'var(--acid)' : '#fff';
+          o.style.boxShadow = on ? '5px 5px 0 0 #000' : 'none';
+          o.querySelector('.pickLabel').textContent = on ? 'Selected' : 'Teach from this';
+        });
+      });
+    }
+
+    function readAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
+        fr.onerror = () => reject(new Error('Could not read ' + file.name));
+        fr.readAsDataURL(file);
+      });
+    }
+
     async function startLesson() {
       const topic = document.getElementById('topicInput').value.trim();
       if (!topic) { alert('Please enter a topic.'); return; }
@@ -211,31 +304,38 @@
       const level = document.getElementById('levelSelect').value;
       const minutes = parseInt(document.getElementById('timeSelect').value, 10);
       const goal = document.getElementById('goalInput').value;
+      const language = document.getElementById('langSelect').value;
 
       const progress = document.getElementById('progress');
       const btn = document.getElementById('startBtn');
       progress.style.display = 'block';
       btn.disabled = true;
       btn.style.opacity = '0.5';
-      document.getElementById('progressBar').style.width = '35%';
+      document.getElementById('progressBar').style.width = '20%';
 
-      let language = 'en';
       try {
-        const cfg = JSON.parse(localStorage.getItem('mentora_config') || '{}');
-        language = cfg.language || 'en';
-        localStorage.setItem('mentora_config', JSON.stringify({
-          ...cfg, topic, level, minutes, goal,
-        }));
-      } catch (e) {}
+        // Actually send the bytes. Files picked here used to be listed and
+        // then dropped, so the lesson never saw them.
+        let filePath = chosenMaterial;
+        for (const f of uploadedFiles) {
+          const r = await fetch('/api/materials/upload', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: f.name, content: await readAsBase64(f), topic}),
+          });
+          const up = await r.json();
+          if (!r.ok) throw new Error(up.error || ('Could not upload ' + f.name));
+          if (!filePath) filePath = up.path;
+        }
+        document.getElementById('progressBar').style.width = '55%';
 
-      // Teach here. This used to run a fake progress bar and then send the
-      // browser to Streamlit on :8501 -- so "start lesson" meant leaving the
-      // app, and it simply failed if that other server was not running.
-      try {
+        // Teach here. This used to run a fake progress bar and then send the
+        // browser to Streamlit on :8501 -- so "start lesson" meant leaving the
+        // app, and it simply failed if that other server was not running.
         const r = await fetch('/api/lesson/start', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({topic, level, minutes, goal, language}),
+          body: JSON.stringify({topic, level, minutes, goal, language,
+                                file_path: filePath}),
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || 'Could not start the lesson.');
@@ -252,6 +352,8 @@
           String(e.message) + '</p></div>';
       }
     }
+
+    loadDefaults();
   </script>
 </body>
 </html>

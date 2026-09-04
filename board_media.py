@@ -159,7 +159,7 @@ def split_sentences_by_pause(wav, script, min_gap=GAP_SECONDS):
 
 
 def render_board_video(script, kind, payload, caption, out_dir, audio_wav,
-                       max_seconds=60.0):
+                       max_seconds=60.0, avatar=None):
     """Build the narrated board MP4 for one segment; None on any failure."""
     try:
         lv = _lesson_video()
@@ -187,9 +187,12 @@ def render_board_video(script, kind, payload, caption, out_dir, audio_wav,
 
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        key = hashlib.sha1(script[:40].encode("utf-8", "ignore")).hexdigest()[:10]
+        # The avatar is part of the picture, so it belongs in the cache key:
+        # without it, switching teacher would return the previous render.
+        stamp = "%s|%s" % (script[:40], avatar or "f")
+        key = hashlib.sha1(stamp.encode("utf-8", "ignore")).hexdigest()[:10]
         out = out_dir / ("board_%s_%s.mp4" % (kind, key))
-        lv.encode(out, elements, kind, caption, narration)
+        lv.encode(out, elements, kind, caption, narration, variant=avatar)
         return str(out)
     except Exception as exc:
         print("board render failed: %r" % (exc,), file=sys.stderr)
