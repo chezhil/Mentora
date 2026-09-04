@@ -162,10 +162,17 @@ class AITutorAvatar {
     appendTranscript(role, text) {
         if (!this.chatHistory) return;
         const msg = document.createElement('div');
-        msg.className = `message ${role}`;
         
-        const roleLabel = role === 'user' ? 'USR' : role === 'ai' ? 'MENTORA' : 'SYS';
-        msg.innerHTML = `<strong>${roleLabel}</strong> ${text}`;
+        if (role === 'user') {
+            msg.className = "bg-black text-[#e8ff00] p-3 border-[3px] border-black shadow-[4px_4px_0_0_#000000] ml-8 mb-2 leading-relaxed";
+            msg.innerHTML = `<div class="text-[10px] opacity-70 mb-1 tracking-widest uppercase font-bold">USR</div><div>${text}</div>`;
+        } else if (role === 'ai') {
+            msg.className = "bg-white text-black p-3 border-[3px] border-black shadow-[4px_4px_0_0_#000000] mr-8 mb-2 leading-relaxed";
+            msg.innerHTML = `<div class="text-[10px] text-black/50 mb-1 tracking-widest uppercase font-bold">MENTORA</div><div>${text}</div>`;
+        } else {
+            msg.className = "bg-red-500 text-white p-3 border-[3px] border-black shadow-[4px_4px_0_0_#000000] mb-2 leading-relaxed";
+            msg.innerHTML = `<div class="text-[10px] mb-1 tracking-widest uppercase font-bold">SYS</div><div>${text}</div>`;
+        }
         
         this.chatHistory.appendChild(msg);
         this.chatHistory.scrollTop = this.chatHistory.scrollHeight;

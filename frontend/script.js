@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sendBtnId: 'send-btn'
         });
 
-        // Play queued startup data if navigated from index.html
+        // Play queued startup data if navigated, or auto-start a session
         const pending = sessionStorage.getItem('pendingStartData');
         if (pending) {
             sessionStorage.removeItem('pendingStartData');
@@ -46,6 +46,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.aiTutor.appendTranscript('ai', data.segment_text);
                 if (data.audio_url) {
                     window.aiTutor.playAudio(data.audio_url, data.gestures || []);
+                }
+            }, 500);
+        } else {
+            // Auto start lesson since we merged it into a single screen
+            setTimeout(async () => {
+                window.aiTutor.appendTranscript('system', 'Starting lesson...');
+                try {
+                    const response = await fetch('/api/start', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ topic: "Wave-Particle Duality", api_key: "" })
+                    });
+                    const data = await response.json();
+                    
+                    document.getElementById('chat-history').innerHTML = '<div class="text-black/50 uppercase tracking-widest text-xs font-bold mb-2">Session Transcript</div>';
+                    window.aiTutor.appendTranscript('ai', data.segment_text);
+                    if (data.audio_url) {
+                        window.aiTutor.playAudio(data.audio_url, data.gestures || []);
+                    }
+                } catch (err) {
+                    console.error("Failed to start session:", err);
+                    window.aiTutor.appendTranscript('system', 'Failed to start session. Check backend.');
                 }
             }, 500);
         }
