@@ -239,6 +239,12 @@ class AITutorAvatar {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ question: text })
             });
+            
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`Server error ${response.status}: ${errText}`);
+            }
+            
             const data = await response.json();
             
             if (data.error) throw new Error(data.error);

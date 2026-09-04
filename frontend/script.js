@@ -50,15 +50,32 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 500);
         } else {
             // Auto start lesson since we merged it into a single screen
+            let savedKey = localStorage.getItem('mentora_api_key');
+            if (!savedKey) {
+                savedKey = prompt("Please enter your Gemini API Key to start the Mentora session:");
+                if (savedKey) {
+                    localStorage.setItem('mentora_api_key', savedKey);
+                }
+            }
             setTimeout(async () => {
                 window.aiTutor.appendTranscript('system', 'Starting lesson...');
                 try {
                     const response = await fetch('/api/start', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ topic: "Wave-Particle Duality", api_key: "" })
+                        body: JSON.stringify({ topic: "Wave-Particle Duality", api_key: savedKey || "" })
                     });
+                    
+                    if (!response.ok) {
+                        const errText = await response.text();
+                        throw new Error(`Server returned ${response.status}. Make sure your Gemini API Key is valid.`);
+                    }
+                    
                     const data = await response.json();
+                    
+                    if (data.error) {
+                         throw new Error(data.error);
+                    }
                     
                     document.getElementById('chat-history').innerHTML = '<div class="text-black/50 uppercase tracking-widest text-xs font-bold mb-2">Session Transcript</div>';
                     window.aiTutor.appendTranscript('ai', data.segment_text);
@@ -67,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } catch (err) {
                     console.error("Failed to start session:", err);
-                    window.aiTutor.appendTranscript('system', 'Failed to start session. Check backend.');
+                    window.aiTutor.appendTranscript('system', 'Failed to start session: ' + err.message);
                 }
             }, 500);
         }
