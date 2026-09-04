@@ -207,6 +207,18 @@
       </div>
 
       <!-- Save -->
+
+      <!-- Test API -->
+      <div class="config-card">
+        <h2 class="font-black" style="font-size:1.25rem;text-transform:uppercase;margin-bottom:0.5rem;">Test API Connection</h2>
+        <p style="font-size:0.85rem;color:rgba(0,0,0,0.6);margin-bottom:1rem;">
+          Verify your API key works by sending a test prompt.
+        </p>
+        <div id="testResult" style="display:none;padding:1rem;border:3px solid var(--ink);margin-bottom:1rem;font-family:Space Mono,monospace;font-size:0.8rem;white-space:pre-wrap;"></div>
+        <button onclick="testApi()" id="testBtn" style="width:100%;padding:1rem;background:var(--ink);color:var(--acid);font-family:Archivo Black,sans-serif;font-size:0.9rem;text-transform:uppercase;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;cursor:pointer;">
+          Test API Connection
+        </button>
+      </div>
       <button onclick="saveConfig()" style="width:100%;padding:1.5rem;background:var(--acid);color:var(--ink);font-family:'Archivo Black',sans-serif;font-size:1.25rem;text-transform:uppercase;border:3px solid var(--ink);box-shadow:8px 8px 0 0 #000;margin-top:1rem;" class="btn-brutal">
         Save Settings ✓
       </button>
@@ -332,6 +344,41 @@
       toast('Settings saved');
     }
 
+
+    async function testApi() {
+      const btn = document.getElementById("testBtn");
+      const result = document.getElementById("testResult");
+      btn.disabled = true;
+      btn.textContent = "Testing...";
+      result.style.display = "block";
+      result.style.background = "var(--paper)";
+      result.style.borderColor = "var(--ink)";
+      result.textContent = "Sending test prompt to API...";
+
+      try {
+        const r = await fetch("/api/voice/reply", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ text: "Say hello in one sentence.", language: "en" })
+        });
+        const data = await r.json();
+        if (r.ok && data.answer) {
+          result.style.background = "#d4edda";
+          result.style.borderColor = "#128a3d";
+          result.textContent = "API connection successful! Model response: " + data.answer + " Provider: " + (document.getElementById("providerSelect").value || "groq");
+        } else {
+          result.style.background = "#f8d7da";
+          result.style.borderColor = "#ff5e5e";
+          result.textContent = "API error: " + (data.error || "Unknown error");
+        }
+      } catch (e) {
+        result.style.background = "#f8d7da";
+        result.style.borderColor = "#ff5e5e";
+        result.textContent = "Connection failed: " + e.message;
+      }
+      btn.disabled = false;
+      btn.textContent = "Test API Connection";
+    }
     loadSettings();
   </script>
 </body>
