@@ -118,18 +118,33 @@ const meters = {
 };
 
 function meter([text, bar], value, digits = 2) {
-  text.textContent = value.toFixed(digits);
-  if (bar) bar.style.width = `${Math.min(Math.abs(value), 1) * 100}%`;
+  const v = Number.isFinite(value) ? value : 0;
+  text.textContent = v.toFixed(digits);
+  if (bar) bar.style.width = `${Math.min(Math.abs(v), 1) * 100}%`;
 }
 
+/* Re-arm FIRST, and swallow whatever a frame throws.
+ *
+ * requestAnimationFrame(frame) used to be the last statement, so anything that
+ * threw above it stopped the loop for good — the avatar froze mid-pose and
+ * stayed there, with no clue on the page as to why. That is a bad trade for a
+ * display loop: a frame that cannot be drawn is worth skipping, never worth
+ * ending the animation over. */
 function frame(now) {
-  const p = driver.update(now);
-  setParams(p);
-  meter(meters.open, p.mouthOpen);
-  meter(meters.form, p.mouthForm);
-  meter(meters.level, p.level);
-  meter(meters.angle, p.angleX, 1);
   requestAnimationFrame(frame);
+  try {
+    const p = driver.update(now);
+    setParams(p);
+    meter(meters.open, p.mouthOpen);
+    meter(meters.form, p.mouthForm);
+    meter(meters.level, p.level);
+    meter(meters.angle, p.angleX, 1);
+  } catch (err) {
+    if (!frame.warned) {
+      frame.warned = true;          // once, not sixty times a second
+      console.warn("avatar frame skipped:", err);
+    }
+  }
 }
 requestAnimationFrame(frame);
 
@@ -138,7 +153,7 @@ requestAnimationFrame(frame);
 //   __avatar.setParams({mouthOpen: 1, mouthForm: 0, eyeOpen: 1, eyeX: 0,
 //                       eyeY: 0, angleX: 20, angleY: 0, angleZ: 0,
 //                       breath: 0, brow: 0})
-window.__avatar = { driver, setParams };
+window.__avatar = { driver, setParams, frame };
 
 // --- gaze ------------------------------------------------------------------
 const stage = document.querySelector(".stage");

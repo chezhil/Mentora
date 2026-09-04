@@ -9,9 +9,16 @@ beyond a static file server. Delete the folder and Mentora is unchanged.
 
 ```bash
 cd avatar-prototype
-python3 -m http.server 8620
-# then open http://localhost:8620
+../.venv/bin/python serve.py        # http://127.0.0.1:8620
 ```
+
+`python3 -m http.server 8620` also works for a quick look, but it is
+single-threaded and blocks on one request at a time, which shows here because
+the page pulls two ES modules while the audio graph is starting.
+
+To put the avatar inside the real app instead, one line in `server.py` mounts
+it — see the note at the top of `serve.py`. It has to go after the API routes
+and before the `/{filename}` catch-all, which would otherwise shadow it.
 
 ## Why the mouth is driven by amplitude and not phonemes
 
@@ -64,6 +71,7 @@ that is hard to name and easy to see).
 | `character.js` | Renders those parameters onto the SVG, and wires up the page |
 | `index.html` | The page, and the placeholder character as inline SVG |
 | `style.css` | Mentora's palette, so it reads as part of the app |
+| `serve.py` | Serves this directory over uvicorn. Touches nothing else |
 
 ## Swapping in a real model
 
