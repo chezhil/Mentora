@@ -240,13 +240,35 @@ def _build_media(session: SessionState,
     if out.audio_wav:
         seconds = wiring.audio_seconds(out.audio_wav)
         if seconds > MAX_AVATAR_SECONDS:
-            # Do not even attempt it — Pair C refuses, and rightly. A segment
-            # this long is a planning bug, so say so loudly.
+            # Do not even attempt an avatar — Pair C refuses, and rightly. A
+            # segment this long is a planning bug, so say so loudly.
             out.notes.append(
                 f"script is {seconds:.0f}s, over the {MAX_AVATAR_SECONDS}s "
                 f"avatar cap — teaching as audio + visual only"
             )
-        else:
+        elif _board_video_enabled():
+            # Preferred path: the animated board video (avatar-prototype's
+            # restyled renderer), timed to the narration we already have.
+            # Falls back to the legacy avatar-compose path below on any
+            # failure, so the product behaves exactly as before offline.
+            try:
+                import board_media
+                board = board_media.render_board_video(
+                    script=segment.script,
+                    kind=segment.visual.kind if segment.visual else "none",
+                    payload=segment.visual.payload if segment.visual else "",
+                    caption=segment.visual.caption if segment.visual else "",
+                    out_dir=os.path.join(VISUAL_DIR, "board"),
+                    audio_wav=out.audio_wav,
+                    max_seconds=MAX_AVATAR_SECONDS,
+                )
+                if board:
+                    out.video_mp4 = board
+                    out.notes.append("board video (animated visual)")
+            except Exception as exc:
+                out.notes.append(f"board video failed: {exc}")
+        if seconds <= MAX_AVATAR_SECONDS and not out.video_mp4:
+            # Legacy fallback: Wav2Lip-style avatar composed over the still.
             try:
                 mp4 = wiring.render_avatar(out.audio_wav, FACE_IMAGE)
                 if mp4:
@@ -258,6 +280,11 @@ def _build_media(session: SessionState,
 
     runtime(session).media[_media_key(segment, session.profile.language)] = out
     return out
+
+
+def _board_video_enabled() -> bool:
+    """Off switch: set MENTORA_BOARD_VIDEO=0 to force the legacy avatar path."""
+    return os.environ.get("MENTORA_BOARD_VIDEO", "1") != "0"
 
 
 # ---------------------------------------------------------------------------

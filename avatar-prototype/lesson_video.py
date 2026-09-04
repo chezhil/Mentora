@@ -622,31 +622,51 @@ def build(segment: dict, out: Path, voice: str) -> int:
         for el in elements:
             print(f"    {el.at:6.2f}s  {el.label[:52]}")
 
-        try:
-            import imageio_ffmpeg
-            ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
-            matplotlib.rcParams["animation.ffmpeg_path"] = ffmpeg
-        except Exception:
-            ffmpeg = "ffmpeg"
+    return encode(out, elements, kind, caption, narration)
 
-        silent = work / "silent.mp4"
-        fig = plt.figure(figsize=(W / DPI, H / DPI), dpi=DPI, facecolor=PAPER)
-        ax = fig.add_axes([0, 0, 1, 1])
-        ax.set_facecolor(PAPER)
-        writer = FFMpegWriter(fps=FPS, bitrate=2600,
-                              extra_args=["-pix_fmt", "yuv420p"])
+
+def encode(out: Path, elements: list[Element], kind: str, caption: str,
+           narration: Narration) -> int:
+    """Draw and mux a narrated board video into `out`.
+
+    Factored out of build() so the rest of Mentora can render the same
+    animated board from audio it has already synthesised (no second TTS):
+    hand it a Narration whose .audio is the existing WAV and whose
+    .sentences come from any source with real start/end times.
+    """
+    setup_fonts()
+    total = narration.duration + 1.2
+    try:
+        import imageio_ffmpeg
+        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        matplotlib.rcParams["animation.ffmpeg_path"] = ffmpeg
+    except Exception:
+        ffmpeg = "ffmpeg"
+
+    silent = out.parent / f".{out.stem}_silent.mp4"
+    fig = plt.figure(figsize=(W / DPI, H / DPI), dpi=DPI, facecolor=PAPER)
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_facecolor(PAPER)
+    writer = FFMpegWriter(fps=FPS, bitrate=2600,
+                          extra_args=["-pix_fmt", "yuv420p"])
+    try:
         with writer.saving(fig, str(silent), DPI):
             for f in range(int(total * FPS)):
                 draw(ax, f / FPS, elements, kind, caption,
                      narration.sentences, total)
                 writer.grab_frame(facecolor=PAPER)
+    finally:
         plt.close(fig)
 
-        subprocess.run(
-            [ffmpeg, "-y", "-loglevel", "error", "-i", str(silent),
-             "-i", str(narration.audio), "-c:v", "copy", "-c:a", "aac",
-             "-shortest", "-movflags", "+faststart", str(out)],
-            check=True, timeout=300)
+    subprocess.run(
+        [ffmpeg, "-y", "-loglevel", "error", "-i", str(silent),
+         "-i", str(narration.audio), "-c:v", "copy", "-c:a", "aac",
+         "-shortest", "-movflags", "+faststart", str(out)],
+        check=True, timeout=300)
+    try:
+        silent.unlink()
+    except OSError:
+        pass
 
     print(f"{out}  {out.stat().st_size / 1024:.0f} KB  {total:.1f}s")
     return 0
