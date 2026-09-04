@@ -44,7 +44,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FFMpegWriter
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Rectangle
+from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch
 
 PAPER, INK, MUTED = "#F5F1E8", "#12100E", "#6B6459"
 YELLOW, BLUE, CORAL, TEAL, VIOLET = "#FFD400", "#4A7DFF", "#FF6B4A", "#12A594", "#7C5CFF"
@@ -296,21 +296,21 @@ def schedule(elements: list[Element], sentences: list[Sentence]) -> None:
 
 # ---------------------------------------------------------------------------
 # Drawing
+#
+# The visual language: a calm lesson board. Ink type on paper, Mentora's
+# accents used sparingly -- cards are pale tints of their accent rather than
+# full-saturation slabs, boxes are rounded and softly shadowed instead of
+# outlined in black, and the title is type with a yellow tick rather than a
+# sticker over the whole top of the frame. Colour carries meaning (one accent
+# per element, a step badge on a chain), never noise.
 # ---------------------------------------------------------------------------
 
-def ease(t: float, start: float, dur: float = 0.45) -> float:
+
+def ease(t: float, start: float, dur: float = 0.5) -> float:
     if dur <= 0:
         return 1.0 if t >= start else 0.0
     x = (t - start) / dur
     return 0.0 if x <= 0 else 1.0 if x >= 1 else 1 - (1 - x) ** 3
-
-
-def card(ax, x, y, w, h, face, z=2, lw=3):
-    ax.add_patch(Rectangle((x + 0.06, y - 0.06), w, h, facecolor=INK,
-                           edgecolor="none", zorder=z))
-    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="square,pad=0",
-                                facecolor=face, edgecolor=INK, linewidth=lw,
-                                zorder=z + 1))
 
 
 def wrap(text: str, per_line: int) -> str:
@@ -349,29 +349,231 @@ def grid(n: int) -> list[tuple[float, float, float, float]]:
 
     A chain of four reads as a flow on one row. Wrapping it into 2x2 sent the
     second edge diagonally across the frame from top-right to bottom-left,
-    which is the opposite of the direction the lesson is going.
+    which is the opposite of the direction the lesson is going. Boxes are
+    narrower than the cell so the arrows between them have room to breathe.
     """
     if n <= 0:
         return []
     cols = min(n, 4) if n <= 4 else 3
     rows = (n + cols - 1) // cols
-    x0, y0, x1, y1 = 0.7, 1.5, 12.5, 7.1          # x1 < SAFE_X
+    x0, x1, y0, y1 = 0.9, 12.95, 2.05, 6.85
     cw, ch = (x1 - x0) / cols, (y1 - y0) / rows
-    # Cap the height: a single row filling the whole band gave boxes four
-    # units tall holding one line of text, which reads as columns rather than
-    # as steps in a flow. Centre whatever is left in the cell.
-    bh = min(ch * 0.72, 2.5)
-    boxes = []
+    bw = cw * 0.80
+    bh = min(ch * 0.92, 2.60)
+    out = []
     for i in range(n):
         r, c = divmod(i, cols)
-        bx = x0 + c * cw + cw * 0.06
+        bx = x0 + c * cw + (cw - bw) / 2
         by = y1 - (r + 1) * ch + (ch - bh) / 2
-        boxes.append((bx, by, cw * 0.88, bh))
-    return boxes
+        out.append((bx, by, bw, bh))
+    return out
 
 
 def mathtext(term: str) -> str:
     return f"${term}$" if term not in ("=", "+", "-") else term
+
+
+def _rgb(hexcolour: str) -> list[float]:
+    h = hexcolour.lstrip("#")
+    return [int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+
+
+def mix(a: str, b: str, t: float) -> str:
+    """Blend hex colour a toward b by t in [0, 1]."""
+    ca, cb = _rgb(a), _rgb(b)
+    return "#" + "".join(
+        "%02X" % round((ca[i] + (cb[i] - ca[i]) * t) * 255) for i in range(3))
+
+
+def rrect(ax, x, y, w, h, r, *, face="#FFFFFF", edge=None, lw=1.0,
+          z=1, alpha=1.0):
+    """A rounded rectangle patch; rounding is clamped to the half-dimensions."""
+    r = max(0.0, min(r, w / 2, h / 2))
+    ax.add_patch(FancyBboxPatch(
+        (x, y), w, h, boxstyle=f"round,pad=0,rounding_size={r:.3f}",
+        facecolor=face, edgecolor=edge if edge else "none",
+        linewidth=lw, zorder=z, alpha=alpha))
+
+
+def title_bar(ax, t, caption) -> None:
+    """Type, not a sticker: ink headline beside a short yellow tick."""
+    a = ease(t, 0.0, 0.45)
+    if a <= 0.0:
+        return
+    line = wrap(caption or "", 46).split("\n")[0]
+    fs = 28 if len(line) <= 40 else 23
+    rrect(ax, 0.62, 7.66, 0.30, 0.98, 0.15, face=YELLOW, z=6, alpha=a)
+    ax.text(1.18, 8.15, line, fontsize=fs, fontweight="bold", color=INK,
+            va="center", ha="left", zorder=8, alpha=a)
+
+
+def subtitle(ax, t, sentences) -> None:
+    """The sentence being spoken, as a soft caption capsule bottom-centre.
+
+    The capsule only spans its own text instead of the full width, so it
+    reads as a subtitle rather than a bar of chrome.
+    """
+    live = next((s for s in sentences if s.start <= t < s.end), None)
+    if live is None:
+        return
+    rise = ease(t, live.start, 0.25)
+    settle = 1.0 - ease(t, live.end, 0.18)
+    a = rise * settle
+    if a <= 0.0:
+        return
+    lines = wrap(live.text.strip(), 66).split("\n")[:2]
+    fs = 15.5
+    glyph = fs * 0.60 / 80.0          # rough advance per char, in 16x9 units
+    w = min(max(max(len(l) for l in lines) * glyph + 1.4, 3.2), 11.6)
+    h = 0.92 if len(lines) == 1 else 1.30
+    cx = 6.6
+    x, y = cx - w / 2, 0.24
+    rrect(ax, x + 0.08, y - 0.10, w, h, 0.26, face=INK, z=10, alpha=0.07 * a)
+    rrect(ax, x, y, w, h, 0.26, face="#FFFFFF", z=11, alpha=a)
+    rrect(ax, x, y, w, h, 0.26, edge=INK, lw=1.2, z=12, alpha=0.20 * a)
+    ax.text(cx, y + h / 2, "\n".join(lines), fontsize=fs, color=INK,
+            va="center", ha="center", linespacing=1.28, zorder=13, alpha=a)
+
+
+def progress_bar(ax, t, total) -> None:
+    if total <= 0.0:
+        return
+    frac = min(max(t / total, 0.0), 1.0)
+    if frac <= 0.0:
+        return
+    rrect(ax, 0.0, 8.875, 16.0 * frac, 0.10, 0.05, face=CORAL, z=20,
+          alpha=0.85)
+
+
+_DEVA = re.compile("[\u0900-\u097F]")
+# Steps are 1..n, so index 0 maps to १, not to the zero glyph.
+_DEVA_DIGITS = ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"]
+
+
+def _is_chain(elements) -> bool:
+    """True when every element (after the first) arrives from its predecessor,
+    so the badges can honestly number the steps of a flow. A branching
+    diagram gets coloured dots' worth of meaning, not fake ordering."""
+    if not elements or elements[0].edge_from is not None:
+        return False
+    out = [0] * len(elements)
+    for i, el in enumerate(elements):
+        if i and el.edge_from != i - 1:
+            return False
+        if el.edge_from is not None:
+            out[el.edge_from] += 1
+            if out[el.edge_from] > 1:
+                return False
+    return True
+
+
+def draw_flow(ax, t, elements) -> None:
+    boxes = grid(len(elements))
+    chain = _is_chain(elements)
+    deva = any(_DEVA.search(el.label or "") for el in elements)
+
+    # Arrows first, beneath the cards, so each connection appears exactly as
+    # the box it reaches does -- and stops cleanly at that box's edge.
+    for i, (el, box) in enumerate(zip(elements, boxes)):
+        e = ease(t, el.at, 0.5)
+        if e <= 0.0 or el.edge_from is None or el.edge_from >= len(boxes):
+            continue
+        tail, head = anchors(boxes[el.edge_from], box)
+        ax.add_patch(FancyArrowPatch(tail, head, arrowstyle="-|>",
+                                     mutation_scale=15, color=INK, lw=2.2,
+                                     alpha=e * 0.80, zorder=3))
+
+    for i, (el, (bx, by, bw, bh)) in enumerate(zip(elements, boxes)):
+        e = ease(t, el.at, 0.5)
+        if e <= 0.0:
+            continue
+        accent = ACCENTS[i % len(ACCENTS)]
+        # Grow from 88% to full around the centre, so a reveal is a settling
+        # card rather than a sudden sticker.
+        s = 0.88 + 0.12 * e
+        w2, h2 = bw * s, bh * s
+        x2, y2 = bx + (bw - w2) / 2, by + (bh - h2) / 2
+        face = mix("#FFFFFF", accent, 0.10)
+        rrect(ax, x2 + 0.09, y2 - 0.11, w2, h2, 0.20, face=INK, z=4,
+              alpha=0.09 * e)
+        rrect(ax, x2, y2, w2, h2, 0.20, face=face, z=5, alpha=e)
+        rrect(ax, x2, y2, w2, h2, 0.20, edge=INK, lw=1.2, z=6, alpha=0.12 * e)
+
+        # A step badge on a genuine chain; colour alone otherwise.
+        if chain:
+            r = 0.30
+            bcx, bcy = bx + bw / 2, by + bh - 0.50
+            ax.add_patch(Circle((bcx, bcy), r, facecolor=accent,
+                                edgecolor="none", zorder=7))
+            if deva:
+                glyph = _DEVA_DIGITS[(i + 1) % 10] if i + 1 < 10 else "•"
+            else:
+                glyph = str(i + 1)
+            ax.text(bcx, bcy, glyph, fontsize=12.5, fontweight="bold",
+                    color="#FFFFFF", ha="center", va="center", zorder=8)
+
+        fs = 15 if len(boxes) <= 4 else 13
+        ax.text(bx + bw / 2, by + bh / 2 - 0.16,
+                wrap(el.label, max(9, int(bw * 5.0))),
+                fontsize=fs, fontweight="bold", color=INK, ha="center",
+                va="center", linespacing=1.3, zorder=8, alpha=e)
+
+
+def draw_equation(ax, t, elements) -> None:
+    """Terms settle into place in ink; each arrival flashes its accent once,
+    so colour marks what is new without the finished equation looking like a
+    row of unrelated symbols."""
+    ops = ("=", "+", "-", "\\times", "\\cdot")
+    gap, cx, cy = 2.3, 6.6, 4.95
+    first = cx - gap * (len(elements) - 1) / 2
+    for i, el in enumerate(elements):
+        e = ease(t, el.at, 0.5)
+        x = first + gap * i
+        if e <= 0.0:
+            continue
+        op = el.label in ops
+        fs = 44 if op else 62
+        colour = INK if op else mix(ACCENTS[i % len(ACCENTS)], INK, e)
+        try:
+            ax.text(x, cy - (1 - e) * 0.35, mathtext(el.label), fontsize=fs,
+                    fontweight="bold", color=colour, ha="center", va="center",
+                    alpha=e, zorder=6)
+        except Exception:
+            ax.text(x, cy - (1 - e) * 0.35, el.label, fontsize=fs, color=colour,
+                    ha="center", va="center", alpha=e, zorder=6)
+
+    # Once the equation is complete, a soft rule settles beneath it -- one
+    # pop of emphasis, then it stays, instead of pulsing for the whole video.
+    last = elements[-1].at
+    if elements and t > last + 0.55:
+        since = t - last - 0.55
+        a = 0.60 * ease(since, 0.0, 0.6) + \
+            0.30 * max(0.0, np.sin(since * 4.2)) * np.exp(-since * 2.0)
+        if a > 0.01:
+            span = gap * (len(elements) - 1) + 2.1
+            rrect(ax, first - 1.05, 3.52, span, 0.17, 0.085, face=YELLOW,
+                  z=6, alpha=min(a, 0.9))
+
+
+def draw_fallback(ax, t, caption) -> None:
+    """Junk payloads -- one cached segment's is literally a .png filename --
+    get a plain quotation card of the script instead of an apology."""
+    a = ease(t, 0.5, 0.5)
+    if a <= 0.0:
+        return
+    lines = wrap(caption or "", 30).split("\n")[:3]
+    fs = 27 if max(len(l) for l in lines) <= 26 else 22
+    glyph = fs * 0.62 / 80.0
+    w = min(max(len(l) for l in lines) * glyph + 2.4, 13.2)
+    h = len(lines) * fs * 1.5 / 80.0 + 1.1
+    cx, cy = 6.6, 4.55
+    x, y = cx - w / 2, cy - h / 2
+    rrect(ax, x + 0.10, y - 0.12, w, h, 0.28, face=INK, z=4, alpha=0.08 * a)
+    rrect(ax, x, y, w, h, 0.28, face="#FFFFFF", z=5, alpha=a)
+    rrect(ax, x, y, w, h, 0.28, edge=INK, lw=1.2, z=6, alpha=0.18 * a)
+    ax.text(cx, cy, "\n".join(lines), fontsize=fs, fontweight="bold",
+            color=INK, ha="center", va="center", linespacing=1.35, zorder=8,
+            alpha=a)
 
 
 def draw(ax, t, elements, kind, caption, sentences, total):
@@ -380,81 +582,17 @@ def draw(ax, t, elements, kind, caption, sentences, total):
     ax.set_ylim(0, 9)
     ax.axis("off")
 
-    # --- title bar ---------------------------------------------------------
-    a = ease(t, 0.0, 0.5)
-    card(ax, 0.4, 7.5, 15.2 * a, 1.15, YELLOW, z=2)
-    if a > 0.5:
-        ax.text(0.8, 8.08, wrap(caption, 58).split("\n")[0], fontsize=27,
-                fontweight="bold", color=INK, va="center", zorder=6,
-                alpha=(a - 0.5) / 0.5)
-
-    if kind == "equation":
-        # Centre the terms with a fixed gap rather than spreading them across
-        # the whole frame: three terms distributed over eleven units left the
-        # equation reading as three unrelated symbols.
-        gap, cx, y = 2.3, 6.4, 4.9
-        first = cx - gap * (len(elements) - 1) / 2
-        for i, el in enumerate(elements):
-            e = ease(t, el.at)
-            if e <= 0:
-                continue
-            x = first + gap * i
-            colour = INK if el.label in ("=", "+", "-", "\\times", "\\cdot") \
-                else ACCENTS[i % len(ACCENTS)]
-            try:
-                ax.text(x, y - (1 - e) * 0.35, mathtext(el.label), fontsize=54,
-                        fontweight="bold", color=colour, ha="center",
-                        va="center", alpha=e, zorder=6)
-            except Exception:
-                ax.text(x, y, el.label, fontsize=40, color=colour,
-                        ha="center", va="center", alpha=e, zorder=6)
-        if elements and t > elements[-1].at + 0.5:
-            pulse = 0.30 + 0.22 * np.sin((t - elements[-1].at - 0.5) * 3.0)
-            ax.plot([first - 1.0, first + gap * (len(elements) - 1) + 1.0],
-                    [3.6, 3.6], color=YELLOW, lw=9,
-                    alpha=pulse, solid_capstyle="round", zorder=3)
+    if kind == "equation" and elements:
+        title_bar(ax, t, caption)
+        draw_equation(ax, t, elements)
+    elif elements:
+        title_bar(ax, t, caption)
+        draw_flow(ax, t, elements)
     else:
-        boxes = grid(len(elements))
-        for i, (el, (bx, by, bw, bh)) in enumerate(zip(elements, boxes)):
-            e = ease(t, el.at)
-            if e <= 0:
-                continue
-            # The arrow that reaches this node is drawn with it, so the
-            # connection appears as the relationship is described.
-            if el.edge_from is not None and el.edge_from < len(boxes):
-                tail, head = anchors(boxes[el.edge_from], (bx, by, bw, bh))
-                ax.add_patch(FancyArrowPatch(
-                    tail, head, arrowstyle="-|>", mutation_scale=22,
-                    color=INK, lw=2.6, alpha=e * 0.9,
-                    shrinkA=3, shrinkB=3, zorder=9))
-            card(ax, bx, by - (1 - e) * 0.3, bw, bh,
-                 ACCENTS[i % len(ACCENTS)], z=5)
-            ax.text(bx + bw / 2, by + bh / 2 - (1 - e) * 0.3,
-                    wrap(el.label, max(11, int(bw * 5.2))),
-                    fontsize=15 if len(boxes) <= 3 else 12,
-                    fontweight="bold", color=INK, ha="center", va="center",
-                    alpha=e, zorder=8)
+        draw_fallback(ax, t, caption)
 
-        if not elements:
-            # Junk payload — one cached segment's is literally a .png filename.
-            # Say what is being taught rather than drawing an apology.
-            ax.text(6.5, 4.6, wrap(caption, 34), fontsize=30,
-                    fontweight="bold", color=INK, ha="center", va="center",
-                    alpha=ease(t, 0.6), zorder=6)
-
-    # --- the sentence being spoken, as it is spoken ------------------------
-    live = next((s for s in sentences if s.start <= t < s.end), None)
-    if live:
-        text = "\n".join(wrap(live.text.strip(), 72).split("\n")[:2])
-        card(ax, 0.4, 0.2, 12.4, 1.1, "#FFFFFF", z=10, lw=2.5)
-        ax.text(0.7, 0.75, text, fontsize=14, color=INK, va="center",
-                linespacing=1.35, zorder=13)
-
-    # --- narration progress ------------------------------------------------
-    if total > 0:
-        ax.add_patch(Rectangle((0, 8.93), 16 * min(t / total, 1.0), 0.07,
-                               facecolor=CORAL, edgecolor="none", zorder=15))
-
+    subtitle(ax, t, sentences)
+    progress_bar(ax, t, total)
 
 # ---------------------------------------------------------------------------
 

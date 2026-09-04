@@ -33,7 +33,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FFMpegWriter
-from matplotlib.patches import FancyBboxPatch, Rectangle
+from matplotlib.patches import Circle, FancyBboxPatch
 
 # Mentora's palette, so the visual and the app are obviously the same product.
 PAPER, INK = "#F5F1E8", "#12100E"
@@ -68,13 +68,26 @@ def ease(t: float, start: float, dur: float) -> float:
     return 1 - (1 - x) ** 3
 
 
-def card(ax, x, y, w, h, face, z=2, lw=3):
-    """A flat panel with a hard offset shadow — the house style."""
-    ax.add_patch(Rectangle((x + 0.06, y - 0.06), w, h, facecolor=INK,
-                           edgecolor="none", zorder=z))
-    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="square,pad=0",
-                                facecolor=face, edgecolor=INK, linewidth=lw,
-                                zorder=z + 1))
+def _rgb(hexcolour: str) -> list[float]:
+    h = hexcolour.lstrip("#")
+    return [int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+
+
+def mix(a: str, b: str, t: float) -> str:
+    """Blend hex colour a toward b by t in [0, 1]."""
+    ca, cb = _rgb(a), _rgb(b)
+    return "#" + "".join(
+        "%02X" % round((ca[i] + (cb[i] - ca[i]) * t) * 255) for i in range(3))
+
+
+def rrect(ax, x, y, w, h, r, *, face="#FFFFFF", edge=None, lw=1.0,
+          z=1, alpha=1.0):
+    """A rounded rectangle; rounding is clamped to the half-dimensions."""
+    r = max(0.0, min(r, w / 2, h / 2))
+    ax.add_patch(FancyBboxPatch(
+        (x, y), w, h, boxstyle=f"round,pad=0,rounding_size={r:.3f}",
+        facecolor=face, edgecolor=edge if edge else "none",
+        linewidth=lw, zorder=z, alpha=alpha))
 
 
 def draw(ax, t: float, total: float) -> None:
@@ -84,68 +97,87 @@ def draw(ax, t: float, total: float) -> None:
     ax.axis("off")
     ax.set_facecolor(PAPER)
 
-    # --- title bar, always present -----------------------------------------
-    a = ease(t, 0.0, 0.6)
-    card(ax, 0.4, 7.6, 15.2 * a, 1.1, YELLOW, z=2)
-    if a > 0.55:
-        ax.text(0.8, 8.15, "Ohm's Law", fontsize=34, fontweight="bold",
-                color=INK, va="center", zorder=5,
-                alpha=min(1.0, (a - 0.55) / 0.45))
+    # --- header: ink type beside a yellow tick, always present ------------
+    a = ease(t, 0.0, 0.45)
+    if a > 0:
+        rrect(ax, 0.62, 7.66, 0.30, 0.98, 0.15, face=YELLOW, z=6, alpha=a)
+        ax.text(1.18, 8.15, "Ohm's Law", fontsize=30, fontweight="bold",
+                color=INK, va="center", zorder=8, alpha=a)
 
     # --- the three quantities, appearing one at a time ---------------------
-    labels = [("Voltage", "V", "volts", BLUE), ("Current", "I", "amps", CORAL),
-              ("Resistance", "R", "ohms", TEAL)]
-    for i, (name, sym, unit, colour) in enumerate(labels):
+    # One pale tinted chip per quantity, each carrying an accent medallion
+    # with the symbol -- colour labels the quantity, not the chrome.
+    quantities = [("V", "Voltage", "volts", BLUE),
+                  ("I", "Current", "amps", CORAL),
+                  ("R", "Resistance", "ohms", TEAL)]
+    for i, (sym, name, unit, accent) in enumerate(quantities):
         a = ease(t, 1.0 + i * 0.9, 0.5)
         if a <= 0:
             continue
         x = 0.45 + i * 2.5
-        # Slide up into place as it appears.
-        y = 5.9 - (1 - a) * 0.5
-        card(ax, x, y, 2.3, 1.4, colour, z=4)
-        ax.text(x + 0.3, y + 0.88, sym, fontsize=26, fontweight="bold",
-                color=INK, alpha=a, zorder=7)
-        ax.text(x + 0.92, y + 0.92, name, fontsize=11, fontweight="bold",
-                color=INK, alpha=a, zorder=7)
-        ax.text(x + 0.92, y + 0.45, unit, fontsize=10, color=INK, alpha=a * .75,
-                zorder=7)
+        y = 5.95 - (1 - a) * 0.45
+        w, h = 2.4, 1.5
+        rrect(ax, x + 0.09, y - 0.11, w, h, 0.18, face=INK, z=4,
+              alpha=0.09 * a)
+        rrect(ax, x, y, w, h, 0.18, face=mix("#FFFFFF", accent, 0.10), z=5,
+              alpha=a)
+        rrect(ax, x, y, w, h, 0.18, edge=INK, lw=1.2, z=6, alpha=0.12 * a)
+        mx, my = x + 0.55, y + h / 2
+        ax.add_patch(Circle((mx, my), 0.34, facecolor=accent,
+                            edgecolor="none", zorder=7))
+        ax.text(mx, my, sym, fontsize=16, fontweight="bold", color="#FFFFFF",
+                ha="center", va="center", zorder=8)
+        ax.text(x + 1.02, my + 0.28, name, fontsize=12.5, fontweight="bold",
+                color=INK, va="center", zorder=8)
+        ax.text(x + 1.02, my - 0.28, unit, fontsize=10.5, color=MUTED,
+                va="center", zorder=8)
 
     # --- the equation, built term by term ----------------------------------
+    # Terms arrive in ink; each flashes its accent for the instant it lands.
     terms = [("V", BLUE, 0.0), ("=", None, 0.45), ("I", CORAL, 0.9),
              ("x", None, 1.35), ("R", TEAL, 1.8)]
     base = 4.6
     eq_y = 4.3
-    for sym, colour, delay in terms:
+    for sym, accent, delay in terms:
         a = ease(t, base + delay, 0.35)
         if a <= 0:
             continue
         i = [s for s, _, _ in terms].index(sym)
         x = 1.1 + i * 1.35
         glyph = "×" if sym == "x" else sym
+        colour = INK if accent is None else mix(accent, INK, a)
         ax.text(x, eq_y, glyph, fontsize=52, fontweight="bold",
-                color=colour or INK, alpha=a, ha="center", va="center",
-                zorder=6)
+                color=colour, alpha=a, ha="center", va="center", zorder=6)
 
-    # A pulse under the equation once it is complete, so the eye returns to it.
-    if t > base + 2.4:
-        pulse = 0.35 + 0.25 * math.sin((t - base - 2.4) * 3.0)
-        ax.plot([0.8, 6.4], [3.35, 3.35], color=YELLOW, linewidth=9,
-                alpha=pulse, solid_capstyle="round", zorder=3)
+    # A soft yellow rule settles beneath the equation once it is complete --
+    # one pop of emphasis, then it stays.
+    if t > 7.0:
+        since = t - 7.0
+        alpha = 0.60 * ease(since, 0.0, 0.6) + \
+            0.30 * max(0.0, math.sin(since * 4.2)) * math.exp(-since * 2.0)
+        if alpha > 0.01:
+            rrect(ax, 0.75, 3.32, 6.0, 0.16, 0.08, face=YELLOW, z=6,
+                  alpha=min(alpha, 0.9))
 
     # --- the graph, drawn as it is explained -------------------------------
     gx0, gy0, gw, gh = 8.1, 3.5, 7.3, 3.8
     a = ease(t, 7.2, 0.6)
     if a > 0:
-        card(ax, gx0, gy0, gw, gh, "#FFFFFF", z=4)
-        ax.text(gx0 + 0.3, gy0 + gh - 0.45,
-                "Fix V. Raise R, and I falls.", fontsize=15,
-                fontweight="bold", color=INK, alpha=a, zorder=7)
+        rrect(ax, gx0 + 0.09, gy0 - 0.11, gw, gh, 0.22, face=INK, z=4,
+              alpha=0.09 * a)
+        rrect(ax, gx0, gy0, gw, gh, 0.22, face="#FFFFFF", z=5, alpha=a)
+        rrect(ax, gx0, gy0, gw, gh, 0.22, edge=INK, lw=1.2, z=6,
+              alpha=0.14 * a)
+        ax.text(gx0 + 0.35, gy0 + gh - 0.42, "Fix V. Raise R, and I falls.",
+                fontsize=15.5, fontweight="bold", color=INK, alpha=a, zorder=7)
 
-        ox, oy = gx0 + 0.95, gy0 + 1.0
-        aw, ah = gw - 1.7, gh - 1.9
+        ox, oy = gx0 + 0.95, gy0 + 1.05
+        aw, ah = gw - 1.8, gh - 2.0
         axis = ease(t, 7.8, 0.5)
-        ax.plot([ox, ox + aw * axis], [oy, oy], color=INK, lw=2.5, zorder=7)
-        ax.plot([ox, ox], [oy, oy + ah * axis], color=INK, lw=2.5, zorder=7)
+        ax.plot([ox, ox + aw * axis], [oy, oy], color=INK, lw=2.2,
+                solid_capstyle="round", zorder=7)
+        ax.plot([ox, ox], [oy, oy + ah * axis], color=INK, lw=2.2,
+                solid_capstyle="round", zorder=7)
         if axis > 0.9:
             ax.text(ox + aw / 2, oy - 0.42, "Resistance  R", fontsize=13,
                     fontweight="bold", color=MUTED, ha="center", zorder=7)
@@ -161,40 +193,44 @@ def draw(ax, t: float, total: float) -> None:
             n = max(2, int(len(r) * grow))
             px = ox + (r[:n] - 1) / 9 * aw
             py = oy + (i_curve[:n] - 1.2) / 10.8 * ah
-            ax.plot(px, py, color=CORAL, lw=5, solid_capstyle="round",
+            ax.plot(px, py, color=CORAL, lw=4.5, solid_capstyle="round",
                     zorder=8)
-            ax.fill_between(px, py, oy, color=CORAL, alpha=0.10, zorder=7)
+            ax.fill_between(px, py, oy, color=CORAL, alpha=0.08, zorder=7)
             # The dot is the reading head: it is where the explanation is.
-            ax.plot([px[-1]], [py[-1]], "o", ms=13, color=CORAL,
-                    markeredgecolor=INK, markeredgewidth=2.5, zorder=9)
+            ax.plot([px[-1]], [py[-1]], "o", ms=12, color=CORAL,
+                    markeredgecolor=INK, markeredgewidth=2.2, zorder=9)
 
         # --- the actual point of the lesson, called out on the curve -------
         show = ease(t, 12.4, 0.7)
         if show > 0:
-            for r_at, colour in ((2.0, INK), (4.0, INK)):
+            for r_at in (2.0, 4.0):
                 i_at = 12.0 / r_at
                 mx = ox + (r_at - 1) / 9 * aw
                 my = oy + (i_at - 1.2) / 10.8 * ah
-                ax.plot([mx, mx], [oy, my], "--", color=colour, lw=2,
-                        alpha=show * 0.55, zorder=8)
-                ax.plot([mx], [my], "o", ms=11, color=YELLOW,
-                        markeredgecolor=INK, markeredgewidth=2.5,
+                ax.plot([mx, mx], [oy, my], "--", color=INK, lw=1.8,
+                        alpha=show * 0.5, zorder=8)
+                ax.plot([mx], [my], "o", ms=10, color=YELLOW,
+                        markeredgecolor=INK, markeredgewidth=2.2,
                         alpha=show, zorder=9)
-            ax.text(gx0 + gw / 2, gy0 + 0.35,
-                    "R doubles  →  I halves", fontsize=16,
-                    fontweight="bold", color=INK, ha="center", alpha=show,
-                    zorder=9)
+            ax.text(gx0 + gw / 2, gy0 + 0.42, "R doubles  →  I halves",
+                    fontsize=16.5, fontweight="bold", color=INK, ha="center",
+                    alpha=show, zorder=9)
 
-    # --- closing recap ------------------------------------------------------
+    # --- closing recap: a card, not a fade-to-paper wash -------------------
     out = ease(t, total - 2.6, 0.7)
     if out > 0:
-        ax.add_patch(Rectangle((0, 0), 16, 9, facecolor=PAPER,
-                               alpha=out * 0.93, zorder=20))
-        ax.text(8, 5.0, "V = I × R", fontsize=64, fontweight="bold",
-                color=INK, ha="center", va="center", alpha=out, zorder=21)
-        ax.text(8, 3.7, "Voltage is current times resistance.", fontsize=20,
-                color=MUTED, ha="center", va="center", alpha=out, zorder=21)
-
+        w, h = 11.4, 3.1
+        x, y = 8 - w / 2, 3.45
+        rrect(ax, x + 0.12, y - 0.14, w, h, 0.30, face=INK, z=20,
+              alpha=0.10 * out)
+        rrect(ax, x, y, w, h, 0.30, face="#FFFFFF", z=21, alpha=out)
+        rrect(ax, x, y, w, h, 0.30, edge=INK, lw=1.4, z=22, alpha=0.18 * out)
+        ax.text(8, y + h / 2 + 0.62, "V = I × R", fontsize=58,
+                fontweight="bold", color=INK, ha="center", va="center",
+                alpha=out, zorder=23)
+        ax.text(8, y + h / 2 - 0.55, "Voltage is current times resistance.",
+                fontsize=19, color=MUTED, ha="center", va="center",
+                alpha=out, zorder=23)
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
