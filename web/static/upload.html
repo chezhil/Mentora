@@ -233,18 +233,7 @@
         if (pct >= 100) {
           pct = 100;
           clearInterval(iv);
-          // Check if Streamlit is running, then redirect
-          fetch('http://127.0.0.1:8501/_stcore/health')
-            .then(function(r) {
-              if (r.ok) {
-                window.location.href = 'http://127.0.0.1:8501';
-              } else {
-                showLessonReady(topic, level, minutes);
-              }
-            })
-            .catch(function() {
-              showLessonReady(topic, level, minutes);
-            });
+          showLessonReady(topic, level, minutes);
         }
         document.getElementById('progressBar').style.width = pct + '%';
       }, 300);
@@ -256,8 +245,11 @@
         '<p class="font-black" style="font-size:1.1rem;text-transform:uppercase;margin-bottom:0.5rem;">Lesson Ready!</p>' +
         '<p style="font-size:0.85rem;">Topic: <strong>' + topic + '</strong> (' + level + ')</p>' +
         '<p style="font-size:0.8rem;color:rgba(0,0,0,0.6);margin-top:0.5rem;">' +
-        'The interactive lesson will start in the Mentora app. Make sure the Streamlit server is running on port 8501.</p>' +
-        '<button onclick="window.location.href=\'http://127.0.0.1:8501\'" style="margin-top:1rem;padding:1rem 2rem;background:var(--ink);color:var(--acid);font-family:Archivo Black,sans-serif;text-transform:uppercase;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;cursor:pointer;">Open Mentora App</button>' +
+        'Study material processed successfully. You can now explore the dashboard or discuss with your AI tutor.</p>' +
+        '<div style="display:flex;gap:1rem;margin-top:1rem;">' +
+        '<button onclick="window.location.href=\'/dashboard\'" style="padding:0.75rem 1.5rem;background:var(--ink);color:var(--acid);font-family:Archivo Black,sans-serif;text-transform:uppercase;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;cursor:pointer;">Go to Dashboard</button>' +
+        '<button onclick="window.location.href=\'/discuss\'" style="padding:0.75rem 1.5rem;background:white;color:var(--ink);font-family:Archivo Black,sans-serif;text-transform:uppercase;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;cursor:pointer;">Ask Questions</button>' +
+        '</div>' +
         '</div>';
     }
   </script>

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mentora — Create Account</title>
+  <link rel="stylesheet" href="/static/brutalist.css">
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <style>
+    .auth-container {
+      max-width: 520px;
+      width: 100%;
+      margin: 2.5rem auto;
+      padding: 0 1rem;
+    }
+    .auth-card {
+      background: white;
+      border: 3px solid var(--ink);
+      box-shadow: 10px 10px 0 0 #000;
+      padding: 2.5rem;
+    }
+    .badge {
+      display: inline-block;
+      background: var(--acid);
+      color: var(--ink);
+      border: 2px solid var(--ink);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.5rem;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+    .form-group label {
+      display: block;
+      font-family: 'Archivo Black', sans-serif;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      margin-bottom: 0.35rem;
+      letter-spacing: 0.02em;
+    }
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .input-wrapper input {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      font-size: 0.95rem;
+      font-family: 'Archivo', sans-serif;
+      font-weight: 600;
+      text-transform: none;
+      background: #faf8f5;
+    }
+    .input-wrapper input:focus {
+      background: white;
+    }
+    .toggle-pw-btn {
+      position: absolute;
+      right: 10px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.25rem;
+      display: flex;
+      align-items: center;
+      color: var(--ink);
+      padding: 4px;
+    }
+    .role-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 0.35rem;
+    }
+    .role-option {
+      border: 2px solid var(--ink);
+      padding: 0.85rem;
+      text-align: center;
+      cursor: pointer;
+      background: var(--paper);
+      box-shadow: 3px 3px 0 0 #000;
+      transition: all 0.08s ease;
+      user-select: none;
+    }
+    .role-option.active {
+      background: var(--acid);
+      box-shadow: 1px 1px 0 0 #000;
+      transform: translate(2px, 2px);
+    }
+    .role-option input {
+      display: none;
+    }
+    .role-option .role-title {
+      font-family: 'Archivo Black', sans-serif;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+    .role-option .role-sub {
+      font-size: 0.75rem;
+      color: rgba(0,0,0,0.6);
+      margin-top: 0.2rem;
+    }
+    .strength-meter {
+      height: 6px;
+      background: #e2e8f0;
+      border: 2px solid var(--ink);
+      margin-top: 0.4rem;
+      position: relative;
+    }
+    .strength-fill {
+      height: 100%;
+      width: 0%;
+      transition: width 0.2s ease, background-color 0.2s ease;
+    }
+    .strength-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 700;
+      margin-top: 0.25rem;
+      display: block;
+      text-align: right;
+    }
+    .auth-submit-btn {
+      width: 100%;
+      padding: 1rem;
+      background: var(--ink);
+      color: var(--acid);
+      border: 3px solid var(--ink);
+      font-family: 'Archivo Black', sans-serif;
+      font-size: 1rem;
+      text-transform: uppercase;
+      box-shadow: 6px 6px 0 0 #000;
+      cursor: pointer;
+      transition: all 0.08s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+    }
+    .auth-submit-btn:hover {
+      transform: translate(2px, 2px);
+      box-shadow: 4px 4px 0 0 #000;
+    }
+    .auth-submit-btn:active {
+      transform: translate(6px, 6px);
+      box-shadow: 0 0 0 0 #000;
+    }
+    .alert-banner {
+      display: none;
+      padding: 0.75rem 1rem;
+      border: 3px solid var(--ink);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+    }
+    .alert-error {
+      background: #ff5e5e;
+      color: white;
+      box-shadow: 5px 5px 0 0 #000;
+    }
+    .alert-success {
+      background: #a3e635;
+      color: black;
+      box-shadow: 5px 5px 0 0 #000;
+    }
+    .sub-links {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.85rem;
+    }
+    .sub-links a {
+      color: var(--ink);
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .sub-links a:hover {
+      background: var(--acid);
+    }
+  </style>
+</head>
+<body class="grid-bg">
+  <header>
+    <nav>
+      <a href="/" style="text-decoration:none;color:var(--ink);display:flex;align-items:center;gap:0.75rem;">
+        <div style="width:36px;height:36px;display:grid;place-items:center;background:var(--ink);color:var(--acid);font-family:'Archivo Black',sans-serif;font-size:1.1rem;border:3px solid var(--ink);box-shadow:4px 4px 0 0 #000;">M</div>
+        <div style="font-family:'Archivo Black',sans-serif;font-size:1rem;text-transform:uppercase;">Mentora</div>
+      </a>
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <span class="font-mono" style="font-size:0.8rem;">Already registered?</span>
+        <a href="/login" class="btn-brutal" style="padding:0.5rem 1rem;background:white;color:var(--ink);font-family:'Archivo Black',sans-serif;text-decoration:none;font-size:0.8rem;text-transform:uppercase;border:2px solid var(--ink);box-shadow:3px 3px 0 0 #000;">Sign In</a>
+      </div>
+    </nav>
+  </header>
+
+  <main style="flex:1;display:flex;align-items:center;justify-content:center;">
+    <div class="auth-container">
+      <div class="auth-card">
+        <span class="badge">START LEARNING</span>
+        <h1 class="font-black" style="font-size:2rem;text-transform:uppercase;letter-spacing:-0.03em;margin-bottom:0.4rem;">Create Account</h1>
+        <p style="font-size:0.9rem;color:rgba(0,0,0,0.6);margin-bottom:1.5rem;">Join Mentora and get personalized tutoring with adaptive pacing.</p>
+
+        <div id="alertBox" class="alert-banner alert-error"></div>
+
+        <form id="signupForm" onsubmit="handleSignup(event)">
+          <div class="form-group">
+            <label>Select Role</label>
+            <div class="role-toggle">
+              <div id="roleStudent" class="role-option active" onclick="selectRole('student')">
+                <input type="radio" name="role" value="student" checked>
+                <div class="role-title">🎓 Student</div>
+                <div class="role-sub">Learn & practice</div>
+              </div>
+              <div id="roleTeacher" class="role-option" onclick="selectRole('teacher')">
+                <input type="radio" name="role" value="teacher">
+                <div class="role-title">👩‍🏫 Teacher</div>
+                <div class="role-sub">Guide & configure</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="username">Username</label>
+            <div class="input-wrapper">
+              <input type="text" id="username" placeholder="alex_learns" required minlength="3" autocomplete="username">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <div class="input-wrapper">
+              <input type="email" id="email" placeholder="alex@example.com" required autocomplete="email">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <div class="input-wrapper">
+              <input type="password" id="password" placeholder="At least 6 characters" required minlength="6" oninput="checkPasswordStrength(this.value)" autocomplete="new-password">
+              <button type="button" class="toggle-pw-btn" onclick="togglePasswordVisibility('password', this)" title="Toggle password visibility">
+                <iconify-icon icon="lucide:eye"></iconify-icon>
+              </button>
+            </div>
+            <div class="strength-meter">
+              <div id="strengthFill" class="strength-fill"></div>
+            </div>
+            <span id="strengthLabel" class="strength-label">Enter a strong password</span>
+          </div>
+
+          <div class="form-group">
+            <label for="confirmPassword">Confirm Password</label>
+            <div class="input-wrapper">
+              <input type="password" id="confirmPassword" placeholder="Repeat your password" required minlength="6" autocomplete="new-password">
+            </div>
+          </div>
+
+          <button type="submit" id="submitBtn" class="auth-submit-btn">
+            <span>Register & Start Learning</span>
+            <iconify-icon icon="lucide:check" style="font-size:1.2rem;"></iconify-icon>
+          </button>
+        </form>
+
+        <div class="sub-links">
+          Already have an account? <a href="/login">Sign in here →</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div style="background:var(--ink);border-top:3px solid var(--ink);overflow:hidden;padding:0.6rem 0;">
+    <div class="marquee-track" style="display:flex;white-space:nowrap;font-family:'Archivo Black',sans-serif;text-transform:uppercase;color:var(--acid);font-size:0.85rem;">
+      <div style="display:flex;flex-shrink:0;align-items:center;">
+        <span style="padding:0 1.5rem;">Create Your Tutor</span><span style="color:rgba(244,241,234,0.3);">/</span>
+        <span style="padding:0 1.5rem;">Personalized Curriculum</span><span style="color:rgba(244,241,234,0.3);">/</span>
+        <span style="padding:0 1.5rem;">Master Every Concept</span><span style="color:rgba(244,241,234,0.3);">/</span>
+      </div>
+      <div style="display:flex;flex-shrink:0;align-items:center;" aria-hidden="true">
+        <span style="padding:0 1.5rem;">Create Your Tutor</span><span style="color:rgba(244,241,234,0.3);">/</span>
+        <span style="padding:0 1.5rem;">Personalized Curriculum</span><span style="color:rgba(244,241,234,0.3);">/</span>
+        <span style="padding:0 1.5rem;">Master Every Concept</span><span style="color:rgba(244,241,234,0.3);">/</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentRole = 'student';
+
+    function selectRole(role) {
+      currentRole = role;
+      document.getElementById('roleStudent').classList.toggle('active', role === 'student');
+      document.getElementById('roleTeacher').classList.toggle('active', role === 'teacher');
+    }
+
+    function togglePasswordVisibility(fieldId, btn) {
+      const input = document.getElementById(fieldId);
+      const icon = btn.querySelector('iconify-icon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.setAttribute('icon', 'lucide:eye-off');
+      } else {
+        input.type = 'password';
+        icon.setAttribute('icon', 'lucide:eye');
+      }
+    }
+
+    function checkPasswordStrength(pw) {
+      const fill = document.getElementById('strengthFill');
+      const label = document.getElementById('strengthLabel');
+      if (!pw) {
+        fill.style.width = '0%';
+        label.textContent = 'Enter a strong password';
+        label.style.color = 'inherit';
+        return;
+      }
+      let score = 0;
+      if (pw.length >= 6) score++;
+      if (pw.length >= 10) score++;
+      if (/[A-Z]/.test(pw)) score++;
+      if (/[0-9]/.test(pw)) score++;
+      if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+      if (score <= 2) {
+        fill.style.width = '33%';
+        fill.style.backgroundColor = '#ff5e5e';
+        label.textContent = 'Weak password';
+        label.style.color = '#ff5e5e';
+      } else if (score <= 3) {
+        fill.style.width = '66%';
+        fill.style.backgroundColor = '#f59e0b';
+        label.textContent = 'Moderate password';
+        label.style.color = '#d97706';
+      } else {
+        fill.style.width = '100%';
+        fill.style.backgroundColor = '#10b981';
+        label.textContent = 'Strong password';
+        label.style.color = '#10b981';
+      }
+    }
+
+    function showAlert(message, type) {
+      const alertBox = document.getElementById('alertBox');
+      alertBox.textContent = message;
+      alertBox.className = 'alert-banner ' + (type === 'success' ? 'alert-success' : 'alert-error');
+      alertBox.style.display = 'block';
+    }
+
+    async function handleSignup(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const submitBtn = document.getElementById('submitBtn');
+
+      if (password !== confirmPassword) {
+        showAlert('Passwords do not match.', 'error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Creating Account...</span>';
+
+      try {
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password, role: currentRole })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.ok) {
+          showAlert('Account created successfully! Redirecting...', 'success');
+          setTimeout(() => {
+            window.location.href = data.redirect || '/dashboard';
+          }, 800);
+        } else {
+          showAlert(data.error || 'Failed to create account.', 'error');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<span>Register & Start Learning</span><iconify-icon icon="lucide:check" style="font-size:1.2rem;"></iconify-icon>';
+        }
+      } catch (err) {
+        showAlert('Network error. Check connection and server.', 'error');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Register & Start Learning</span><iconify-icon icon="lucide:check" style="font-size:1.2rem;"></iconify-icon>';
+      }
+    }
+  </script>
+</body>
+</html>

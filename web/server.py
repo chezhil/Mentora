@@ -15,11 +15,16 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+import web.auth as auth
+
 app = FastAPI(title="Mentora Session Review")
+
+# Initialize SQLite tables including users table
+auth.init_auth_db()
 
 DB_PATH = Path(__file__).resolve().parent.parent / "mentora.db"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -551,6 +556,146 @@ def serve_review():
     if html_path.exists():
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
     return HTMLResponse("<h1>Session Review not found</h1>", status_code=404)
+
+
+# ---------------------------------------------------------------------------
+# Authentication UI Pages & APIs
+# ---------------------------------------------------------------------------
+
+@app.get("/login")
+def serve_login():
+    html_path = STATIC_DIR / "login.html"
+    if html_path.exists():
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Login page not found</h1>", status_code=404)
+
+
+@app.get("/signup")
+def serve_signup():
+    html_path = STATIC_DIR / "signup.html"
+    if html_path.exists():
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Signup page not found</h1>", status_code=404)
+
+
+@app.get("/forgot-password")
+def serve_forgot_password():
+    html_path = STATIC_DIR / "forgot-password.html"
+    if html_path.exists():
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Forgot password page not found</h1>", status_code=404)
+
+
+@app.post("/api/auth/login")
+async def api_login(request: Request, response: Response):
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "Invalid request body"}, status_code=400)
+
+    identifier = data.get("identifier", "")
+    password = data.get("password", "")
+
+    user = auth.authenticate_user(identifier, password)
+    if not user:
+        return JSONResponse({"ok": False, "error": "Invalid email/username or password"}, status_code=401)
+
+    token = auth.create_session(user)
+    redirect = "/dashboard" if user.get("role") == "student" else "/config"
+
+    res = JSONResponse({"ok": True, "user": user, "token": token, "redirect": redirect})
+    res.set_cookie(
+        key="session_token",
+        value=token,
+        max_age=auth.SESSION_EXPIRY_SECONDS,
+        httponly=True,
+        samesite="lax",
+    )
+    return res
+
+
+@app.post("/api/auth/signup")
+async def api_signup(request: Request, response: Response):
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "Invalid request body"}, status_code=400)
+
+    username = data.get("username", "")
+    email = data.get("email", "")
+    password = data.get("password", "")
+    role = data.get("role", "student")
+
+    try:
+        user = auth.create_user(email=email, username=username, password=password, role=role)
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+    token = auth.create_session(user)
+    redirect = "/dashboard" if user.get("role") == "student" else "/config"
+
+    res = JSONResponse({"ok": True, "user": user, "token": token, "redirect": redirect})
+    res.set_cookie(
+        key="session_token",
+        value=token,
+        max_age=auth.SESSION_EXPIRY_SECONDS,
+        httponly=True,
+        samesite="lax",
+    )
+    return res
+
+
+@app.post("/api/auth/forgot-password")
+async def api_forgot_password(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "Invalid request body"}, status_code=400)
+
+    email = data.get("email", "")
+    token = auth.generate_reset_token(email)
+    if not token:
+        return JSONResponse({"ok": False, "error": "No account found with this email address."}, status_code=404)
+
+    return JSONResponse({"ok": True, "token": token, "message": "Recovery code generated."})
+
+
+@app.post("/api/auth/reset-password")
+async def api_reset_password(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "Invalid request body"}, status_code=400)
+
+    email = data.get("email", "")
+    token = data.get("token", "")
+    new_password = data.get("new_password", "")
+
+    try:
+        success = auth.reset_password(email, token, new_password)
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+    if not success:
+        return JSONResponse({"ok": False, "error": "Invalid or expired recovery code."}, status_code=400)
+
+    return JSONResponse({"ok": True, "message": "Password updated successfully."})
+
+
+@app.get("/api/auth/me")
+def api_me(request: Request):
+    token = request.cookies.get("session_token") or request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = auth.get_session_user(token)
+    return JSONResponse({"ok": True, "user": user})
+
+
+@app.post("/api/auth/logout")
+def api_logout(request: Request, response: Response):
+    token = request.cookies.get("session_token") or request.headers.get("Authorization", "").replace("Bearer ", "")
+    auth.revoke_session(token)
+    res = JSONResponse({"ok": True, "message": "Logged out successfully."})
+    res.delete_cookie("session_token")
+    return res
 
 
 # Mount static files (CSS, JS, images if any)

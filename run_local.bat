@@ -6,4 +6,4 @@ set GEMINI_KEY=sk-gemini
 set AI_TEACHER_MODEL=gemini-2.5-flash
 rem C: is nearly full; keep 2.3GB+ HF model cache on D:
 set HF_HOME=D:\hf_cache
-python -m streamlit run app.py --server.port 8501 --server.headless true
+python -m uvicorn web.server:app --host 127.0.0.1 --port 8000 --reload

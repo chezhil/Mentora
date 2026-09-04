@@ -1,9 +1,0 @@
-.env
-__pycache__/
-*.pyc
-output/
-models/
-*.pth
-*.onnx
-*.log
-*.err
