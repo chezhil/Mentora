@@ -34,7 +34,7 @@ def render_quiz(session, lang: str = "en") -> None:
         user_answers = {}
         for idx, q in enumerate(questions, start=1):
             st.markdown(f"**Question {idx}:** {q.prompt}")
-            
+
             if q.kind == "mcq" and q.options:
                 chosen = st.radio(
                     t("lesson.your_answer", lang),
@@ -63,12 +63,28 @@ def render_quiz(session, lang: str = "en") -> None:
         if unanswered > 0:
             st.warning(f"Note: You left {unanswered} question(s) blank.")
 
-        with st.spinner(t("lesson.marking", lang)):
-            report = orch.submit_quiz(session, user_answers)
+        # submit_quiz marks every answer through the LLM, so it can fail for
+        # all the ordinary reasons — quota, timeout, a bad key. Unguarded, that
+        # put a raw traceback on the screen and lost the answers the student
+        # had just typed. They are still in the widgets; let them press again.
+        try:
+            with st.spinner(t("lesson.marking", lang)):
+                report = orch.submit_quiz(session, user_answers)
+        except Exception as exc:
+            st.error(
+                f"**Could not mark the quiz.** {type(exc).__name__}: "
+                f"{str(exc)[:300]}\n\nYour answers are still here — press "
+                f"submit again, or check **⚙️ APIs** in the sidebar."
+            )
+            return
+
         # Fold the quiz result into the Report tab as well, so the score a
         # student sees there is the one they just earned rather than the
         # mid-lesson score from before the quiz existed.
         st.session_state.report = report
+        # The report tab caches the stitched lesson video; the score behind it
+        # has just changed, so let it rebuild rather than show the old one.
+        st.session_state.pop("lesson_video", None)
         st.success(f"{t('report.score', lang)}: **{report.score:.1f}%**")
 
         col1, col2 = st.columns(2)

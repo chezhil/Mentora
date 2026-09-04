@@ -28,6 +28,7 @@ TWO GAPS IN CONTRACT.txt, HANDLED HERE (Chezhil to raise with the team):
 
 from __future__ import annotations
 
+import contextlib
 import os
 import uuid
 from datetime import datetime, timezone
@@ -61,10 +62,8 @@ def _persist(call, *args) -> None:
     """Best-effort write to SQLite. A storage failure degrades to in-memory."""
     if history is None:
         return
-    try:
+    with contextlib.suppress(Exception):
         getattr(history, call)(*args)
-    except Exception:
-        pass
 
 
 class SegmentMedia(BaseModel):
@@ -108,9 +107,21 @@ class Runtime(BaseModel):
 
 _RUNTIME: dict[str, Runtime] = {}
 
+# Nothing ever removed a session from _RUNTIME, and each one holds every
+# question, every rendered media path and the panel state for the whole
+# lesson. Streamlit reloads mint a fresh session_id per lesson and server.py
+# runs for as long as the demo does, so the table only ever grew. Bounded FIFO:
+# far more sessions than any demo will open, and it cannot leak.
+MAX_LIVE_SESSIONS = 64
+
 
 def runtime(session: SessionState) -> Runtime:
-    return _RUNTIME.setdefault(session.session_id, Runtime())
+    rt = _RUNTIME.get(session.session_id)
+    if rt is None:
+        rt = _RUNTIME[session.session_id] = Runtime()
+        while len(_RUNTIME) > MAX_LIVE_SESSIONS:
+            _RUNTIME.pop(next(iter(_RUNTIME)))
+    return rt
 
 
 def media_for(session: SessionState, segment: TeachingSegment) -> SegmentMedia:
@@ -186,7 +197,15 @@ def _build_media(session: SessionState,
         out.notes.append(f"audio failed: {exc}")
 
     if out.audio_wav:
-        seconds = wiring.audio_seconds(out.audio_wav)
+        # Everything else in this function is wrapped; this was not, so a
+        # truncated or unreadable WAV raised straight out of _build_media and
+        # ended the lesson at step(). Treat an unmeasurable clip as short and
+        # let the avatar backend enforce its own limit.
+        try:
+            seconds = wiring.audio_seconds(out.audio_wav)
+        except Exception as exc:
+            out.notes.append(f"could not measure narration length: {exc}")
+            seconds = 0.0
         if seconds > MAX_AVATAR_SECONDS:
             # Do not even attempt it — Pair C refuses, and rightly. A segment
             # this long is a planning bug, so say so loudly.
@@ -272,7 +291,7 @@ def start_session(topic: str, profile: LearnerProfile,
         plan=plan,
         doc_id=doc_id,
     )
-    _RUNTIME[session.session_id] = Runtime(student_id=student_id)
+    runtime(session).student_id = student_id
 
     source = f"from {file_path}" if file_path else "with no uploaded material"
     _log(session, "system",

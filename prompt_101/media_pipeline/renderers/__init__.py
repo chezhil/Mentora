@@ -16,8 +16,15 @@ DPI = 100
 # change colour scheme on the way.
 from .design import ACCENTS as ACCENT_COLORS      # noqa: E402
 from .design import INK as TITLE_COLOR            # noqa: E402
-from .design import INK as TEXT_COLOR             # noqa: E402
+from .design import INK as TEXT_COLOR             # noqa: E402,F401
 from .design import PAPER as BG_COLOR             # noqa: E402
+
+# Re-exported for the sibling renderers, which import them from here
+# rather than reaching into design.py.
+__all__ = ["ACCENT_COLORS", "TITLE_COLOR", "TEXT_COLOR", "BG_COLOR",
+           "IMAGE_WIDTH", "IMAGE_HEIGHT", "DPI", "FONT_STACK",
+           "get_renderer", "register", "render_networkx_graph",
+           "save_figure", "set_output_dir"]
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +183,7 @@ def _load_renderer(kind: str):
         else:
             raise ValueError(f"Unknown renderer kind: {kind}")
     except ImportError as e:
-        raise ImportError(f"Renderer '{kind}' requires: {e}")
+        raise ImportError(f"Renderer '{kind}' requires: {e}") from e
     
     return _RENDERERS[kind]
 
@@ -212,8 +219,8 @@ def render_networkx_graph(content: str, data: dict, kind: str = "diagram") -> st
     
     try:
         import networkx as nx
-    except ImportError:
-        raise ImportError("networkx is required for graph rendering")
+    except ImportError as exc:
+        raise ImportError("networkx is required for graph rendering") from exc
     
     G = nx.DiGraph()
     nodes = data.get("nodes", [])

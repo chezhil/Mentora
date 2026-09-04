@@ -71,7 +71,8 @@ def parse_edges(content: str) -> list[tuple[str, str]]:
         # Strip any `|edge label|` the arrow left glued to the target.
         parts = [_EDGE_LABEL.sub("", p.strip()) for p in parts]
         labels = [_label(p, known) for p in parts]
-        for a, b in zip(labels, labels[1:]):
+        # Deliberately ragged: this pairs each label with the next one.
+        for a, b in zip(labels, labels[1:], strict=False):
             if a and b and a != b:
                 edges.append((a, b))
     return list(dict.fromkeys(edges))
@@ -142,7 +143,7 @@ def layout_boxes(labels: list[str]) -> list[dict]:
 
     return [
         {"x": x, "y": 5.0, "w": w, "h": 1.35, "label": label}
-        for x, w, label in zip(xs, widths, labels)
+        for x, w, label in zip(xs, widths, labels, strict=True)
     ]
 
 

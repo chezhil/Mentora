@@ -1,4 +1,4 @@
-﻿"""
+"""
 U4: SQLite self-test runner.
 python -m history.selftest
 """

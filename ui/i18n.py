@@ -103,6 +103,7 @@ ENGLISH: dict[str, str] = {
     "report.again": "Teach me something else",
     "report.locked": "Finish the lesson to see your report.",
     "report.your_lesson": "Your lesson",
+    "report.stitching": "Putting your lesson video together…",
 
     # Quiz and path
     "quiz.title": "Final assessment",

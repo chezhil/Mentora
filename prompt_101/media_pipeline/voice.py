@@ -19,6 +19,7 @@ in one file.
 MENTORA_VOICE=male picks the male voice, TTS_PROVIDER=piper forces offline.
 """
 import os
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -53,7 +54,9 @@ def _provider_order(lang: str) -> list[str]:
     with the network unplugged.
     """
     if TTS_PROVIDER != "auto":
-        return [TTS_PROVIDER, "edge", "piper"]
+        # dict.fromkeys, not a literal list: TTS_PROVIDER=piper used to produce
+        # ["piper", "edge", "piper"] and try the same failing backend twice.
+        return list(dict.fromkeys([TTS_PROVIDER, "edge", "piper"]))
     return ["edge", "piper"] if languages.get(lang).piper else ["edge"]
 
 
@@ -72,17 +75,17 @@ def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str
     """
     if not text or not text.strip():
         raise ValueError("Cannot speak empty text")
-    
+
     # Check cache first
     # The gender is part of the key: without it, switching voice replays the
     # previous one out of cache and looks like the setting does nothing.
     cache_path = get_cached_path(
         Path(TTS_OUTPUT_DIR), "tts", ".wav", text, f"{lang}:{_gender()}"
     )
-    
+
     if cache_path.exists():
-        return str(cache_path)
-    
+        return _deliver(cache_path, output_path)
+
     # Try providers in order and never raise: a lesson must keep going even if
     # every backend is unavailable. Selecting Tamil used to raise ImportError
     # here, which ended the lesson rather than degrading it.
@@ -94,13 +97,30 @@ def speak(text: str, lang: str = "en", output_path: Optional[str] = None) -> str
         try:
             path = fn(text, lang, cache_path)
             if path and Path(path).exists() and Path(path).stat().st_size > 1024:
-                return str(path)
+                return _deliver(Path(path), output_path)
         except Exception as exc:
             print(f"[voice] {name} failed for {lang}: {exc}. Trying the next backend.")
 
     print(f"[voice] no TTS backend produced audio for {lang}; using a silent "
           f"placeholder so the lesson can continue.")
-    return str(_generate_placeholder_wav(text, cache_path))
+    return _deliver(_generate_placeholder_wav(text, cache_path), output_path)
+
+
+def _deliver(produced: Path, output_path: Optional[str]) -> str:
+    """Return the audio at the path the caller asked for.
+
+    `output_path` was documented and then ignored — every caller got the cache
+    path back whatever it passed, so a caller that had already reserved a
+    filename ended up with the audio somewhere else entirely.
+    """
+    if not output_path:
+        return str(produced)
+    target = Path(output_path)
+    if target.resolve() == Path(produced).resolve():
+        return str(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(produced, target)
+    return str(target)
 
 
 # ── Edge TTS ─────────────────────────────────────────────────────────────────
@@ -178,7 +198,16 @@ def _speak_piper(text: str, lang: str, output_path: Path) -> Path:
     """
     import wave as wave_mod
     
-    voice_name = languages.get(lang).piper or languages.get("en").piper
+    # No silent fall back to the English model. Piper has voices for en, hi
+    # and te only; running Tamil or Kannada text through en_US-lessac produces
+    # confident English-phoneme nonsense, which is worse than no audio because
+    # it sounds like the app is working. speak() only reaches this backend for
+    # a language _provider_order says it covers, but TTS_PROVIDER=piper forces
+    # it for every language, and that is where this bit.
+    voice_name = languages.get(lang).piper
+    if not voice_name:
+        raise ValueError(f"Piper has no voice for {lang!r}")
+
     
     model_path = Path(PIPER_MODEL_DIR) / f"{voice_name}.onnx"
     if not model_path.exists():
@@ -186,8 +215,15 @@ def _speak_piper(text: str, lang: str, output_path: Path) -> Path:
         if alt_path.exists():
             model_path = alt_path
         else:
-            print(f"[voice] Warning: Piper model {voice_name} not found at {model_path}. Using placeholder.")
-            return _generate_placeholder_wav(text, output_path)
+            # RAISE, do not return a silent placeholder. speak() only checks
+            # that the file is over 1KB, and a second of silence at 22050Hz is
+            # 44KB — so a placeholder returned from here counted as SUCCESS and
+            # stopped speak() from ever trying edge-tts. With TTS_PROVIDER=piper
+            # that made every lesson in every language narrate in silence, and
+            # the only symptom was that the audio player had nothing in it.
+            raise FileNotFoundError(
+                f"Piper model {voice_name} not found at {model_path}"
+            )
     
     # Method 1: Python API (preferred)
     try:
@@ -212,23 +248,23 @@ def _speak_piper(text: str, lang: str, output_path: Path) -> Path:
         print(f"[voice] Piper Python API error: {e}")
     
     # Method 2: CLI subprocess (fallback)
-    import subprocess
     piper_path = Path(PIPER_BIN)
     if piper_path.exists():
         try:
             cmd = [str(piper_path), "--model", str(model_path),
                    "--output_file", str(output_path)]
-            result = subprocess.run(
+            subprocess.run(
                 cmd, input=text.encode("utf-8"),
                 capture_output=True, check=True, timeout=60
             )
-            if output_path.exists():
+            if output_path.exists() and output_path.stat().st_size > 44:
                 return output_path
         except Exception as e:
             print(f"[voice] Piper CLI error: {e}")
-    
-    print(f"[voice] All Piper methods failed for {lang}. Using placeholder.")
-    return _generate_placeholder_wav(text, output_path)
+
+    # Same reason as the missing-model branch above: raise so speak() falls
+    # through to the next backend instead of accepting silence.
+    raise RuntimeError(f"every Piper method failed for {lang}")
 
 
 
@@ -236,11 +272,10 @@ def _speak_piper(text: str, lang: str, output_path: Path) -> Path:
 
 def _generate_placeholder_wav(text: str, output_path: Path) -> Path:
     """Generate a silent WAV file as placeholder when TTS is unavailable.
-    
+
     Creates a valid WAV file with silence proportional to text length.
     This ensures the pipeline can still test without a working TTS.
     """
-    import struct
     import wave
     
     # Estimate duration: ~5 words per second, ~5 chars per word

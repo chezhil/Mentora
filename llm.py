@@ -12,15 +12,21 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
+import time
+from pathlib import Path
 from typing import Callable
 
 from google import genai
 from google.genai import types
 
-_PROVIDER_EARLY = os.environ.get("AI_TEACHER_PROVIDER", "gemini").strip().lower()
-_MODEL_DEFAULTS = {
+# The provider and its default model were each declared TWICE in this file --
+# _PROVIDER_EARLY/PROVIDER and _MODEL_DEFAULTS/DEFAULT_MODELS -- read from the
+# environment at two different points. They agreed only by luck, and adding a
+# model to one copy left the other stale. One of each now.
+PROVIDER = os.environ.get("AI_TEACHER_PROVIDER", "gemini").strip().lower()
+
+DEFAULT_MODELS = {
     "gemini": "gemini-3.6-flash",
     "groq": "openai/gpt-oss-120b",
     "ollama": "llama3.1:8b",
@@ -28,21 +34,22 @@ _MODEL_DEFAULTS = {
 _MODEL_PREFIX = {"gemini": ("gemini",)}
 
 
-def _pick_model() -> str:
+def _pick_model(provider: str | None = None) -> str:
     """Honour AI_TEACHER_MODEL, but not when it belongs to another provider.
 
     A model id left in .env from a previous provider produces a 404 that reads
     like the provider is broken. It is not — it is the wrong model name. So a
     mismatch falls back to the provider's default rather than failing.
     """
-    default = _MODEL_DEFAULTS.get(_PROVIDER_EARLY, "gemini-3.6-flash")
+    provider = (provider or PROVIDER).strip().lower()
+    default = DEFAULT_MODELS.get(provider, DEFAULT_MODELS["gemini"])
     wanted = os.environ.get("AI_TEACHER_MODEL", "").strip()
     if not wanted:
         return default
-    prefixes = _MODEL_PREFIX.get(_PROVIDER_EARLY)
+    prefixes = _MODEL_PREFIX.get(provider)
     if prefixes and not wanted.startswith(prefixes):
         return default
-    if _PROVIDER_EARLY != "gemini" and wanted.startswith("gemini"):
+    if provider != "gemini" and wanted.startswith("gemini"):
         return default
     return wanted
 
@@ -90,7 +97,7 @@ CACHE_DIR = (
 
 
 def _cache_key(prompt: str) -> str:
-    return hashlib.sha256(f"{MODEL}\x00{prompt}".encode("utf-8")).hexdigest()[:32]
+    return hashlib.sha256(f"{MODEL}\x00{prompt}".encode()).hexdigest()[:32]
 
 
 def _cache_get(prompt: str) -> str | None:
@@ -119,6 +126,45 @@ def cache_stats() -> dict:
     if CACHE_DIR is None or not CACHE_DIR.is_dir():
         return {"enabled": CACHE_DIR is not None, "entries": 0}
     return {"enabled": True, "entries": len(list(CACHE_DIR.glob("*.txt")))}
+
+
+def configure(provider: str | None = None, api_key: str | None = None,
+              model: str | None = None) -> None:
+    """Change provider / key / model at runtime, correctly.
+
+    PROVIDER, MODEL and API_KEY are read once at import, and both SDK clients
+    are built once and cached. So setting os.environ["GEMINI_API_KEY"] after
+    import — which is what server.py's /api/start did with the key pasted into
+    the web form — changed nothing at all: the request still went out on the
+    key that was present at startup, or failed with "No Gemini API key found"
+    while a perfectly good key sat in the environment.
+
+    Anything that wants to swap credentials mid-run calls this instead.
+    """
+    global PROVIDER, MODEL, API_KEY, _client, _openai_client
+
+    if provider:
+        provider = provider.strip().lower()
+        if provider != PROVIDER:
+            PROVIDER = provider
+            os.environ["AI_TEACHER_PROVIDER"] = provider
+            # The model that suited the old provider will 404 on the new one.
+            MODEL = _pick_model(provider)
+
+    if api_key:
+        if PROVIDER == "groq":
+            os.environ["GROQ_API_KEY"] = api_key
+        else:
+            os.environ["GEMINI_API_KEY"] = api_key
+            API_KEY = api_key
+
+    if model:
+        MODEL = model
+        os.environ["AI_TEACHER_MODEL"] = model
+
+    # Both clients bake the key and base URL in at construction time.
+    _client = None
+    _openai_client = None
 
 
 def _mock_response(prompt: str) -> str | None:
@@ -153,14 +199,6 @@ def _mock_response(prompt: str) -> str | None:
 # Groq and Ollama both speak the OpenAI API, so one client covers both. The
 # cache, the timeout and the JSON parsing are shared by every provider.
 # ---------------------------------------------------------------------------
-
-PROVIDER = os.environ.get("AI_TEACHER_PROVIDER", "gemini").strip().lower()
-
-DEFAULT_MODELS = {
-    "gemini": "gemini-3.6-flash",
-    "groq": "openai/gpt-oss-120b",
-    "ollama": "llama3.1:8b",
-}
 
 OPENAI_BASE_URLS = {
     "groq": "https://api.groq.com/openai/v1",
@@ -276,7 +314,7 @@ def _complete(prompt: str) -> str:
 
 def _parse_json(text: str) -> dict:
     if not text:
-        raise LLMError("Gemini returned an empty response.")
+        raise LLMError(f"{PROVIDER} returned an empty response.")
     text = text.strip()
     if re.match(r"^```", text):
         text = re.sub(r"^```[a-zA-Z]*\s*", "", text)
@@ -337,8 +375,6 @@ def generate_json(prompt: str, tries: int = 2) -> dict:
     Retries once on unparseable output, and separately waits out a
     per-minute rate limit, which is a different failure with a different fix.
     """
-    import time
-
     last: Exception | None = None
     rate_waits = 0
     attempt = 0

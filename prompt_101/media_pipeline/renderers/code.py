@@ -3,7 +3,6 @@
 Renders syntax-highlighted code filling the full canvas.
 Uses matplotlib only (no Pygments dependency for rendering).
 """
-import re
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt

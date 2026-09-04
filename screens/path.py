@@ -4,6 +4,8 @@ Section 15 of the brief: AI-Generated Learning Path.
 Renders an ordered curriculum path for the student.
 """
 
+from html import escape
+
 import streamlit as st
 
 import orchestrator as orch
@@ -35,7 +37,14 @@ def render_path(session, lang: str = "en") -> None:
 
         # Highlight if it matches or is part of current topic
         is_current = (topic.lower() in title.lower() or title.lower() in topic.lower())
-        
+
+        # These strings come straight from the model and go into a markdown
+        # block with unsafe_allow_html=True. A step named "C++ <template>
+        # basics" silently swallowed everything after the "<", and anything
+        # angle-bracketed could restyle or break the page. Escape after the
+        # comparison above, so matching still sees the real text.
+        title, desc = escape(title), escape(desc)
+
         with st.container():
             # Colours match ui/style.css: yellow marks where the student is,
             # white for everything else, black keyline and hard shadow on both.

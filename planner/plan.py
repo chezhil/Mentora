@@ -100,11 +100,17 @@ def _fit_budget(concepts: list[Concept], target: int) -> list[Concept]:
     total = sum(raw)
     scaled = [m * target / total for m in raw]
     rounded = [round(m, 1) for m in scaled]
+    # Push the rounding drift onto the largest slices first, and never below
+    # 0.1 -- a concept billed at -0.4 minutes is nonsense, and the invariant
+    # every caller relies on is that the slices SUM to the budget.
     drift = round(target - sum(rounded), 2)
-    if drift:
-        biggest = max(range(len(rounded)), key=lambda i: rounded[i])
-        rounded[biggest] = round(rounded[biggest] + drift, 1)
-    for c, m in zip(concepts, rounded):
+    for i in sorted(range(len(rounded)), key=lambda i: rounded[i], reverse=True):
+        if not drift:
+            break
+        take = round(max(0.1, rounded[i] + drift) - rounded[i], 1)
+        rounded[i] = round(rounded[i] + take, 1)
+        drift = round(drift - take, 2)
+    for c, m in zip(concepts, rounded, strict=True):
         c.minutes = m
     return concepts
 
@@ -115,7 +121,17 @@ def plan(
     doc_id: str | None = None,
     days: int = 1,
 ) -> LessonPlan | list[LessonPlan]:
-    """Build a LessonPlan or multiple plans if days > 1. doc_id=None means topic-only teaching."""
+    """Build a LessonPlan, or a list of them when days > 1.
+
+    doc_id=None means topic-only teaching.
+
+    The return type is decided by `days` ALONE, never by how many sessions the
+    model happened to emit. It used to be `days == 1 and len(plans) == 1`, so a
+    model that ignored the one-session instruction returned a list to a caller
+    expecting a LessonPlan — and orchestrator.start_session fed that straight
+    into SessionState(plan=...), which raises a pydantic ValidationError with
+    nothing in the message about the real cause.
+    """
     if not isinstance(profile, LearnerProfile):
         profile = LearnerProfile.model_validate(profile)
     prompt = fill(
@@ -128,9 +144,8 @@ def plan(
         KNOWN=", ".join(profile.known_concepts) or "nothing specified",
         WEAK=", ".join(profile.weak_concepts) or "nothing specified",
         TOPIC=topic,
-        DOC_STATUS="a document is indexed (doc_id=%s)" % doc_id if doc_id
-        else "no document — teach the topic from general knowledge",
-        DOC_SNIPPET="",
+        DOC_STATUS=(f"a document is indexed (doc_id={doc_id})" if doc_id
+                    else "no document — teach the topic from general knowledge"),
     )
     data = llm.generate_json(prompt)
 
@@ -158,9 +173,7 @@ def plan(
         )
         plans.append(plan_obj)
     
-    if days == 1 and len(plans) == 1:
-        return plans[0]
-    return plans
+    return plans[0] if days == 1 else plans
 
 
 def _main() -> None:

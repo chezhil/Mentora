@@ -7,6 +7,7 @@ The 15 marks for "AI Teaching Video Generation" come from the DECISION
 (choose_visual) as much as the drawing (render). This module implements both.
 """
 import re
+import shutil
 from pathlib import Path
 
 from .config import VISUAL_OUTPUT_DIR, VISUAL_KINDS
@@ -37,7 +38,7 @@ def render(kind: str, content: str, subject: str = "", data: dict = None, output
     """
     if kind not in VISUAL_KINDS:
         raise ValueError(f"Unknown visual kind '{kind}'. Must be one of: {VISUAL_KINDS}")
-    
+
     # Safety wrapper - never crash, always return a path
     try:
         renderer = get_renderer(kind)
@@ -46,12 +47,23 @@ def render(kind: str, content: str, subject: str = "", data: dict = None, output
         print(f"[visual] Warning: {kind} renderer failed: {e}. Falling back to placeholder.")
         from .renderers.none import render_none
         path = render_none(content, "Rendering Error", {})
-    
+
     # Ensure we return a valid path
     if not path or not Path(path).exists():
         from .renderers.none import render_none
         path = render_none(content, kind, {})
-    
+
+    # output_path was documented and then dropped on the floor. wiring.py
+    # builds a path, creates the directory for it and passes it in on every
+    # single render, so the orchestrator's out/visuals/ stayed empty while the
+    # PNGs piled up in the package's own output dir.
+    if output_path:
+        target = Path(output_path)
+        if target.resolve() != Path(path).resolve():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(path), str(target))
+        return str(target)
+
     return path
 
 

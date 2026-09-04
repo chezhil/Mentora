@@ -1,4 +1,4 @@
-﻿"""
+"""
 U1: Document loading module.
 load_pdf(path: str) -> list[tuple[str, int]]
 """

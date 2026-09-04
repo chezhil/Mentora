@@ -146,17 +146,24 @@ def _friendly(exc: Exception) -> str:
     if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
         per_day = ("PerDay" in msg or "free_tier_requests" in msg
                    or "per day" in msg.lower())
-        retry = re.search(r"(?:retry|try again) in ([\d.]+)\s*s", msg, re.I)
+        # Same units llm._RETRY_AFTER matches. Seconds-only here meant an
+        # 82-millisecond Groq throttle fell through to the "daily quota gone,
+        # go and find another key" message.
+        retry = re.search(r"(?:retry|try again) in ([\d.]+)\s*(ms|s)\b", msg, re.I)
 
         # A per-minute limit and a per-day cap are both 429 and want opposite
         # advice. Saying "your daily quota is gone, swap keys" over a
         # four-second throttle sends someone hunting for a new API key in the
         # middle of a demo that would have recovered on its own.
         if not per_day and retry:
+            seconds = float(retry.group(1))
+            if retry.group(2).lower() == "ms":
+                seconds /= 1000.0
+            wait = "a moment" if seconds < 1 else f"{seconds:.0f} seconds"
             return (
-                f"**Rate limited for {float(retry.group(1)):.0f} seconds** — "
-                f"this is a per-minute limit, not your daily quota. Press the "
-                f"button again in a moment and it will go through."
+                f"**Rate limited for {wait}** — this is a per-minute limit, "
+                f"not your daily quota. Press the button again in a moment and "
+                f"it will go through."
             )
         return (
             "**Quota exhausted.**"
@@ -205,17 +212,6 @@ def save_upload(uploaded) -> str | None:
 # against a fixed schema, which is what Flash-Lite is built for.
 PROVIDERS = ["gemini", "groq", "ollama"]
 
-PROVIDER_MODELS = {
-    # Groq's free tier is thousands of requests a day against Gemini's 20,
-    # and one lesson costs 22 — so Groq is the practical default for building
-    # and rehearsing. Keep Gemini for the final recording if you prefer it.
-    "groq": ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'groq/compound', 'groq/compound-mini', 'openai/gpt-oss-20b'],
-
-    "ollama": ["llama3.1:8b", "qwen2.5:7b", "gemma2:9b"],
-}
-
-PROVIDER_KEY_ENV = {"gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY"}
-
 GEMINI_MODELS = [
     "gemini-2.5-flash-lite",   # ~$0.004/lesson
     "gemini-3.1-flash-lite",   # ~$0.012/lesson
@@ -224,7 +220,30 @@ GEMINI_MODELS = [
     "gemini-3.7-flash",
     "gemini-3.8-flash",
 ]
+
+PROVIDER_MODELS = {
+    # Gemini was the one provider missing from this table, reached only through
+    # a default argument on the .get() below — so it was the one provider whose
+    # model list could not be found by looking here.
+    "gemini": GEMINI_MODELS,
+    # Groq's free tier is thousands of requests a day against Gemini's 20,
+    # and one lesson costs 22 — so Groq is the practical default for building
+    # and rehearsing. Keep Gemini for the final recording if you prefer it.
+    "groq": ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "groq/compound",
+             "groq/compound-mini", "openai/gpt-oss-20b"],
+    "ollama": ["llama3.1:8b", "qwen2.5:7b", "gemma2:9b"],
+}
+
+PROVIDER_KEY_ENV = {"gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY"}
 ENV_PATH = ".env"
+
+
+def _active_key(provider: str) -> str | None:
+    """The key actually in use. It always read llm.API_KEY, which is the GEMINI
+    key — so running on Groq the panel reported "not set" beside a working
+    lesson, or worse, showed a stale Gemini key as if Groq were using it."""
+    env = PROVIDER_KEY_ENV.get(provider)
+    return os.environ.get(env) if env else None
 
 
 def _mask(value: str | None) -> str:
@@ -237,7 +256,9 @@ def _write_env(updates: dict) -> None:
     """Persist keys to .env, which is gitignored. Never goes near the repo."""
     lines, seen = [], set()
     if os.path.exists(ENV_PATH):
-        for line in open(ENV_PATH).read().splitlines():
+        with open(ENV_PATH, encoding="utf-8") as existing:
+            current = existing.read().splitlines()
+        for line in current:
             k = line.split("=", 1)[0].strip()
             if k in updates:
                 lines.append(f"{k}={updates[k]}")
@@ -247,7 +268,7 @@ def _write_env(updates: dict) -> None:
     for k, v in updates.items():
         if k not in seen:
             lines.append(f"{k}={v}")
-    with open(ENV_PATH, "w") as f:
+    with open(ENV_PATH, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
     os.chmod(ENV_PATH, 0o600)
 
@@ -267,10 +288,14 @@ def api_panel() -> None:
         else:
             avatar_line = "🟡 placeholder (still image)"
 
+        cache = llm.cache_stats()
+        cache_line = (f"🟢 {cache['entries']} response(s) — a repeated lesson "
+                      f"costs nothing" if cache["enabled"] else "🟡 disabled")
         st.caption(
-            f"Gemini key: `{_mask(llm.API_KEY)}`  \n"
+            f"{llm.PROVIDER.title()} key: `{_mask(_active_key(llm.PROVIDER))}`  \n"
             f"Model: `{llm.MODEL}`  \n"
             f"Mode: {'🟡 offline (mock)' if offline else '🟢 live'}  \n"
+            f"Cache: {cache_line}  \n"
             f"Avatar: {avatar_line}"
         )
 
@@ -312,21 +337,16 @@ def api_panel() -> None:
         if st.button("Apply", type="primary"):
             saved = {}
             if provider != llm.PROVIDER:
-                os.environ["AI_TEACHER_PROVIDER"] = provider
-                llm.PROVIDER = provider
                 saved["AI_TEACHER_PROVIDER"] = provider
             if key and key_env:
-                os.environ[key_env] = key
-                if provider == "gemini":
-                    llm.API_KEY = key
                 saved[key_env] = key
-            # both clients are cached; drop them so the new choice takes effect
-            llm._client = None
-            llm._openai_client = None
             if model != llm.MODEL:
-                os.environ["AI_TEACHER_MODEL"] = model
-                llm.MODEL = model
                 saved["AI_TEACHER_MODEL"] = model
+            # One call: it sets the globals, updates the environment AND drops
+            # both cached SDK clients, which hold the old key and base URL.
+            # Doing it by hand here meant every new setting needed the same
+            # three lines repeated correctly.
+            llm.configure(provider=provider, api_key=key or None, model=model)
             if replicate:
                 os.environ["REPLICATE_API_TOKEN"] = replicate
                 saved["REPLICATE_API_TOKEN"] = replicate
@@ -895,7 +915,15 @@ def screen_report() -> None:
 
     st.metric(_t("report.score"), f"{report.score:.0f}%")
 
-    video = orch.lesson_video(st.session_state.session)
+    # Streamlit renders every tab on every rerun, so this ran orch.lesson_video
+    # — which re-encodes every segment and concatenates them — on each single
+    # click anywhere in the app, for as long as the report existed. Stitch once
+    # per session and remember the path.
+    video = st.session_state.get("lesson_video")
+    if video is None:
+        with st.spinner(_t("report.stitching")):
+            video = orch.lesson_video(st.session_state.session) or ""
+        st.session_state.lesson_video = video
     if video and os.path.exists(video):
         st.subheader(_t("report.your_lesson"))
         st.video(video)
@@ -925,7 +953,7 @@ def screen_report() -> None:
     if st.button(_t("report.again")):
         for key in ("phase", "session", "segment", "report", "last_feedback",
                     "busy", "done_tokens", "last_followup", "lang_note",
-                    "quiz_report"):
+                    "quiz_report", "lesson_video"):
             st.session_state.pop(key, None)
         init_state()
         st.rerun()
@@ -950,7 +978,7 @@ else:
     if st.session_state.get("role") == "teacher":
         names.append("nav.classroom")
 
-    tabs = dict(zip(names, st.tabs([_t(n) for n in names])))
+    tabs = dict(zip(names, st.tabs([_t(n) for n in names]), strict=True))
 
     with tabs["nav.lesson"]:
         screen_lesson()

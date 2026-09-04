@@ -1,11 +1,10 @@
-﻿"""
+"""
 U2: Semantic chunking module.
 chunk(pages: list[tuple[str, int]]) -> list[SourceChunk]
 Splits on paragraph/sentence boundaries (target 500-800 words, ~100 word overlap).
 """
 import sys
 import re
-from pathlib import Path
 from typing import List, Tuple, Optional
 
 if sys.platform == "win32":

@@ -4,8 +4,9 @@ The model weights are 500MB and cannot live in git, so a fresh clone starts
 without them. Without this script you still get a lesson, but a degraded one:
 
     no models/wav2lip_gan.pth   -> avatar is a still image, not a talking head
-    no piper_models/*.onnx      -> narration is silent
     no face_detection_yunet     -> no face detection
+    no piper_models/*.onnx      -> narration needs the network, because Piper
+                                   is the OFFLINE fallback behind edge-tts
 
 Run it once after installing requirements:
 
@@ -87,14 +88,18 @@ def fetch(dest: Path, url: str, size: int, what: str) -> bool:
 
 def main() -> int:
     print("Downloading model weights (~500MB, once).\n")
-    ok = all([fetch(*a) for a in ASSETS])
+    # The list comprehension is load-bearing: all() over a generator
+    # short-circuits on the first failure, so one dead URL would silently skip
+    # every download after it. Attempt them all, then report.
+    ok = all([fetch(*a) for a in ASSETS])  # noqa: C419
     print()
     if ok:
         print("All assets present. Video and voice will work.")
     else:
         print("Some downloads failed. The app still runs — the avatar falls "
-              "back to a still image and narration to silence — but re-run "
-              "this before recording anything.")
+              "back to a still image, and narration falls back to edge-tts, "
+              "which needs a network connection — but re-run this before "
+              "recording anything.")
     return 0 if ok else 1
 
 

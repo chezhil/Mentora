@@ -290,11 +290,15 @@ LESSON LANGUAGE: <<LANGUAGE>> (write the script directly in this language)
 
 THE KEY RULE
 You already explained this once. You must NOT repeat that explanation.
-Use the NEW analogy below and build the whole re-explanation around it:
 
-NEW ANALOGY: <<ANALOGY>>
+APPROACH FOR THIS ATTEMPT: <<ANALOGY>>
 
-Analogy rotation that must not be repeated:
+Invent a concrete analogy that fits CONCEPT specifically, following that
+approach, and build the whole re-explanation around it. A physics analogy for
+a physics concept, a kitchen analogy for a chemistry one — an analogy borrowed
+from another subject confuses more than it explains.
+
+Approaches already used on this concept, which you must not fall back into:
 <<USED_ANALOGIES>>
 
 STUDENT CONTEXT
@@ -302,7 +306,7 @@ STUDENT CONTEXT
 
 DO
 1. Script: open by naming their misconception kindly and showing why it is
-   wrong, then re-explain the CONCEPT around the NEW ANALOGY, then give a
+   wrong, then re-explain the CONCEPT around your new analogy, then give a
    fresh example (different from the first attempt). Keep it shorter than
    the original explanation.
    HARD LIMIT: at most 110 words. Over 60 seconds of narration and the avatar
@@ -323,7 +327,7 @@ QUESTION RULES (these are checked, and a question that breaks them is thrown awa
 Return ONLY a JSON object with no markdown fences and no explanation:
 {
   "concept_id": "<<CONCEPT_ID>>",
-  "script": "spoken text IN <<LANGUAGE>>, built around the NEW ANALOGY",
+  "script": "spoken text IN <<LANGUAGE>>, built around your new analogy",
   "visual": {"kind": "equation|graph|diagram|timeline|code|concept_map|none",
              "payload": "...", "caption": "one-line caption or null"},
   "question": {

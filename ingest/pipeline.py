@@ -1,11 +1,10 @@
-﻿"""
+"""
 U3: Ingest & Retrieve pipeline implementation.
 Exposes ingest(path: str) -> str and retrieve(doc_id: str, query: str, k: int) -> list[SourceChunk].
 """
 import sys
 import os
 import uuid
-import json
 from pathlib import Path
 from typing import List
 

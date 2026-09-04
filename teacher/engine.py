@@ -3,8 +3,8 @@ import json
 import re
 
 from shared.models import (
-    LessonPlan, SessionState, SourceChunk, TeachingSegment, 
-    Question, StudentResponse, Evaluation, Turn
+    Evaluation, LessonPlan, Question, SessionState, SourceChunk,
+    StudentResponse, TeachingSegment,
 )
 from prompts import SEGMENT_PROMPT, EVALUATE_PROMPT, REEXPLAIN_PROMPT
 from llm import generate_json
@@ -90,7 +90,7 @@ def _match_option(expected: str, options: list[str]) -> str | None:
             return options[i]
 
     # Last resort: the option that contains the expected answer, or vice versa.
-    for option, low in zip(options, lowered):
+    for option, low in zip(options, lowered, strict=True):
         if want.lower() in low or low in want.lower():
             return option
     return None
@@ -145,8 +145,14 @@ def normalise_question(raw: dict | None, concept_id: str) -> dict | None:
 
 def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk]) -> TeachingSegment:
     """Generates the next teaching segment based on the plan and current state."""
-    concept = plan.concepts[state.current_concept]
-    
+    if not plan.concepts:
+        raise ValueError("next_segment called with an empty lesson plan")
+    # Clamp rather than index blindly. state.current_concept is advanced by the
+    # orchestrator and read here, and an IndexError halfway through a lesson
+    # loses the session; teaching the last concept again does not.
+    index = min(max(state.current_concept, 0), len(plan.concepts) - 1)
+    concept = plan.concepts[index]
+
     # Calculate difficulty
     # "Two wrong answers in a row -> simpler language, more basic examples."
     # "Two quick correct answers -> harder questions, more technical depth."
@@ -183,6 +189,57 @@ def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk
     data["question"] = normalise_question(data.get("question"), concept.id)
     return TeachingSegment.model_validate(data)
 
+# Evaluation.action is a Literal, so anything outside this set is a pydantic
+# ValidationError — raised out of orchestrator.answer(), which app.py surfaces
+# as a red box, mid-lesson, on a perfectly good answer. Models reach for these
+# neighbouring words often enough to be worth mapping rather than crashing on.
+_ACTION_ALIASES = {
+    "continue": "continue", "next": "continue", "proceed": "continue",
+    "advance": "continue", "move on": "continue", "none": "continue",
+    "reexplain": "reexplain", "re-explain": "reexplain", "explain": "reexplain",
+    "repeat": "reexplain", "reteach": "reexplain", "re-teach": "reexplain",
+    "simplify": "simplify", "simpler": "simplify", "easier": "simplify",
+    "harden": "harden", "harder": "harden", "advance difficulty": "harden",
+    "challenge": "harden",
+    "example": "example", "give example": "example", "examples": "example",
+}
+
+
+def _clean_evaluation(data: dict) -> dict:
+    """Coerce a model's judgement into the shape Evaluation demands."""
+    if not isinstance(data, dict):
+        raise ValueError(f"evaluate expected a JSON object, got {type(data).__name__}")
+    data = dict(data)
+
+    correct = data.get("correct")
+    if isinstance(correct, str):
+        correct = correct.strip().lower() in ("true", "yes", "correct", "1")
+    data["correct"] = bool(correct)
+
+    raw_action = str(data.get("action", "")).strip().lower()
+    action = _ACTION_ALIASES.get(raw_action)
+    if action is None:
+        # No sensible reading of what it said. Fall back on the verdict, which
+        # is the one field we do trust.
+        action = "continue" if data["correct"] else "reexplain"
+    data["action"] = action
+
+    feedback = str(data.get("feedback") or "").strip()
+    if not feedback:
+        feedback = ("That's right." if data["correct"]
+                    else "Not quite — let's go through it again.")
+    data["feedback"] = feedback
+
+    misconception = data.get("misconception")
+    misconception = str(misconception).strip() if misconception else None
+    if not data["correct"] and not misconception:
+        # The contract is that a wrong answer NAMES the mistake. smoke_test
+        # asserts it, and the adaptation panel has nothing to show without it.
+        misconception = "an unnamed misunderstanding of this concept"
+    data["misconception"] = misconception or None
+    return data
+
+
 def evaluate(question: Question, response: StudentResponse) -> Evaluation:
     """Evaluates a student's answer and determines the misconception and next pedagogical action."""
     prompt = EVALUATE_PROMPT \
@@ -191,9 +248,9 @@ def evaluate(question: Question, response: StudentResponse) -> Evaluation:
         .replace("<<OPTIONS>>", json.dumps(question.options) if question.options else "None") \
         .replace("<<EXPECTED>>", question.expected) \
         .replace("<<ANSWER>>", response.answer)
-        
+
     data = generate_json(prompt)
-    return Evaluation.model_validate(data)
+    return Evaluation.model_validate(_clean_evaluation(data))
 
 def reexplain(concept_id: str, misconception: str, attempt: int, state: SessionState) -> TeachingSegment:
     """Generates a new teaching segment tackling a specific misconception with a fresh analogy."""
@@ -201,15 +258,30 @@ def reexplain(concept_id: str, misconception: str, attempt: int, state: SessionS
     concept_name = concept.name if concept else concept_id
     depth = concept.depth if concept else "standard"
     
-    # Force genuinely different analogies based on attempt number
-    analogies = [
-        "water flowing through a pipe", 
-        "a crowd squeezing through a doorway", 
-        "traffic on a narrowing road", 
-        "heat flowing through a window"
+    # Force a genuinely different explanation each attempt.
+    #
+    # This used to name four concrete analogies — "water flowing through a
+    # pipe", "traffic on a narrowing road" and two more of the same shape.
+    # Every one of them is a flow-and-resistance metaphor, so the second
+    # attempt at photosynthesis was taught as traffic and the second attempt
+    # at a sorting algorithm as heat through a window. Mentora teaches any
+    # subject; the analogy pool was electricity-only.
+    #
+    # So rotate the STRATEGY, which is subject-independent, and let the model
+    # pick a concrete analogy that actually fits the concept in front of it.
+    strategies = [
+        "an everyday physical situation the student has seen with their own "
+        "eyes — concrete, not abstract",
+        "a step-by-step comparison to something the student does themselves",
+        "a contrast: say plainly what the concept is NOT, next to the thing it "
+        "is most often confused with",
+        "a small worked example with real numbers or real names, and no jargon "
+        "at all",
     ]
-    new_analogy = analogies[(attempt - 1) % len(analogies)]
-    used_analogies = "\n".join(analogies[:max(0, attempt - 1)]) or "None"
+    new_analogy = strategies[(attempt - 1) % len(strategies)]
+    used_analogies = "\n".join(
+        f"- {s}" for s in strategies[:max(0, attempt - 1)]
+    ) or "None"
     
     history_str = "\n".join([f"{t.role}: {t.content}" for t in state.turns[-5:]]) if state.turns else "None"
     

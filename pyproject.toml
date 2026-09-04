@@ -1,48 +1,37 @@
-[build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.build_meta"
+# Mentora is an application, not a distributable library: it is run from a
+# checkout with `streamlit run app.py` or `uvicorn server:app`. This file
+# therefore carries tool configuration and metadata only.
+#
+# It used to declare a build-system and `packages.find = ["freebuff*"]`. That
+# package was deleted from the repo, so a build produced an empty wheel named
+# "freebuff-desktop" with a dependency list that had drifted away from
+# requirements.txt. Runtime dependencies live in requirements.txt, once.
 
 [project]
-name = "freebuff-desktop"
+name = "mentora"
 version = "0.1.0"
-description = "Freebuff Desktop — AI teaching video generation media pipeline"
-requires-python = ">=3.9"
-dependencies = [
-    "matplotlib>=3.8",
-    "numpy",
-    "networkx",
-    "Pygments>=2.17",
-    "piper-tts>=1.7",
-    "replicate>=0.25",
-    "imageio-ffmpeg>=0.4.9",
-    "Pillow>=10.0",
-    "PyYAML>=6.0",
-    "requests>=2.31",
-]
+description = "Mentora — an adaptive AI teacher that teaches through video"
+# 3.11, not 3.9: shared/models.py and others annotate with PEP 604 unions
+# (`str | None`) and no `from __future__ import annotations`, and pydantic
+# evaluates those at import. On 3.9 the app does not start.
+requires-python = ">=3.11"
 
 [project.optional-dependencies]
-cloud-tts = [
-    "google-cloud-texttospeech>=2.14",
-]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
-    "mypy>=1.0",
     "ruff>=0.1",
 ]
 
-[tool.setuptools.packages.find]
-include = ["freebuff*"]
-
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py311"
+# vendor/ is an unmodified copy of upstream Wav2Lip. Linting it invites edits
+# that make it diverge, and the point of vendoring is that it can be re-synced.
+extend-exclude = ["vendor"]
 
-[tool.mypy]
-python_version = "3.9"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
+[tool.ruff.lint]
+select = ["F", "E9", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

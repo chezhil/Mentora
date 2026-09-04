@@ -1,150 +1,87 @@
-# Compositing Module
+# Compositing
 
-Combine visuals, audio, and avatar into video segments, then stitch
-them into a final lesson video.
-
-## Quick Start
+`prompt_101/media_pipeline/compositor.py` — turn a rendered visual, the
+narration and (optionally) the avatar into one segment MP4, then join the
+segments into the lesson video.
 
 ```python
-from freebuff.composite import compose, stitch
+from prompt_101.media_pipeline import compose, stitch, build_lesson_video
 
-# Compose a segment: visual + audio + optional avatar
-compose("slide.png", "narration.wav", "segment.mp4")
+# One segment: visual + narration, avatar overlaid bottom-right if given
+segment = compose("slide.png", "narration.wav", "avatar.mp4")
 
-# Compose with subtitle and volume normalization
-compose("slide.png", "narration.wav", "segment.mp4",
-        subtitle_text="V = I x R", normalize_audio=True)
+# Join segments as-is
+lesson = stitch([seg1, seg2, seg3], "lesson.mp4")
 
-# Stitch segments into final video
-stitch(["seg1.mp4", "seg2.mp4", "seg3.mp4"], "lesson.mp4")
+# Or the whole deliverable: title card + segments + closing card
+lesson = build_lesson_video([seg1, seg2, seg3], title="Ohm's Law")
 ```
 
-## compose(visual_png, audio_wav, output_mp4, ...)
+> This file previously documented a `freebuff.composite` module with
+> `subtitle_text` and `normalize_audio` arguments and a `freebuff.ffmpeg`
+> helper. None of that exists — the package was deleted and the work lives in
+> `prompt_101/media_pipeline`. The signatures below are the real ones.
 
-Combines a static visual image with narration audio into a video
-segment. Optionally overlays a talking-head avatar and subtitle text.
-
-### Parameters
+## compose(visual_path, audio_path=None, avatar_path=None, show_avatar=True, output_path=None)
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `visual_png` | str/Path | required | Slide/diagram PNG image |
-| `audio_wav` | str/Path | required | Narration WAV file |
-| `output_mp4` | str/Path | required | Output video path |
-| `avatar_mp4` | str/Path | None | Talking-head overlay |
-| `subtitle_text` | str | None | Text overlay at bottom |
-| `normalize_audio` | bool | True | Apply loudnorm filter |
+| `visual_path` | str/Path | required | Slide/diagram PNG |
+| `audio_path` | str/Path | `None` | Narration WAV. `None` gets 3s of silence |
+| `avatar_path` | str/Path | `None` | Talking-head MP4 to overlay |
+| `show_avatar` | bool | `True` | Set `False` for a visual-only segment |
+| `output_path` | str/Path | `None` | Defaults to a uuid name in `output/composed/` |
 
-### How It Works
+Returns the path to the composed MP4.
 
-1. Validates input files exist
-2. Builds ffmpeg command with:
-   - `-loop 1` — turns still image into video stream
-   - `-c:v libx264 -tune stillimage` — efficient encoding for static content
-   - `-pix_fmt yuv420p` — browser/Streamlit compatible
-   - `-movflags +faststart` — web-optimized metadata
+The avatar is scaled to 320px wide and overlaid 40px from the bottom-right
+corner of the visual. The visual is a still, so it is looped and `-shortest`
+ends the segment with the audio.
 
-**Without avatar:**
-```
-ffmpeg -loop 1 -i slide.png -i audio.wav \
-  -c:v libx264 -tune stillimage -c:a aac -b:a 192k \
-  -shortest -pix_fmt yuv420p segment.mp4
-```
+`orchestrator` does not call this signature directly: `wiring._adapt_compose`
+reorders the arguments to the `compose(avatar_mp4, visual_png, audio_wav)`
+the contract specifies.
 
-**With avatar overlay:**
-```
-ffmpeg -loop 1 -i slide.png -i avatar.mp4 -i audio.wav \
-  -filter_complex "[1:v]scale=320:-1[av];[0:v][av]overlay=W-w-40:H-h-40" \
-  -map 2:a -map 0:v -c:v libx264 -shortest segment.mp4
-```
+## stitch(segments, output_path=None)
 
-## Subtitle Overlay
+Concatenates segment MP4s. Every part is re-encoded to identical stream
+parameters first — 1280x720, 25fps, yuv420p, 44100Hz mono AAC — because the
+concat demuxer copies streams and silently drops anything that disagrees.
+That cost one bug worth knowing about: a title card of a different size made
+concat adopt *its* dimensions and discard the rest of the lesson, producing a
+16-second file that played perfectly and contained almost nothing.
 
-When `subtitle_text` is provided, adds an ffmpeg `drawtext` filter:
+Anything that does not fit the target is letterboxed, never stretched.
+Raises `ValueError` on an empty list; the normalised temporaries are always
+cleaned up, including on failure.
 
-```
-drawtext=text='Your text':fontsize=28:fontcolor=white:
-  borderw=2:bordercolor=black:x=(w-text_w)/2:y=h-th-40:
-  box=1:boxcolor=black@0.5:boxborderw=8
-```
+## build_lesson_video(segment_paths, title="", output_path=None)
 
-- **Centered** at bottom of frame with 40px margin
-- **White text** with black border for readability
-- **Semi-transparent black box** background
-- **Escapes** colons, backslashes, and single quotes for ffmpeg safety
+The single entry point for the deliverable. Prepends a title card, appends a
+closing card, and stitches. Returns `""` for an empty segment list rather than
+raising, because a lesson with no rendered media is a degraded lesson, not an
+error. `orchestrator.lesson_video()` is the caller.
 
-```python
-compose("slide.png", "audio.wav", "out.mp4",
-        subtitle_text="Ohm's Law: V = I x R")
-```
+## ffmpeg
 
-## Volume Normalization (loudnorm)
+Every ffmpeg call goes through `get_ffmpeg_exe()`, which returns the static
+binary shipped by `imageio-ffmpeg`. Never use a system ffmpeg — the team is on
+three different OSes and the versions differ. Note that imageio-ffmpeg ships
+**no ffprobe**, which is why `_has_audio()` parses ffmpeg's own stderr instead.
 
-When `normalize_audio=True` (default), applies the ITU-R BS.1770
-standard loudness filter:
-
-```
-loudnorm=I=-16:TP=-1.5:LRA=11
-```
-
-| Parameter | Value | Meaning |
-|-----------|-------|---------|
-| `I` | -16 | Target integrated loudness (LUFS) |
-| `TP` | -1.5 | True peak limit (dBTP) |
-| `LRA` | 11 | Loudness range (LU) |
-
-**Why this matters:** Without normalization, different segments have
-different volume levels, causing jarring transitions when stitched.
-The loudnorm filter ensures all segments play at consistent loudness.
-
-```python
-# With normalization (default) — consistent volume
-compose("slide.png", "audio.wav", "out.mp4", normalize_audio=True)
-
-# Without normalization — raw audio levels
-compose("slide.png", "audio.wav", "out.mp4", normalize_audio=False)
-```
-
-## stitch(segment_paths, output_path)
-
-Concatenates segment MP4s into a single final video using ffmpeg's
-concat demuxer with **stream copy** — instant and lossless.
-
-```python
-stitch(["seg_000.mp4", "seg_001.mp4", "seg_002.mp4"], "lesson.mp4")
-```
-
-**Why stream copy works:** Every segment was encoded the same way
-by `compose()` (same codec, same pixel format, same settings). This
-means concatenation requires no re-encoding — just binary concatenation.
-
-**Single segment:** If only one segment is provided, it's copied
-directly without ffmpeg.
-
-**Error handling:** Raises `FileNotFoundError` if any segment is
-missing. Raises `RuntimeError` if ffmpeg fails.
-
-## Using imageio-ffmpeg
-
-All ffmpeg calls use `imageio-ffmpeg`, which ships a static ffmpeg
-binary for each platform. This avoids version mismatches across
-macOS, Windows, and Linux.
-
-```python
-from freebuff.ffmpeg import get_ffmpeg
-
-ffmpeg_path = get_ffmpeg()  # Returns path to bundled ffmpeg binary
-```
-
-Never use a system-installed ffmpeg — the team is on three different
-OSes and system ffmpeg versions will differ.
+Commands are run through `_run_ffmpeg`, which enforces a 5-minute timeout and
+raises `RuntimeError` carrying ffmpeg's stderr on failure.
 
 ## Configuration
 
-All composite settings in `config.yaml` under `composite:`:
+`config.yaml` under `composite:` records the intended geometry:
 
 | Key | Default | Description |
 |-----|---------|-------------|
 | `avatar_width` | `320` | Avatar overlay width (px) |
-| `margin` | `40` | Margin from bottom-right corner (px) |
+| `margin` | `40` | Margin from the bottom-right corner (px) |
 | `pixel_format` | `yuv420p` | Output pixel format |
+
+The output geometry itself is the `TARGET_W` / `TARGET_H` / `TARGET_FPS` /
+`TARGET_RATE` / `TARGET_CH` constants at the top of `compositor.py`, which is
+what `stitch()` normalises to.

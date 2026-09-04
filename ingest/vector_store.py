@@ -1,5 +1,4 @@
-﻿"""Vector store management with local ChromaDB."""
-import os
+"""Vector store management with local ChromaDB."""
 from pathlib import Path
 from typing import List, Dict, Any
 import chromadb
@@ -67,7 +66,10 @@ def query_chunks(doc_id: str, query: str, top_k: int = 4) -> List[Dict[str, Any]
     metas = results["metadatas"][0]
     distances = results["distances"][0]
 
-    for doc_text, meta, dist in zip(docs, metas, distances):
+    # strict: Chroma returns the three lists in lockstep. If it ever did
+    # not, zip would silently drop the tail and we would cite the wrong
+    # page for a chunk.
+    for doc_text, meta, dist in zip(docs, metas, distances, strict=True):
         score = max(0.0, min(1.0, 1.0 - (dist / 2.0)))
         matched_chunks.append({
             "text": doc_text,

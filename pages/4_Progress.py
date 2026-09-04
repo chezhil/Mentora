@@ -1,4 +1,4 @@
-﻿"""Student Progress & Learning Path Page for Mentora AI Teacher.
+"""Student Progress & Learning Path Page for Mentora AI Teacher.
 OWNED BY UTKARSH (PAIR A).
 """
 import streamlit as st

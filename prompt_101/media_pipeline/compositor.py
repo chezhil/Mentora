@@ -12,10 +12,17 @@ Public API:
 """
 import subprocess
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from .config import COMPOSE_OUTPUT_DIR, USE_IMAGEIO_FFMPEG
 from .utils import create_silent_audio
+
+# Every part of the finished video is normalised to these before concat, and
+# _make_text_card scales to them too. They were declared halfway down the file,
+# below the function that reads them — legal, but only because the read happens
+# at call time.
+TARGET_W, TARGET_H, TARGET_FPS = 1280, 720, 25
+TARGET_RATE, TARGET_CH = 44100, 1
 
 
 def get_ffmpeg_exe() -> str:
@@ -75,8 +82,7 @@ def compose(
     
     if avatar_path and avatar_path != "None" and show_avatar and Path(avatar_path).exists():
         return _compose_with_avatar(ffmpeg_exe, visual_path, audio_path, avatar_path, output_path)
-    else:
-        return _compose_visual_only(ffmpeg_exe, visual_path, audio_path, output_path)
+    return _compose_visual_only(ffmpeg_exe, visual_path, audio_path, output_path)
 
 
 def _compose_with_avatar(
@@ -123,7 +129,7 @@ def _compose_visual_only(
 
 
 def build_lesson_video(
-    segment_paths: List[str],
+    segment_paths: list[str],
     title: str = "",
     output_path: Optional[str] = None,
 ) -> str:
@@ -148,8 +154,8 @@ def build_lesson_video(
         output_path = str(COMPOSE_OUTPUT_DIR / "lesson_video.mp4")
     
     # Build the full sequence: title card + segments + closing card
-    all_parts: List[str] = []
-    temp_files: List[Path] = []
+    all_parts: list[str] = []
+    temp_files: list[Path] = []
     
     try:
         # Title card
@@ -249,18 +255,17 @@ def _make_text_card(
     return mp4_path
 
 
-TARGET_W, TARGET_H, TARGET_FPS = 1280, 720, 25
-TARGET_RATE, TARGET_CH = 44100, 1
-
-
 def _has_audio(path: str) -> bool:
     """True when the file carries an audio stream.
 
     ffprobe is not shipped by imageio-ffmpeg, so this reads ffmpeg's own report
     of the input rather than adding a dependency for one boolean.
     """
-    result = subprocess.run([get_ffmpeg_exe(), "-i", str(path)],
-                            capture_output=True, text=True)
+    try:
+        result = subprocess.run([get_ffmpeg_exe(), "-i", str(path)],
+                                capture_output=True, text=True, timeout=60)
+    except Exception:
+        return False
     return "Audio:" in result.stderr
 
 
@@ -300,7 +305,7 @@ def _normalise(path: str, index: int) -> str:
     return str(out)
 
 
-def stitch(segments: List[str], output_path: Optional[str] = None) -> str:
+def stitch(segments: list[str], output_path: Optional[str] = None) -> str:
     """Concatenate segment MP4s into the final lesson video.
 
     Every part is normalised first — see _normalise. That costs one re-encode
@@ -322,13 +327,17 @@ def stitch(segments: List[str], output_path: Optional[str] = None) -> str:
     import tempfile
 
     normalised = [_normalise(seg, i) for i, seg in enumerate(segments)]
-    concat_list = Path(tempfile.mktemp(suffix=".txt"))
+    # NamedTemporaryFile, not the deprecated mktemp: mktemp returns a name and
+    # leaves a window in which anything can claim it. Explicit utf-8 too — the
+    # paths carry the lesson topic, and on a machine whose locale encoding is
+    # not utf-8 a non-ASCII topic raised UnicodeEncodeError here.
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False,
+                                     encoding="utf-8") as handle:
+        for seg in normalised:
+            handle.write(f"file '{Path(seg).resolve().as_posix()}'\n")
+        concat_list = Path(handle.name)
 
     try:
-        with open(concat_list, "w") as f:
-            for seg in normalised:
-                f.write(f"file '{Path(seg).resolve().as_posix()}'\n")
-
         _run_ffmpeg([
             get_ffmpeg_exe(), "-y",
             "-f", "concat", "-safe", "0",
@@ -344,11 +353,11 @@ def stitch(segments: List[str], output_path: Optional[str] = None) -> str:
             Path(seg).unlink(missing_ok=True)
 
 
-def _run_ffmpeg(cmd: List[str]) -> None:
+def _run_ffmpeg(cmd: list[str]) -> None:
     """Run an ffmpeg command and handle errors."""
     try:
         subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=300)
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("ffmpeg timed out after 5 minutes")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"ffmpeg failed: {e.stderr}")
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("ffmpeg timed out after 5 minutes") from exc
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(f"ffmpeg failed: {exc.stderr}") from exc

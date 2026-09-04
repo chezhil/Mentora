@@ -1,4 +1,4 @@
-﻿"""CLI runner for retrieve: python -m ingest.retrieve fixtures/query_en.json"""
+"""CLI runner for retrieve: python -m ingest.retrieve fixtures/query_en.json"""
 import sys
 import json
 from pathlib import Path

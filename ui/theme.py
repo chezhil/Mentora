@@ -7,6 +7,7 @@ it is re-read on every rerun, so save the file and the browser updates.
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 CSS_PATH = Path(__file__).resolve().parent / "style.css"
 
@@ -42,10 +43,18 @@ def _set_direction(lang: str) -> None:
 
     Streamlit has no RTL mode. Its own DOM is built left-to-right and there is
     no supported hook to change that, so this reaches into the parent document
-    from the component iframe and sets dir on the app root; ui/style.css picks
-    it up from there. If Streamlit's internals move, the selector misses and
-    the app renders left-to-right — which is exactly where it was before, so
-    the failure is a cosmetic one and cannot break a lesson.
+    and sets dir on the app root; ui/style.css picks it up from there.
+
+    It has to go through st.components.v1.html, NOT st.markdown. Streamlit
+    strips <script> out of markdown even with unsafe_allow_html=True, so the
+    markdown version of this ran nothing at all and Urdu and Arabic have been
+    rendering left-to-right the whole time. components.html is the supported
+    way to get a script onto the page: it renders a real (zero-height) iframe,
+    and window.parent from inside it is the app document.
+
+    If Streamlit's internals move, the selector misses and the app renders
+    left-to-right — exactly where it was before, so the failure stays cosmetic
+    and cannot break a lesson.
     """
     try:
         from shared.languages import get
@@ -54,10 +63,12 @@ def _set_direction(lang: str) -> None:
         rtl = False
 
     direction = "rtl" if rtl else "ltr"
-    st.markdown(
+    components.html(
         f"""<script>
-        const root = window.parent.document.querySelector('.stApp');
-        if (root) {{ root.setAttribute('dir', '{direction}'); }}
+        const doc = window.parent.document;
+        const root = doc.querySelector('.stApp');
+        if (root) {{ root.setAttribute('dir', {direction!r}); }}
         </script>""",
-        unsafe_allow_html=True,
+        height=0,
+        width=0,
     )

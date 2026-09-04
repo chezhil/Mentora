@@ -90,14 +90,20 @@ def render_graph(content: str, subject: str, data: dict) -> str:
     # Nothing plottable. Say so — do NOT draw an unrelated curve under a title
     # naming a different function. A sine wave labelled "y = 1/x" reads as the
     # system inventing content, which is worse than showing no graph at all.
+    #
+    # Hand it to the title-card renderer rather than drawing the message on a
+    # switched-off axis. That version left two short lines of text floating in
+    # the middle of a 1280x720 frame — 33% of the width and 63% of the height,
+    # which test_all.py flags and which reads on a video as a graph that failed
+    # to load rather than a segment that was never going to have one.
     if not plotted:
-        ax.axis("off")
-        ax.text(0.5, 0.62, content[:70], transform=ax.transAxes, ha="center",
-                va="center", fontsize=title_size, fontweight="bold",
-                color=TITLE_COLOR, wrap=True)
-        ax.text(0.5, 0.38, "no plottable expression in this payload",
-                transform=ax.transAxes, ha="center", va="center",
-                fontsize=tick_size, color="#999999")
+        plt.close(fig)
+        from .none import render_none
+        return render_none(
+            "No plottable expression in this payload — this part is spoken.",
+            subject,
+            {"title": content[:70]},
+        )
 
     # Style: large grid, thick spines
     ax.grid(True, alpha=0.25, linewidth=1.0, linestyle="--", color="#9aa0aa")
