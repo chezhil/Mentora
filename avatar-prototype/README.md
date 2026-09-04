@@ -18,6 +18,13 @@ and point it at any file in `prompt_101/media_pipeline/output/tts/` to drive it
 with real narration in any of Mentora's languages. Move the pointer over the
 stage and it follows you.
 
+**Switch character** flips between a female and a male placeholder. Both share
+one rig: only the silhouette parts — hair, jaw, brows, shirt — carry a `.v-f`
+or `.v-m` class, and every id the driver touches is common to both. So the
+character can change without `character.js` or `driver.js` knowing it happened,
+which is the same property that makes swapping in a Live2D model cheap. A third
+character is another pair of paths and one class.
+
 An `<audio>` element or a microphone are both user gestures, which is what
 lets the AudioContext start — browsers will not allow it any other way, and an
 avatar that stays silent until the first click is the commonest bug in pages
@@ -119,7 +126,8 @@ deliverable — or screen-record the app, which is simpler.
 
 ## Known limits
 
-- The placeholder art is a placeholder. It is meant to be replaced.
+- Both placeholder characters are placeholders. They exist so the driver
+  could be judged without waiting on art, and are meant to be replaced.
 - Head motion is procedural, not learned. It idles convincingly and reacts to
   speech energy, but it does not gesture in time with meaning.
 - `mouthForm` is spectral tilt, not real visemes. It varies with the sound

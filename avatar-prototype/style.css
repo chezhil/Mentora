@@ -46,3 +46,14 @@ button:active, .file:active { box-shadow: 1px 1px 0 var(--ink);
 audio { height: 38px; }
 .hint { flex-basis: 100%; margin: 4px 0 0; font-size: .85rem; opacity: .75; }
 code { background: #fff; border: 1px solid var(--ink); padding: 1px 5px; }
+
+/* Character variants. Only the silhouette swaps; the rig underneath — brows,
+   eyes, mouth, head — is shared, so the driver never learns which one is on
+   screen. Adding a third character is another pair of paths and one class. */
+#avatar[data-variant="f"] .v-m,
+#avatar[data-variant="m"] .v-f { display: none; }
+#avatar[data-variant="m"] #mouthCavity { fill: #6e2a3a; }
+#avatar[data-variant="m"] #mouthTongue { fill: #cf5f72; }
+#avatar[data-variant="m"] #mouthLine   { stroke: #b8806c; }
+#avatar[data-variant="m"] #blush       { display: none; }
+#avatar[data-variant="m"] .lash        { stroke-width: 3.2; }

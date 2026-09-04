@@ -17,7 +17,7 @@
          hair-front. Features and front hair are translated MORE than the head
          when it turns, and that parallax is what sells the rotation without
          any 3D. It is the same trick Live2D uses. -->
-    <svg id="avatar" viewBox="0 0 400 460" aria-label="avatar">
+    <svg id="avatar" viewBox="0 0 400 460" aria-label="avatar" data-variant="f">
       <defs>
         <radialGradient id="cheek" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stop-color="#ff8f9c" stop-opacity=".55"/>
@@ -25,31 +25,53 @@
         </radialGradient>
       </defs>
 
+      <!-- Two variants share ONE rig. Only the silhouette parts carry a
+           .v-f / .v-m class; every id the driver touches — brows, eyes, mouth,
+           head, features — is common to both, so switching character costs
+           character.js and driver.js nothing at all. That is the same property
+           that makes swapping in a Live2D model cheap. -->
       <g id="root">
-        <!-- shoulders -->
         <!-- Neck first, shirt over it, head over both: that ordering is what
              keeps the join hidden however far the head turns. -->
         <g id="body">
-          <path d="M174 286 l52 0 l0 104 q-26 14 -52 0 z" fill="#e8bf9c"/>
-          <path d="M92 460 q12 -76 108 -76 q96 0 108 76 z" fill="#4A7DFF"/>
-          <path d="M200 384 q-22 2 -30 -10 q30 10 60 0 q-8 12 -30 10 z"
+          <path class="v-f" d="M174 286 l52 0 l0 104 q-26 14 -52 0 z"
+                fill="#e8bf9c"/>
+          <path class="v-m" d="M169 284 l62 0 l0 106 q-31 14 -62 0 z"
+                fill="#e3b795"/>
+          <path class="v-f" d="M92 460 q12 -76 108 -76 q96 0 108 76 z"
+                fill="#4A7DFF"/>
+          <path class="v-m" d="M84 460 q14 -80 116 -80 q102 0 116 80 z"
+                fill="#2f6f5e"/>
+          <path class="v-f" d="M200 384 q-22 2 -30 -10 q30 10 60 0 q-8 12 -30 10 z"
                 fill="#3a68e0"/>
+          <path class="v-m" d="M200 382 q-26 2 -34 -10 q34 11 68 0 q-8 12 -34 10 z"
+                fill="#24564a"/>
         </g>
 
         <g id="hairBack">
-          <path d="M200 44 q104 0 108 122 q4 92 -14 150 q-30 -104 -94 -104
+          <path class="v-f"
+                d="M200 44 q104 0 108 122 q4 92 -14 150 q-30 -104 -94 -104
                    q-64 0 -94 104 q-18 -58 -14 -150 q4 -122 108 -122 z"
                 fill="#241d33"/>
+          <path class="v-m"
+                d="M200 52 q92 0 94 112 q2 44 -6 78 q-16 -46 -88 -46
+                   q-72 0 -88 46 q-8 -34 -6 -78 q2 -112 94 -112 z"
+                fill="#1f1a14"/>
         </g>
 
         <g id="head">
           <!-- ears -->
           <ellipse cx="112" cy="214" rx="13" ry="20" fill="#f0c9a8"/>
           <ellipse cx="288" cy="214" rx="13" ry="20" fill="#f0c9a8"/>
-          <!-- face -->
-          <path d="M200 96 q84 0 84 100 q0 58 -25 94 q-24 34 -59 34
+          <!-- face: the jaw is the cue, so it is per-variant -->
+          <path class="v-f"
+                d="M200 96 q84 0 84 100 q0 58 -25 94 q-24 34 -59 34
                    q-35 0 -59 -34 q-25 -36 -25 -94 q0 -100 84 -100 z"
                 fill="#f7d9bd"/>
+          <path class="v-m"
+                d="M200 96 q86 0 86 102 q0 60 -18 94 q-20 36 -68 36
+                   q-48 0 -68 -36 q-18 -34 -18 -94 q0 -102 86 -102 z"
+                fill="#efc9a4"/>
 
           <g id="features">
             <g id="blush" opacity="0">
@@ -58,10 +80,14 @@
             </g>
 
             <g id="brows">
-              <path id="browL" d="M136 190 q22 -11 44 -2" stroke="#241d33"
+              <path class="v-f" d="M136 190 q22 -11 44 -2" stroke="#241d33"
                     stroke-width="7" fill="none" stroke-linecap="round"/>
-              <path id="browR" d="M220 188 q22 -9 44 2" stroke="#241d33"
+              <path class="v-f" d="M220 188 q22 -9 44 2" stroke="#241d33"
                     stroke-width="7" fill="none" stroke-linecap="round"/>
+              <path class="v-m" d="M134 199 q23 -7 45 -1" stroke="#1f1a14"
+                    stroke-width="8" fill="none" stroke-linecap="round"/>
+              <path class="v-m" d="M221 198 q23 -6 45 1" stroke="#1f1a14"
+                    stroke-width="8" fill="none" stroke-linecap="round"/>
             </g>
 
             <g id="eyeL" class="eye">
@@ -71,8 +97,8 @@
                 <circle cx="158" cy="223" r="7" fill="#151226"/>
                 <circle cx="153" cy="217" r="4.5" fill="#fff" opacity=".9"/>
               </g>
-              <path d="M133 214 q25 -20 50 -2" stroke="#241d33" stroke-width="5"
-                    fill="none" stroke-linecap="round"/>
+              <path class="lash" d="M133 214 q25 -20 50 -2" stroke="#241d33"
+                    stroke-width="5" fill="none" stroke-linecap="round"/>
             </g>
 
             <g id="eyeR" class="eye">
@@ -82,8 +108,8 @@
                 <circle cx="242" cy="223" r="7" fill="#151226"/>
                 <circle cx="237" cy="217" r="4.5" fill="#fff" opacity=".9"/>
               </g>
-              <path d="M217 212 q25 -18 50 2" stroke="#241d33" stroke-width="5"
-                    fill="none" stroke-linecap="round"/>
+              <path class="lash" d="M217 212 q25 -18 50 2" stroke="#241d33"
+                    stroke-width="5" fill="none" stroke-linecap="round"/>
             </g>
 
             <!-- nose -->
@@ -106,11 +132,18 @@
         </g>
 
         <g id="hairFront">
-          <path d="M104 178 q6 -110 96 -110 q90 0 96 110 q-24 -58 -50 -62
+          <path class="v-f"
+                d="M104 178 q6 -110 96 -110 q90 0 96 110 q-24 -58 -50 -62
                    q10 34 -12 48 q-16 -46 -60 -44 q-46 2 -70 58 z"
                 fill="#2e2542"/>
-          <path d="M262 86 q34 16 34 60 l-12 -6 q-4 -34 -30 -44 z"
+          <path class="v-f" d="M262 86 q34 16 34 60 l-12 -6 q-4 -34 -30 -44 z"
                 fill="#FFD400"/>
+          <path class="v-m"
+                d="M106 186 q2 -114 94 -114 q92 0 94 114 q-12 -32 -34 -48
+                   q-32 30 -84 18 q-40 -12 -62 30 z"
+                fill="#241d18"/>
+          <path class="v-m" d="M117 158 l14 0 l0 60 l-14 0 z" fill="#241d18"/>
+          <path class="v-m" d="M269 158 l14 0 l0 60 l-14 0 z" fill="#241d18"/>
         </g>
       </g>
     </svg>
@@ -128,6 +161,7 @@
 
   <div class="controls">
     <button id="mic" class="primary">Talk to it (microphone)</button>
+    <button id="variant">Switch character</button>
     <label class="file">
       Play a WAV / MP3
       <input type="file" id="file" accept="audio/*">

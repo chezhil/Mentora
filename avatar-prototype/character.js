@@ -143,6 +143,13 @@ $("file").addEventListener("change", (e) => {
   player.play();
 });
 
+// The variant switch is presentation only — it changes which paths are
+// visible and nothing else. driver.js is not even aware there are two.
+const svg = $("avatar");
+$("variant").addEventListener("click", () => {
+  svg.dataset.variant = svg.dataset.variant === "f" ? "m" : "f";
+});
+
 $("mic").addEventListener("click", async (e) => {
   try {
     await driver.attachMicrophone();
