@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib.util
 import json
 import os
 import re
@@ -879,6 +880,33 @@ HEAD_X = AVATAR_X + AVATAR_W * 0.50
 HEAD_Y = AVATAR_Y + AVATAR_W * 0.60
 
 
+def _avatar_module():
+    """Load the sibling avatar renderer, fresh whenever its file has changed.
+
+    board_media.py deliberately re-execs THIS file on every render so a
+    long-running server picks up edits without a restart. A plain
+    `import avatar_render` in here got no such treatment: sys.modules hands
+    back whatever the process imported first. So a server that had already
+    rendered one segment ran NEW board code against a STALE avatar module,
+    and the moment analyse() grew its gaze argument the call raised
+    TypeError -- caught by encode(), which degrades to the board alone. The
+    video came out correct in every respect except that the teacher was
+    simply missing, with the reason on a stderr line nobody reads. Keying on
+    the file's mtime keeps the two halves of the pair in step.
+    """
+    path = Path(__file__).resolve().parent / "avatar_render.py"
+    stamp = path.stat().st_mtime_ns
+    mod = sys.modules.get("avatar_render")
+    if mod is not None and getattr(mod, "_loaded_at", None) == stamp:
+        return mod
+    spec = importlib.util.spec_from_file_location("avatar_render", path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["avatar_render"] = mod        # before exec, for @dataclass
+    spec.loader.exec_module(mod)
+    mod._loaded_at = stamp
+    return mod
+
+
 def gaze_track(elements, kind) -> list[tuple[float, float, float]]:
     """(time, x, y) look-at targets, one per element, as the board reveals it.
 
@@ -936,15 +964,19 @@ def encode(out: Path, elements: list[Element], kind: str, caption: str,
     # so anything here degrades to the board alone.
     poses = shapes_ = None
     try:
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
-        import avatar_render
-
+        avatar_render = _avatar_module()
         shapes_ = avatar_render.shapes()
         wav = _wav_for(Path(narration.audio), ffmpeg, out.parent)
         poses = avatar_render.analyse(wav, FPS, int(total * FPS),
                                       gaze=gaze_track(elements, kind))
     except Exception as exc:
-        print(f"[avatar] not embedded ({type(exc).__name__}: {exc})")
+        # Loud, not just logged: a board with no teacher on it is the whole
+        # point of the product going quietly missing, and the previous
+        # single stderr line went unread through an entire session of it.
+        print(f"[avatar] NOT EMBEDDED -- {type(exc).__name__}: {exc}",
+              file=sys.stderr)
+        import traceback
+        traceback.print_exc()
     variant = os.environ.get("MENTORA_AVATAR_VARIANT", "f")
 
     silent = out.parent / f".{out.stem}_silent.mp4"
