@@ -1,7 +1,7 @@
 import itertools
 import json
 import re
-
+import uuid
 from shared.models import (
     LessonPlan, SessionState, SourceChunk, TeachingSegment, 
     Question, StudentResponse, Evaluation, Turn
@@ -174,6 +174,9 @@ def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk
 
     data = generate_json(prompt)
     data["concept_id"] = concept.id  # Enforce matching concept ID
+    if data.get("question"):
+        data["question"]["id"] = f"q_{concept.id}_{uuid.uuid4().hex[:6]}"
+        data["question"]["concept_id"] = concept.id
     # CONTRACT: "citations copied from chunks when material was used".
     # Overwrite rather than trust the model — anything it invents here would be
     # a hallucinated page number, which is worse than none. These are the real
@@ -193,6 +196,20 @@ def evaluate(question: Question, response: StudentResponse) -> Evaluation:
         .replace("<<ANSWER>>", response.answer)
         
     data = generate_json(prompt)
+    action = str(data.get("action", "")).lower().strip()
+    if action not in ("continue", "reexplain", "simplify", "harden", "example"):
+        action = "continue" if data.get("correct") else "reexplain"
+    data["action"] = action
+
+    # If marked correct, clear misconception to adhere to schema
+    if data.get("correct"):
+        data["misconception"] = None
+    elif not data.get("misconception"):
+        data["misconception"] = "Incomplete or inaccurate explanation"
+
+    if not data.get("feedback"):
+        data["feedback"] = "Great work! Let's continue." if data.get("correct") else "Let's review this concept carefully."
+
     return Evaluation.model_validate(data)
 
 def reexplain(concept_id: str, misconception: str, attempt: int, state: SessionState) -> TeachingSegment:
@@ -200,14 +217,38 @@ def reexplain(concept_id: str, misconception: str, attempt: int, state: SessionS
     concept = next((c for c in state.plan.concepts if c.id == concept_id), None)
     concept_name = concept.name if concept else concept_id
     depth = concept.depth if concept else "standard"
+    topic = state.plan.topic.lower()
     
-    # Force genuinely different analogies based on attempt number
-    analogies = [
-        "water flowing through a pipe", 
-        "a crowd squeezing through a doorway", 
-        "traffic on a narrowing road", 
-        "heat flowing through a window"
-    ]
+    # Select or generate topic-aware analogies rather than hardcoding circuit analogies for all subjects
+    if any(k in topic for k in ["circuit", "ohm", "electric", "current", "voltage", "physics"]):
+        analogies = [
+            "water flowing through a narrowing pipe with a pump", 
+            "a crowd squeezing through a turnstile doorway", 
+            "traffic moving through road construction lanes", 
+            "heat conducting through a thick glass window"
+        ]
+    elif any(k in topic for k in ["bio", "photo", "cell", "plant", "organ"]):
+        analogies = [
+            "a solar-powered molecular kitchen preparing food",
+            "a locked factory assembly line with chemical gatekeepers",
+            "a battery pack recharging through captured sunlight",
+            "a bustling delivery network transporting nutrients"
+        ]
+    elif any(k in topic for k in ["code", "program", "react", "python", "data", "software"]):
+        analogies = [
+            "a chef following an exact recipe step-by-step",
+            "a postal sorting center routing labeled parcels",
+            "a blueprint for constructing Lego modular houses",
+            "a synchronized conveyor belt processing incoming requests"
+        ]
+    else:
+        analogies = [
+            f"an intuitive real-world scenario illustrating {concept_name}",
+            f"a step-by-step everyday process showing how {concept_name} behaves",
+            f"a contrasting visual comparison addressing why {misconception} occurs",
+            f"a simplified foundational model breaking down {concept_name}"
+        ]
+
     new_analogy = analogies[(attempt - 1) % len(analogies)]
     used_analogies = "\n".join(analogies[:max(0, attempt - 1)]) or "None"
     
@@ -226,6 +267,9 @@ def reexplain(concept_id: str, misconception: str, attempt: int, state: SessionS
         
     data = generate_json(prompt)
     data["concept_id"] = concept_id
+    if data.get("question"):
+        data["question"]["id"] = f"q_{concept_id}_{attempt}_{uuid.uuid4().hex[:6]}"
+        data["question"]["concept_id"] = concept_id
     data["script"] = fit_script(data.get("script", ""))
     data["question"] = normalise_question(data.get("question"), concept_id)
     return TeachingSegment.model_validate(data)

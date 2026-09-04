@@ -48,3 +48,4 @@ output/
 Thumbs.db
 $RECYCLE.BIN/
 System Volume Information/
+*.log

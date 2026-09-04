@@ -55,9 +55,9 @@ class Question(BaseModel):
     """A question asked during or after the lesson."""
     id: str                            # "q1", "q2", ...
     concept_id: str
-    kind: Literal["mcq", "short", "explain", "problem"]
+    kind: Literal["mcq", "mmcq", "msq", "short", "explain", "problem"]
     prompt: str
-    options: list[str] | None = None   # only for mcq
+    options: list[str] | None = None   # for mcq and mmcq
     expected: str                      # the correct answer
 
 

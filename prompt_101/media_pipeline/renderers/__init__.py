@@ -209,6 +209,7 @@ def render_networkx_graph(content: str, data: dict, kind: str = "diagram") -> st
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.patches import FancyBboxPatch
     
     try:
         import networkx as nx
@@ -219,40 +220,145 @@ def render_networkx_graph(content: str, data: dict, kind: str = "diagram") -> st
     nodes = data.get("nodes", [])
     edges = data.get("edges", [])
     
+    id_to_label = {}
     for node in nodes:
         if isinstance(node, dict):
-            G.add_node(node["id"], label=node.get("label", node["id"]))
+            nid = str(node["id"])
+            lbl = str(node.get("label", nid))
+            G.add_node(nid, label=lbl)
+            id_to_label[nid] = lbl
         else:
-            G.add_node(node, label=str(node))
+            nid = str(node)
+            G.add_node(nid, label=nid)
+            id_to_label[nid] = nid
     
     for edge in edges:
         if isinstance(edge, dict):
-            G.add_edge(edge["from"], edge["to"], label=edge.get("label", ""))
+            src = str(edge["from"])
+            dst = str(edge["to"])
+            lbl = str(edge.get("label", ""))
+            # Add nodes if missing
+            if src not in G:
+                G.add_node(src, label=src)
+                id_to_label[src] = src
+            if dst not in G:
+                G.add_node(dst, label=dst)
+                id_to_label[dst] = dst
+            G.add_edge(src, dst, label=lbl)
         else:
-            G.add_edge(edge[0], edge[1])
+            src, dst = str(edge[0]), str(edge[1])
+            if src not in G:
+                G.add_node(src, label=src)
+            if dst not in G:
+                G.add_node(dst, label=dst)
+            G.add_edge(src, dst, label="")
     
     fig, ax = plt.subplots(1, 1, figsize=(IMAGE_WIDTH/DPI, IMAGE_HEIGHT/DPI), dpi=DPI)
     fig.patch.set_facecolor(BG_COLOR)
     ax.set_facecolor(BG_COLOR)
     ax.axis("off")
+    ax.set_xlim(-0.5, 10.5)
+    ax.set_ylim(-0.5, 10.5)
     
-    ax.set_title(content[:50], fontsize=32, fontweight="bold",
-                 color=TITLE_COLOR, pad=20)
+    # Title
+    clean_title = (data.get("title") or content).strip()
+    if clean_title.lower().startswith("graph") or clean_title.lower().startswith("flowchart"):
+        clean_title = "Concept Architecture Diagram"
+    ax.text(5.0, 9.6, clean_title[:55], fontsize=28, fontweight="bold",
+            color=TITLE_COLOR, ha="center", va="center")
+    ax.axhline(y=9.0, xmin=0.08, xmax=0.92, color=ACCENT_COLORS[0], linewidth=2.5, alpha=0.4)
     
-    pos = nx.spring_layout(G, k=2.5, iterations=80)
-    node_colors = [ACCENT_COLORS[i % len(ACCENT_COLORS)] for i in range(len(G.nodes))]
-    nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=3000, ax=ax)
-    nx.draw_networkx_edges(G, pos, edge_color="#666666", arrows=True,
-                          arrowsize=25, connectionstyle="arc3,rad=0.1", ax=ax,
-                          width=2.5)
+    node_list = list(G.nodes)
+    n = len(node_list)
+    if n == 0:
+        return save_figure(fig, kind)
+        
+    # Determine layout: if DAG, use layered horizontal layout; otherwise spring layout
+    pos = {}
+    is_dag = nx.is_directed_acyclic_graph(G) if n > 1 else False
+    if is_dag and n <= 12:
+        generations = list(nx.topological_generations(G))
+        n_gen = len(generations)
+        for gen_idx, gen_nodes in enumerate(generations):
+            x = 1.2 + 7.6 * (gen_idx / max(1, n_gen - 1)) if n_gen > 1 else 5.0
+            n_in_gen = len(gen_nodes)
+            for node_idx, u in enumerate(gen_nodes):
+                y = 7.5 - 6.0 * (node_idx / max(1, n_in_gen - 1)) if n_in_gen > 1 else 4.5
+                pos[u] = (x, y)
+    else:
+        # Spring layout scaled to [1.2, 8.8] x [1.2, 8.0]
+        raw_pos = nx.spring_layout(G, k=3.2/max(1, (n**0.5)), iterations=120, seed=42)
+        xs = [p[0] for p in raw_pos.values()]
+        ys = [p[1] for p in raw_pos.values()]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        rx = max_x - min_x if max_x > min_x else 1.0
+        ry = max_y - min_y if max_y > min_y else 1.0
+        for u, (x, y) in raw_pos.items():
+            pos[u] = (1.5 + 7.0 * (x - min_x) / rx, 1.8 + 6.0 * (y - min_y) / ry)
+
+    # Box sizes and node rendering
+    box_bounds = {}
+    node_colors = [ACCENT_COLORS[i % len(ACCENT_COLORS)] for i in range(n)]
     
-    labels = nx.get_node_attributes(G, "label")
-    nx.draw_networkx_labels(G, pos, labels, font_size=14, font_color="white",
-                           font_weight="bold", ax=ax)
+    for i, u in enumerate(node_list):
+        x, y = pos[u]
+        label = id_to_label.get(u, u)
+        color = node_colors[i]
+        
+        # Calculate dynamic width
+        bw = max(2.2, min(3.8, len(label) * 0.12 + 0.9))
+        bh = 1.0
+        box_bounds[u] = (x, y, bw, bh)
+        
+        # Draw rounded rectangle node
+        rect = FancyBboxPatch((x - bw/2, y - bh/2), bw, bh,
+                              boxstyle="round,pad=0.12",
+                              facecolor=color, edgecolor="#ffffff",
+                              linewidth=2.5, alpha=0.92)
+        ax.add_patch(rect)
+        
+        # Wrapped text if long
+        words = label.split()
+        if len(words) > 3:
+            mid = len(words) // 2
+            display_text = " ".join(words[:mid]) + "\n" + " ".join(words[mid:])
+        else:
+            display_text = label
+            
+        ax.text(x, y, display_text, fontsize=15, fontweight="bold",
+                color="#ffffff", ha="center", va="center")
+
+    # Draw directed edges
+    for src, dst, edata in G.edges(data=True):
+        if src in box_bounds and dst in box_bounds:
+            x1, y1, w1, h1 = box_bounds[src]
+            x2, y2, w2, h2 = box_bounds[dst]
+            
+            # Vector from center to center
+            dx, dy = x2 - x1, y2 - y1
+            dist = (dx**2 + dy**2)**0.5
+            if dist < 0.01:
+                continue
+            
+            # Start and end at boundaries of boxes
+            start_x = x1 + (dx / dist) * (w1 / 2)
+            start_y = y1 + (dy / dist) * (h1 / 2)
+            end_x = x2 - (dx / dist) * (w2 / 2 + 0.15)
+            end_y = y2 - (dy / dist) * (h2 / 2 + 0.15)
+            
+            ax.annotate("", xy=(end_x, end_y), xytext=(start_x, start_y),
+                        arrowprops=dict(arrowstyle="-|>", color="#FFE600",
+                                        lw=2.5, mutation_scale=18))
+            
+            # Edge label if present
+            elbl = edata.get("label", "")
+            if elbl:
+                mid_x = (start_x + end_x) / 2
+                mid_y = (start_y + end_y) / 2 + 0.25
+                ax.text(mid_x, mid_y, elbl[:25], fontsize=11, fontweight="bold",
+                        color="#00E5FF", ha="center", va="center",
+                        bbox=dict(boxstyle="round,pad=0.2", facecolor="#12141a", edgecolor="#00E5FF", alpha=0.85, lw=1))
     
-    edge_labels = nx.get_edge_attributes(G, "label")
-    if edge_labels:
-        nx.draw_networkx_edge_labels(G, pos, edge_labels, font_size=11, ax=ax)
-    
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.90, bottom=0.05)
+    plt.subplots_adjust(left=0.04, right=0.96, top=0.92, bottom=0.04)
     return save_figure(fig, kind)

@@ -25,6 +25,7 @@ import orchestrator as orch
 import ui
 import wiring
 from screens import classroom as classroom_screen
+from screens import flashcards as flashcards_screen
 from screens import path as path_screen
 from screens import quiz as quiz_screen
 from shared import languages
@@ -203,9 +204,10 @@ def save_upload(uploaded) -> str | None:
 # Free-tier quota is per-project-PER-MODEL, so switching model gives a fresh
 # daily allowance. Ordered cheapest-first: our calls are structured JSON
 # against a fixed schema, which is what Flash-Lite is built for.
-PROVIDERS = ["gemini", "groq", "ollama"]
+PROVIDERS = ["local", "gemini", "groq", "ollama"]
 
 PROVIDER_MODELS = {
+    "local": ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash"],
     # Groq's free tier is thousands of requests a day against Gemini's 20,
     # and one lesson costs 22 — so Groq is the practical default for building
     # and rehearsing. Keep Gemini for the final recording if you prefer it.
@@ -214,7 +216,7 @@ PROVIDER_MODELS = {
     "ollama": ["llama3.1:8b", "qwen2.5:7b", "gemma2:9b"],
 }
 
-PROVIDER_KEY_ENV = {"gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY"}
+PROVIDER_KEY_ENV = {"gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY", "local": "GEMINI_KEY"}
 
 GEMINI_MODELS = [
     "gemini-2.5-flash-lite",   # ~$0.004/lesson
@@ -267,9 +269,13 @@ def api_panel() -> None:
         else:
             avatar_line = "🟡 placeholder (still image)"
 
+        active_key = llm.LOCAL_KEY if llm.PROVIDER == "local" else (llm.API_KEY or "")
+        active_endpoint = llm.LOCAL_BASE_URL if llm.PROVIDER == "local" else "Google Cloud / API"
         st.caption(
-            f"Gemini key: `{_mask(llm.API_KEY)}`  \n"
+            f"Provider: `{llm.PROVIDER}`  \n"
             f"Model: `{llm.MODEL}`  \n"
+            f"Endpoint: `{active_endpoint}`  \n"
+            f"Key: `{_mask(active_key)}`  \n"
             f"Mode: {'🟡 offline (mock)' if offline else '🟢 live'}  \n"
             f"Avatar: {avatar_line}"
         )
@@ -277,19 +283,24 @@ def api_panel() -> None:
         provider = st.selectbox(
             "Provider", PROVIDERS,
             index=PROVIDERS.index(llm.PROVIDER) if llm.PROVIDER in PROVIDERS else 0,
-            help="Gemini free tier is 20 requests/day and one lesson costs 22. "
-                 "Groq's free tier is thousands/day. Ollama runs locally with "
-                 "no limit at all.")
+            help="Local proxy runs on http://127.0.0.1:8010. Groq/Gemini use cloud APIs."
+        )
 
-        key_env = PROVIDER_KEY_ENV.get(provider)
-        key = ""
-        if key_env:
-            key = st.text_input(
-                f"{provider.title()} API key", type="password",
-                placeholder="free key from console.groq.com/keys"
-                            if provider == "groq" else "paste a key")
+        local_url = ""
+        if provider == "local":
+            local_url = st.text_input("Local LLM Base URL", value=llm.LOCAL_BASE_URL)
+            key = st.text_input("Local API Key", value=llm.LOCAL_KEY, type="password")
+            key_env = "GEMINI_KEY"
         else:
-            st.caption("Ollama needs no key — just `ollama serve` running.")
+            key_env = PROVIDER_KEY_ENV.get(provider)
+            key = ""
+            if key_env:
+                key = st.text_input(
+                    f"{provider.title()} API key", type="password",
+                    placeholder="free key from console.groq.com/keys"
+                                if provider == "groq" else "paste a key")
+            else:
+                st.caption("Ollama needs no key — just `ollama serve` running.")
 
         models = PROVIDER_MODELS.get(provider, GEMINI_MODELS)
         model = st.selectbox(
@@ -315,10 +326,16 @@ def api_panel() -> None:
                 os.environ["AI_TEACHER_PROVIDER"] = provider
                 llm.PROVIDER = provider
                 saved["AI_TEACHER_PROVIDER"] = provider
+            if provider == "local" and local_url:
+                os.environ["GEMINI_URL"] = local_url
+                llm.LOCAL_BASE_URL = local_url
+                saved["GEMINI_URL"] = local_url
             if key and key_env:
                 os.environ[key_env] = key
                 if provider == "gemini":
                     llm.API_KEY = key
+                elif provider == "local":
+                    llm.LOCAL_KEY = key
                 saved[key_env] = key
             # both clients are cached; drop them so the new choice takes effect
             llm._client = None
@@ -542,8 +559,17 @@ def _student_setup() -> None:
 
 def _begin_lesson(topic, level, minutes, goal, uploaded) -> None:
     """Plan the lesson and open it. Shared by the student and teacher setups."""
+    # Auto-infer the topic from the uploaded file name when nothing was typed.
+    final_topic = (topic or "").strip()
+    if not final_topic and uploaded:
+        final_topic = os.path.splitext(uploaded.name)[0] \
+            .replace("_", " ").replace("-", " ").title()
+    if not final_topic:
+        st.warning("⚠️ Enter a topic or upload your material first.")
+        return
+
     language = _lang()
-    token = f"start:{topic}:{level}:{language}:{minutes}"
+    token = f"start:{final_topic}:{level}:{language}:{minutes}"
     if not _claim(token):
         st.info("Already starting that lesson…")
         st.stop()
@@ -554,7 +580,7 @@ def _begin_lesson(topic, level, minutes, goal, uploaded) -> None:
     try:
         with st.spinner(_t("lesson.planning")):
             session = orch.start_session(
-                topic, profile, save_upload(uploaded),
+                final_topic, profile, save_upload(uploaded),
                 student_id=st.session_state.student_id)
             segment = orch.step(session)
     except Exception as exc:
@@ -605,24 +631,18 @@ def _teacher_setup() -> None:
         _begin_lesson(topic, level, minutes, None, uploaded)
 
 
+
 # ---------------------------------------------------------------------------
 # Screen 2 — Lesson
 # ---------------------------------------------------------------------------
 
 def _language_switch(session) -> None:
-    """Change the teaching language without restarting the lesson.
+    """Change the teaching language immediately mid-lesson.
 
     The brief asks for this explicitly — "now explain it in English" mid
     conversation — and the lesson has to survive it: same plan, same progress,
-    same history. Pair B reads state.profile.language on every call, and
-    speak() is passed it per segment, so changing it here is enough for the
-    teaching. It takes effect on the next segment rather than re-rendering the
-    current one, which would cost an LLM call and a re-render for something
-    the student can already read.
-
-    The INTERFACE moves at once, though, on this same click — buttons, tabs,
-    the panel, all of it. There is no reason to make someone wait a segment to
-    be able to read the Answer button.
+    same history. The current segment is re-rendered in the new language by
+    orch.switch_language(), and the interface moves with it.
     """
     codes = languages.codes()
     current = session.profile.language
@@ -633,19 +653,27 @@ def _language_switch(session) -> None:
         format_func=languages.label,
         key=f"lang_switch_{session.session_id}",
         label_visibility="collapsed",
-        help="Switch mid-lesson. The interface changes now; the teaching "
-             "changes from the next part onwards.",
+        help="Switch mid-lesson. Updates the current explanation immediately.",
     )
     if chosen != current:
-        session.profile.language = chosen
-        _set_language(chosen)
-        orch.note(session,
-                  f"Student switched the teaching language to "
-                  f"{languages.get(chosen).english_name}.")
-        st.session_state.lang_note = (
-            f"{languages.label(chosen)} — from the next part onwards."
-        )
-        st.rerun()
+        token = f"lang:{session.session_id}:{chosen}"
+        if _claim(token):
+            with st.spinner(f"{_t('lesson.preparing')}…"):
+                try:
+                    new_seg = orch.switch_language(
+                        session, chosen, current_segment=st.session_state.segment
+                    )
+                    if new_seg:
+                        st.session_state.segment = new_seg
+                    st.session_state.lang_note = (
+                        f"Switched to {languages.label(chosen)}."
+                    )
+                except Exception as exc:
+                    st.error(_friendly(exc))
+                finally:
+                    _release(token, completed=True)
+            _set_language(chosen)   # the interface moves with the teaching
+            st.rerun()
 
 
 def _followup_box(session) -> None:
@@ -690,6 +718,9 @@ def screen_lesson() -> None:
     session = st.session_state.session
     segment = st.session_state.segment
 
+    if segment is not None and segment.question is not None:
+        orch.remember_question(session, segment.question)
+
     plan = session.plan
     done = min(session.current_concept, len(plan.concepts))
 
@@ -705,9 +736,6 @@ def screen_lesson() -> None:
     if segment is None:
         st.success(_t("lesson.complete"))
         if st.session_state.report is not None:
-            # Already finished. Streamlit cannot switch tabs for the student,
-            # so say where the report went rather than offering the button
-            # again and looking like nothing happened.
             st.info(_t("lesson.report_ready"))
             return
         if st.button(_t("lesson.finish"), type="primary", disabled=_busy()):
@@ -744,8 +772,34 @@ def screen_lesson() -> None:
             st.image(media.visual_png, caption=segment.visual.caption)
         else:
             st.caption(f"visual: {segment.visual.kind}")
+
+        # Render crisp Mermaid preview if diagram payload is mermaid
+        if segment.visual.kind in ("diagram", "concept_map", "timeline") and segment.visual.payload:
+            payload = segment.visual.payload.strip()
+            if any(k in payload.lower() for k in ["graph", "flowchart", "timeline", "-->", "->"]):
+                with st.expander("🔍 Interactive Diagram Preview", expanded=False):
+                    st.markdown(f"```mermaid\n{payload}\n```")
+
         for note in media.notes:
             st.caption(f"⚠️ {note}")
+
+    # Action row: Explain differently (Regeneration)
+    act_col1, act_col2 = st.columns([1, 1])
+    with act_col1:
+        if st.button("🔄 Explain differently (Regenerate)",
+                     key=f"diff_{session.session_id}_{segment.concept_id}_{session.attempts.get(segment.concept_id, 0)}",
+                     disabled=_busy()):
+            token = f"regen:{session.session_id}:{len(session.turns)}"
+            if _claim(token):
+                try:
+                    with st.spinner("Preparing fresh explanation with new analogy..."):
+                        new_seg = orch.regenerate_current(session, segment)
+                        st.session_state.segment = new_seg
+                except Exception as exc:
+                    st.error(_friendly(exc))
+                finally:
+                    _release(token, completed=True)
+                st.rerun()
 
     if segment.citations:
         with st.expander(f"{_t('lesson.from_material')} "
@@ -766,37 +820,48 @@ def screen_lesson() -> None:
         st.info(st.session_state.last_feedback)
 
     if segment.question is None:
-        if st.button(_t("lesson.continue"), disabled=_busy()):
+        if st.button(_t("lesson.continue"), type="primary", disabled=_busy()):
             _advance(session)
         return
 
-    # Keyed on the question id, not a fixed string. Two questions with the
-    # same options otherwise share one widget, and the second arrives with the
-    # first one's answer already selected.
-    qid = segment.question.id
-    with st.form(f"answer_form_{qid}", clear_on_submit=True):
-        st.write(f"**{segment.question.prompt}**")
-        if segment.question.kind == "mcq" and segment.question.options:
-            # index=None so nothing is pre-selected. With the default, pressing
-            # Answer without choosing silently submits the first option and the
-            # student is marked on a choice they never made.
-            reply = st.radio(_t("lesson.your_answer"), segment.question.options,
-                             index=None, key=f"opt_{qid}",
-                             label_visibility="collapsed")
+    # Check for MMCQ (multi-select) vs single MCQ
+    is_mmcq = segment.question.kind in ("mmcq", "msq") or (
+        segment.question.options and any(p in segment.question.prompt.lower() for p in ["select all", "which of the following are", "multiple options"])
+    )
+    badge = "[MMCQ · Multi-select]" if is_mmcq else (f"[{segment.question.kind.upper()}]" if segment.question.kind else "[QUESTION]")
+
+    with st.form("answer_form", clear_on_submit=False):
+        st.markdown(f"**{segment.question.prompt}** `{badge}`")
+        if is_mmcq and segment.question.options:
+            st.caption("☑️ Select all that apply:")
+            selected_opts = []
+            for opt_idx, opt in enumerate(segment.question.options):
+                if st.checkbox(opt, key=f"ans_chk_{session.session_id}_{segment.question.id}_{opt_idx}"):
+                    selected_opts.append(opt)
+            reply = "; ".join(selected_opts) if selected_opts else ""
+        elif segment.question.kind == "mcq" and segment.question.options:
+            reply = st.radio(
+                _t("lesson.your_answer"), segment.question.options,
+                key=f"ans_rad_{session.session_id}_{segment.question.id}",
+                index=None,
+                label_visibility="collapsed"
+            )
         else:
-            reply = st.text_input(_t("lesson.your_answer"), key=f"txt_{qid}",
-                                  label_visibility="collapsed")
+            reply = st.text_input(
+                _t("lesson.your_answer"),
+                key=f"ans_txt_{session.session_id}_{segment.question.id}",
+                label_visibility="collapsed",
+                placeholder="Type your answer here..."
+            )
+
         col_a, col_s = st.columns([1, 1])
         with col_a:
-            submitted = st.form_submit_button(_t("lesson.answer"),
-                                              type="primary", disabled=_busy())
+            submitted = st.form_submit_button(_t("lesson.answer"), type="primary")
         with col_s:
-            skipped = st.form_submit_button(_t("lesson.skip"), disabled=_busy())
-
-    if submitted and not reply:
-        st.warning(_t("lesson.pick_first"))
+            skipped = st.form_submit_button(_t("lesson.skip"))
 
     if skipped:
+        st.session_state.busy = None  # A killed run leaves a stale lock; skip must not wedge on it.
         token = f"skip:{session.session_id}:{segment.question.id}"
         if _claim(token):
             orch.skip(session, segment.question.id)
@@ -804,9 +869,15 @@ def screen_lesson() -> None:
             st.session_state.last_feedback = None
             _advance(session)
 
-    if submitted and reply:
-        # Keyed on the question, so one question can only ever be answered once
-        # however many times the button is pressed.
+    if submitted:
+        # A run killed mid-marking (Stop, file-change rerun) leaves busy set
+        # forever; done_tokens still guards against double-marking, so clearing
+        # the stale lock here is safe — same defence _advance() already uses.
+        st.session_state.busy = None
+        if not reply or not str(reply).strip():
+            st.warning("⚠️ Please select or type an answer before submitting.")
+            return
+
         token = f"answer:{session.session_id}:{segment.question.id}"
         if not _claim(token):
             st.info("That answer is already being marked…")
@@ -815,7 +886,8 @@ def screen_lesson() -> None:
             with st.spinner(_t("lesson.marking")):
                 evaluation = orch.answer(
                     session,
-                    StudentResponse(question_id=segment.question.id, answer=reply),
+                    StudentResponse(question_id=segment.question.id, answer=str(reply)),
+                    question=segment.question,
                 )
         except Exception as exc:
             _release(token, completed=False)
@@ -829,13 +901,18 @@ def screen_lesson() -> None:
 def _advance(session) -> None:
     """Fetch the next segment — which may be a re-explanation of this one."""
     rt = orch.runtime(session)
-    token = f"step:{session.session_id}:{len(session.turns)}"
+    st.session_state.busy = None  # Ensure advance is never blocked by an earlier lock
+    token = f"step:{session.session_id}:{len(session.turns)}:{session.current_concept}"
     if not _claim(token):
-        st.stop()
+        st.rerun()
+        return
     try:
         with st.spinner(_t("lesson.preparing")):
             if rt.pending is not None or not orch.is_finished(session):
-                st.session_state.segment = orch.step(session)
+                new_seg = orch.step(session)
+                st.session_state.segment = new_seg
+                if new_seg and new_seg.question:
+                    orch.remember_question(session, new_seg.question)
             else:
                 st.session_state.segment = None
     except Exception as exc:
@@ -946,7 +1023,8 @@ else:
     # The teacher gets one extra tab. It is added rather than substituted: a
     # teacher previewing a lesson needs to see exactly the lesson the class
     # will see, so every student tab stays exactly where it was.
-    names = ["nav.lesson", "nav.history", "nav.quiz", "nav.path", "nav.report"]
+    names = ["nav.lesson", "nav.history", "nav.quiz", "nav.flashcards",
+             "nav.path", "nav.report"]
     if st.session_state.get("role") == "teacher":
         names.append("nav.classroom")
 
@@ -958,6 +1036,8 @@ else:
         screen_history()
     with tabs["nav.quiz"]:
         quiz_screen.render_quiz(st.session_state.session, _lang())
+    with tabs["nav.flashcards"]:
+        flashcards_screen.render_flashcards(st.session_state.session, _lang())
     with tabs["nav.path"]:
         path_screen.render_path(st.session_state.session, _lang())
     with tabs["nav.report"]:

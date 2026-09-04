@@ -16,33 +16,36 @@ from pathlib import Path
 import re
 from typing import Callable
 
-from google import genai
-from google.genai import types
+# google-genai is only needed for the "gemini" (Google Cloud/API) provider.
+# Imported lazily in _get_client() so the app can boot with the local or
+# OpenAI-compatible providers without the SDK installed.
+# There is also a 3rd-party clash: `google.genai` must not be imported when a
+# local/OpenAI provider on a local base_url is in use, or the module import
+# (which resolves the package) may be shadowed.
 
-_PROVIDER_EARLY = os.environ.get("AI_TEACHER_PROVIDER", "gemini").strip().lower()
+_PROVIDER_EARLY = os.environ.get("AI_TEACHER_PROVIDER", "local").strip().lower()
 _MODEL_DEFAULTS = {
+    "local": "gemini-3.7-flash",
     "gemini": "gemini-3.6-flash",
     "groq": "openai/gpt-oss-120b",
     "ollama": "llama3.1:8b",
 }
-_MODEL_PREFIX = {"gemini": ("gemini",)}
+_MODEL_PREFIX = {
+    "gemini": ("gemini",),
+    "local": ("gemini",),
+}
 
 
 def _pick_model() -> str:
-    """Honour AI_TEACHER_MODEL, but not when it belongs to another provider.
-
-    A model id left in .env from a previous provider produces a 404 that reads
-    like the provider is broken. It is not — it is the wrong model name. So a
-    mismatch falls back to the provider's default rather than failing.
-    """
-    default = _MODEL_DEFAULTS.get(_PROVIDER_EARLY, "gemini-3.6-flash")
+    """Honour AI_TEACHER_MODEL, but not when it belongs to another provider."""
+    default = _MODEL_DEFAULTS.get(_PROVIDER_EARLY, "gemini-3.7-flash")
     wanted = os.environ.get("AI_TEACHER_MODEL", "").strip()
     if not wanted:
         return default
     prefixes = _MODEL_PREFIX.get(_PROVIDER_EARLY)
     if prefixes and not wanted.startswith(prefixes):
         return default
-    if _PROVIDER_EARLY != "gemini" and wanted.startswith("gemini"):
+    if _PROVIDER_EARLY not in ("gemini", "local") and wanted.startswith("gemini"):
         return default
     return wanted
 
@@ -154,18 +157,25 @@ def _mock_response(prompt: str) -> str | None:
 # cache, the timeout and the JSON parsing are shared by every provider.
 # ---------------------------------------------------------------------------
 
-PROVIDER = os.environ.get("AI_TEACHER_PROVIDER", "gemini").strip().lower()
+PROVIDER = os.environ.get("AI_TEACHER_PROVIDER", "local").strip().lower()
 
 DEFAULT_MODELS = {
+    "local": "gemini-3.7-flash",
     "gemini": "gemini-3.6-flash",
     "groq": "openai/gpt-oss-120b",
     "ollama": "llama3.1:8b",
+    "local": "gemini-3.7-flash",
 }
 
 OPENAI_BASE_URLS = {
     "groq": "https://api.groq.com/openai/v1",
     "ollama": os.environ.get("OLLAMA_HOST", "http://localhost:11434") + "/v1",
 }
+
+# Local / self-hosted LLM (e.g. the local Gemini proxy at 127.0.0.1:8010).
+# It exposes the OpenAI Responses API, so it is handled by _complete_local.
+LOCAL_BASE_URL = os.environ.get("GEMINI_URL", "http://127.0.0.1:8010")
+LOCAL_KEY = os.environ.get("GEMINI_KEY", "sk-gemini")
 
 _openai_client = None
 
@@ -207,9 +217,88 @@ def _complete_openai(prompt: str) -> str:
     return resp.choices[0].message.content or ""
 
 
+def _complete_local(prompt: str) -> str:
+    """Local self-hosted LLM speaking the OpenAI Responses API.
+
+    Server advertises /v1/models and /v1/responses (no /chat/completions).
+    Uses stdlib urllib so no openai SDK is required for the local provider.
+    """
+    import urllib.request
+    import urllib.error
+
+    body = json.dumps({
+        "model": MODEL,
+        "input": [{"role": "user", "content": prompt}],
+        "max_output_tokens": 8192,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        f"{LOCAL_BASE_URL}/v1/responses",
+        data=body,
+        headers={
+            "Authorization": f"Bearer {LOCAL_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_MS / 1000) as resp:
+            raw = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        raise LLMError(
+            f"Local LLM ({LOCAL_BASE_URL}) returned HTTP {exc.code}: "
+            f"{exc.read().decode(errors='replace')[:300]}"
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise LLMError(
+            f"Could not reach local LLM at {LOCAL_BASE_URL}: {exc.reason}"
+        ) from exc
+
+    # The proxy returns HTTP 200 even on backend errors, with a plain-text
+    # body like "Internal Server Error". Guard against a non-JSON body.
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise LLMError(
+            f"Local LLM ({LOCAL_BASE_URL}) returned non-JSON body: "
+            f"{raw[:200].strip()!r}"
+        ) from exc
+    if not isinstance(data, dict):
+        raise LLMError(
+            f"Local LLM ({LOCAL_BASE_URL}) returned an unexpected body: "
+            f"{str(data)[:200]!r}"
+        )
+
+    text = data.get("output_text") or ""
+    if not text:
+        for item in data.get("output", []) or []:
+            if not isinstance(item, dict):
+                continue
+            for c in item.get("content", []) or []:
+                if isinstance(c, str):
+                    text += c
+                    continue
+                if not isinstance(c, dict):
+                    continue
+                # One "text" field, or {"text": [...]} of str or {text:...}.
+                t = c.get("text")
+                if isinstance(t, str):
+                    text += t
+                elif isinstance(t, list):
+                    for p in t:
+                        if isinstance(p, str):
+                            text += p
+                        elif isinstance(p, dict):
+                            text += p.get("text", "")
+    return text.strip()
+
+
 def _get_client():
     global _client
     if _client is None:
+        # Delayed import so the app boots without google-genai installed when
+        # a non-gemini provider (local/groq/ollama) is selected.
+        from google import genai
+        from google.genai import types
         if not API_KEY:
             raise LLMError(
                 "No Gemini API key found. Set the environment variable "
@@ -258,6 +347,11 @@ def _complete(prompt: str) -> str:
 
     if PROVIDER in OPENAI_BASE_URLS:
         text = _complete_openai(prompt)
+        _cache_put(prompt, text)
+        return text
+
+    if PROVIDER == "local":
+        text = _complete_local(prompt)
         _cache_put(prompt, text)
         return text
 

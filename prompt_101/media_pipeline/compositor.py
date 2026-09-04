@@ -96,8 +96,8 @@ def _compose_with_avatar(
         "-i", audio_path,                  # Input 2: audio
         "-filter_complex",
         "[1:v]scale=320:-1[av];"
-        "[0:v][av]overlay=W-w-40:H-h-40[vout]",
-        "-map", "[vout]", "-map", "2:a",
+        "[0:v][av]overlay=W-w-40:H-h-40:shortest=1[vout]",
+        "-map", "[vout]", "-map", "1:a?", "-map", "2:a?",
         "-c:v", "libx264", "-shortest",
         "-pix_fmt", "yuv420p", "-movflags", "+faststart",
         output_path,

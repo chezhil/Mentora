@@ -256,7 +256,7 @@ THE STUDENT ANSWERED:
 <<ANSWER>>
 
 DECIDE
-1. correct: is it right (allow equivalent phrasing)?
+1. correct: is it right (allow equivalent phrasing)? If kind is mmcq or msq (multi-choice multi-select), check whether all required correct options were selected.
 2. misconception: the concrete misunderstanding that WOULD produce this
    answer. GOOD: "believes current and resistance are directly
    proportional". BAD: "wrong", "misunderstood".
@@ -266,7 +266,7 @@ DECIDE
    - reexplain -> wrong. Teach this concept again with a different analogy.
    - simplify  -> wrong for the second time. Drop to a lower level.
    - harden    -> correct and effortless. Give something harder.
-   - example   -> partially right. One more example, no full re-explanation.
+   - example   -> partially right (e.g. some correct options in MMCQ). One more example, no full re-explanation.
 4. feedback: what to actually say to the student, in a warm teacher voice.
 
 Return ONLY a JSON object with no markdown fences and no explanation:

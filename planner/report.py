@@ -39,15 +39,34 @@ def build_report(session: SessionState) -> LessonReport:
         TURNS=turns,
         EVALUATIONS=evals_text,
     )
-    data = llm.generate_json(prompt)
+    try:
+        data = llm.generate_json(prompt)
+    except Exception:
+        data = {}
+
+    strong = [str(x) for x in data.get("strong") or []]
+    weak = [str(x) for x in data.get("weak") or []]
+    misconceptions = [str(x) for x in data.get("misconceptions") or []]
+    revise = [str(x) for x in data.get("revise") or []]
+    next_topic = str(data.get("next_topic") or "")
+
+    # Fallback to evaluations if LLM returned empty or failed
+    if not strong and any(e.correct for e in evals):
+        strong = [c.name for c in session.plan.concepts[:max(1, len(evals))]]
+    if not misconceptions:
+        misconceptions = [e.misconception for e in evals if e.misconception]
+    if not weak and misconceptions:
+        weak = [f"Concepts needing review: {', '.join(misconceptions[:2])}"]
+    if not next_topic and session.plan.concepts:
+        next_topic = f"Advanced applications of {session.plan.topic}"
 
     return LessonReport(
         score=score,
-        strong=[str(x) for x in data.get("strong") or []],
-        weak=[str(x) for x in data.get("weak") or []],
-        misconceptions=[str(x) for x in data.get("misconceptions") or []],
-        revise=[str(x) for x in data.get("revise") or []],
-        next_topic=str(data.get("next_topic") or ""),
+        strong=strong,
+        weak=weak,
+        misconceptions=misconceptions,
+        revise=revise,
+        next_topic=next_topic,
     )
 
 
