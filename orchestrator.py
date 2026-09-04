@@ -699,6 +699,17 @@ def quiz_questions(session: SessionState) -> list[Question]:
     return list(rt.quiz)
 
 
+def _answer_text(value) -> str:
+    """One student answer as a string, however the caller supplied it."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, (list, tuple, set)):
+        return "; ".join(str(v).strip() for v in value if v is not None).strip()
+    return str(value).strip()
+
+
 def submit_quiz(session: SessionState,
                 answers: dict[str, str]) -> LessonReport:
     """Mark the final quiz and fold it into the report."""
@@ -706,8 +717,15 @@ def submit_quiz(session: SessionState,
     if not rt.quiz:
         quiz_questions(session)
 
-    for question_id, ans in answers.items():
-        if not str(ans).strip():
+    for question_id, raw_answer in answers.items():
+        # str(None) is "None" -- non-empty -- so an unanswered question sailed
+        # past this check and reached StudentResponse(answer=None), whose
+        # answer field is typed str: one ValidationError took the whole quiz
+        # submission with it. Streamlit's st.radio(index=None) returns None
+        # for exactly that case. A multiselect returns a list, and a numeric
+        # answer an int; neither is a str either.
+        ans = _answer_text(raw_answer)
+        if not ans:
             continue
         question = rt.questions.get(question_id) or _GLOBAL_QUESTIONS.get(question_id)
         if question is None:
