@@ -213,12 +213,6 @@ def api_panel() -> None:
             "Model", models,
             index=models.index(llm.MODEL) if llm.MODEL in models else 0)
 
-        replicate = st.text_input(
-            "Replicate token", type="password",
-            placeholder="not needed — the avatar runs locally",
-            help="Only used if the local Wav2Lip weights are missing, or you "
-                 "set MENTORA_LOCAL_AVATAR=0. The local backend is free and "
-                 "needs no account.")
 
         new_offline = st.toggle("Offline mode (no API calls)", value=offline,
                                 help="Replays canned answers. Free, but every "
@@ -229,29 +223,18 @@ def api_panel() -> None:
         if st.button("Apply", type="primary"):
             saved = {}
             if provider != llm.PROVIDER:
-                os.environ["AI_TEACHER_PROVIDER"] = provider
-                llm.PROVIDER = provider
                 saved["AI_TEACHER_PROVIDER"] = provider
             if provider == "local" and local_url:
-                os.environ["GEMINI_URL"] = local_url
-                llm.LOCAL_BASE_URL = local_url
                 saved["GEMINI_URL"] = local_url
             if key and key_env:
-                os.environ[key_env] = key
-                if provider == "gemini":
-                    llm.API_KEY = key
-                elif provider == "local":
-                    llm.LOCAL_KEY = key
                 saved[key_env] = key
-            llm._client = None
-            llm._openai_client = None
+
             if model != llm.MODEL:
-                os.environ["AI_TEACHER_MODEL"] = model
-                llm.MODEL = model
                 saved["AI_TEACHER_MODEL"] = model
-            if replicate:
-                os.environ["REPLICATE_API_TOKEN"] = replicate
-                saved["REPLICATE_API_TOKEN"] = replicate
+            # One call: it sets the globals, updates the environment AND drops
+            # both cached SDK clients, which hold the old key and base URL.
+            llm.configure(provider=provider, api_key=key or None, model=model,
+                          local_url=local_url if provider == "local" else None)
             if new_offline:
                 os.environ["AI_TEACHER_MOCK"] = "mocks/fixture_mock.json"
             else:
@@ -358,6 +341,7 @@ def adaptation_panel() -> None:
 
 # ---------------------------------------------------------------------------
 # Main routing
+
 # ---------------------------------------------------------------------------
 
 adaptation_panel()

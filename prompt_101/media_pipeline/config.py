@@ -48,9 +48,10 @@ GOOGLE_TTS_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 GOOGLE_TTS_VOICE_PREFIX = "en-US-Wavenet"
 
 # ── Avatar Settings ──
-# LivePortrait on Replicate
-REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
-LIVEPORTRAIT_MODEL = "lucataco/liveportrait:d3bc6890b893"
+# The talking head is local_avatar/ (Wav2Lip, on this machine, free). The
+# Replicate/LivePortrait settings that used to live here were removed with
+# that code path: it could not run without the `replicate` package, which
+# the root requirements.txt deliberately does not install.
 MAX_AVATAR_DURATION_SECONDS = 60
 
 # ── Visual Kinds ──
@@ -71,7 +72,7 @@ class PipelineConfig:
     """
     output_dir: Path = field(default_factory=lambda: Path(__file__).parent / "output")
     tts_provider: str = "auto"  # 'auto', 'piper', or 'google'
-    avatar_provider: str = "replicate"  # 'replicate' or 'none'
+    avatar_provider: str = "local"      # 'local' (Wav2Lip) or 'none'
     max_segment_duration: int = 60
     image_width: int = 1280
     image_height: int = 720

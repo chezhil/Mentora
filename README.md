@@ -83,7 +83,7 @@ are missing.
 Wav2Lip needs a REAL front-facing photograph at `assets/teacher.jpg` — a drawn
 or stylised avatar will not register with the face detector. If detection picks
 the wrong face, set `MENTORA_FACE_BOX="x1,y1,x2,y2"` to skip it.
-`MENTORA_LOCAL_AVATAR=0` forces Pair C's Replicate path instead.
+`MENTORA_LOCAL_AVATAR=0` falls back to a still placeholder card instead.
 
 ### Which LLM provider
 
@@ -112,7 +112,6 @@ repeating a lesson costs nothing. `AI_TEACHER_CACHE=0` disables it.
 | Variable | Without it |
 |---|---|
 | `GEMINI_API_KEY` | Pair B cannot run at all. `AI_TEACHER_MOCK=mocks/fixture_mock.json` replays canned answers instead. |
-| `REPLICATE_API_TOKEN` | The avatar is a still image, not a talking head. |
 
 Check the whole loop without a browser:
 

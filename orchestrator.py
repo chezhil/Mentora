@@ -31,6 +31,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import uuid
 from datetime import datetime, timezone
@@ -142,11 +143,26 @@ def remember_question(session: SessionState, question: Question | None) -> None:
     rt = runtime(session)
     rt.questions[question.id] = question
     _GLOBAL_QUESTIONS[question.id] = question
+    while len(_GLOBAL_QUESTIONS) > MAX_GLOBAL_QUESTIONS:
+        _GLOBAL_QUESTIONS.pop(next(iter(_GLOBAL_QUESTIONS)))
     _cache_question(session.session_id, question)
 
 
+# Neither table ever dropped anything. A Runtime holds every question, every
+# rendered media path and the panel state for a whole lesson, and server.py
+# runs for as long as the demo does, so both only ever grew. Bounded FIFO:
+# far more than any session will open, and it cannot grow without limit.
+MAX_LIVE_SESSIONS = 64
+MAX_GLOBAL_QUESTIONS = 2000
+
+
 def runtime(session: SessionState) -> Runtime:
-    return _RUNTIME.setdefault(session.session_id, Runtime())
+    rt = _RUNTIME.get(session.session_id)
+    if rt is None:
+        rt = _RUNTIME[session.session_id] = Runtime()
+        while len(_RUNTIME) > MAX_LIVE_SESSIONS:
+            _RUNTIME.pop(next(iter(_RUNTIME)))
+    return rt
 
 
 def media_for(session: SessionState, segment: TeachingSegment) -> SegmentMedia:
@@ -179,11 +195,6 @@ def _log(session: SessionState, role: str, content: str,
                 timestamp=_now())
     session.turns.append(turn)
     _persist("save_turn", session.session_id, turn)
-
-
-def note(session: SessionState, text: str) -> None:
-    """Record an operational event or student action into the transcript."""
-    _log(session, "system", text)
 
 
 # ---------------------------------------------------------------------------
@@ -238,15 +249,47 @@ def _build_media(session: SessionState,
         out.notes.append(f"audio failed: {exc}")
 
     if out.audio_wav:
-        seconds = wiring.audio_seconds(out.audio_wav)
+        # Every other call to Pair C in this function is wrapped; this one was
+        # not, so a truncated or unreadable WAV raised straight out of
+        # _build_media and ended the lesson at step(). Injecting a failure into
+        # each media dependency in turn, this was the only one that did.
+        # Treat an unmeasurable clip as short and let the avatar backend
+        # enforce its own limit.
+        try:
+            seconds = wiring.audio_seconds(out.audio_wav)
+        except Exception as exc:
+            out.notes.append(f"could not measure narration length: {exc}")
+            seconds = 0.0
         if seconds > MAX_AVATAR_SECONDS:
-            # Do not even attempt it — Pair C refuses, and rightly. A segment
-            # this long is a planning bug, so say so loudly.
+            # Do not even attempt an avatar — Pair C refuses, and rightly. A
+            # segment this long is a planning bug, so say so loudly.
             out.notes.append(
                 f"script is {seconds:.0f}s, over the {MAX_AVATAR_SECONDS}s "
                 f"avatar cap — teaching as audio + visual only"
             )
-        else:
+        elif _board_video_enabled():
+            # Preferred path: the animated board video (avatar-prototype's
+            # restyled renderer), timed to the narration we already have.
+            # Falls back to the legacy avatar-compose path below on any
+            # failure, so the product behaves exactly as before offline.
+            try:
+                import board_media
+                board = board_media.render_board_video(
+                    script=segment.script,
+                    kind=segment.visual.kind if segment.visual else "none",
+                    payload=segment.visual.payload if segment.visual else "",
+                    caption=segment.visual.caption if segment.visual else "",
+                    out_dir=os.path.join(VISUAL_DIR, "board"),
+                    audio_wav=out.audio_wav,
+                    max_seconds=MAX_AVATAR_SECONDS,
+                )
+                if board:
+                    out.video_mp4 = board
+                    out.notes.append("board video (animated visual)")
+            except Exception as exc:
+                out.notes.append(f"board video failed: {exc}")
+        if seconds <= MAX_AVATAR_SECONDS and not out.video_mp4:
+            # Legacy fallback: Wav2Lip-style avatar composed over the still.
             try:
                 mp4 = wiring.render_avatar(out.audio_wav, FACE_IMAGE)
                 if mp4:
@@ -258,6 +301,11 @@ def _build_media(session: SessionState,
 
     runtime(session).media[_media_key(segment, session.profile.language)] = out
     return out
+
+
+def _board_video_enabled() -> bool:
+    """Off switch: set MENTORA_BOARD_VIDEO=0 to force the legacy avatar path."""
+    return os.environ.get("MENTORA_BOARD_VIDEO", "1") != "0"
 
 
 # ---------------------------------------------------------------------------
@@ -322,7 +370,20 @@ def start_session(topic: str, profile: LearnerProfile,
             "weak_concepts": list(dict.fromkeys(profile.weak_concepts + carried)),
         })
 
-    doc_id = wiring.ingest(file_path) if file_path else None
+    # An unreadable upload must not cost the student their lesson. Teaching
+    # from a topic alone is a first-class path here -- doc_id=None is the
+    # normal no-document case -- so a corrupt or empty file degrades to it
+    # rather than raising out of start_session and blocking the lesson
+    # entirely. PyMuPDF and python-docx raise their own types for this
+    # (EmptyFileError, FileDataError, PackageNotFoundError), so catch broadly
+    # and say what happened on the transcript.
+    doc_id = None
+    ingest_error: str | None = None
+    if file_path:
+        try:
+            doc_id = wiring.ingest(file_path)
+        except Exception as exc:
+            ingest_error = f"{type(exc).__name__}: {exc}"
 
     plan = wiring.plan(topic, profile, doc_id)
 
@@ -337,10 +398,20 @@ def start_session(topic: str, profile: LearnerProfile,
     _persist("record_study_start", session.session_id, student_id,
              topic, profile.time_minutes)
 
-    source = f"from {file_path}" if file_path else "with no uploaded material"
+    source = ("with no uploaded material" if not file_path
+              else f"from {file_path}" if doc_id
+              else f"WITHOUT {file_path}, which could not be read")
     _log(session, "system",
          f"Session opened: {topic}, {profile.level}, {profile.language}, "
          f"{profile.time_minutes} min, {source}.")
+
+    if ingest_error:
+        # Say so on the transcript. A lesson that quietly ignores the document
+        # the student uploaded looks like the document was used.
+        _log(session, "system",
+             f"Could not read the uploaded material ({ingest_error}). "
+             f"Teaching {topic} from general knowledge instead; nothing in "
+             f"this lesson is grounded in that file.")
 
     if previous:
         weak = ", ".join(profile.weak_concepts[:3]) or "nothing in particular"
@@ -392,6 +463,11 @@ def step(session: SessionState) -> TeachingSegment:
     return segment
 
 
+# Question ids this system mints: "q3_c1" from teacher.engine, "q2" from
+# planner.quiz. Used to tell a genuine post-restart id from a bad one.
+_OURS = re.compile(r"q\d+(?:_c\d+)?")
+
+
 def answer(session: SessionState,
            response: StudentResponse,
            question: Question | None = None) -> Evaluation:
@@ -416,7 +492,20 @@ def answer(session: SessionState,
                 if response.question_id.startswith(f"q_{q.concept_id}") or q.id == response.question_id:
                     question = q
                     break
-        # 6. Safe synthesized fallback if state was wiped by restart
+        # 6. Safe synthesized fallback if state was wiped by restart.
+        #
+        # Only for ids we could actually have MINTED. teacher.engine writes
+        # "q<n>_<concept>" and planner.quiz writes "q<n>"; anything else did
+        # not come from us. Synthesising for any string at all meant a garbage
+        # question_id produced a real Evaluation, appended to
+        # session.evaluations, marked against an invented `expected` the
+        # student never saw — and session.evaluations is what the score is
+        # computed from. A client sending junk could move the grade.
+        if question is None and not _OURS.fullmatch(response.question_id or ""):
+            raise KeyError(
+                f"unknown question id {response.question_id!r} — "
+                f"step() must run before answer()"
+            )
         if question is None:
             concept_id = None
             if "_" in response.question_id:
@@ -611,6 +700,17 @@ def quiz_questions(session: SessionState) -> list[Question]:
     return list(rt.quiz)
 
 
+def _answer_text(value) -> str:
+    """One student answer as a string, however the caller supplied it."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, (list, tuple, set)):
+        return "; ".join(str(v).strip() for v in value if v is not None).strip()
+    return str(value).strip()
+
+
 def submit_quiz(session: SessionState,
                 answers: dict[str, str]) -> LessonReport:
     """Mark the final quiz and fold it into the report."""
@@ -618,8 +718,15 @@ def submit_quiz(session: SessionState,
     if not rt.quiz:
         quiz_questions(session)
 
-    for question_id, ans in answers.items():
-        if not str(ans).strip():
+    for question_id, raw_answer in answers.items():
+        # str(None) is "None" -- non-empty -- so an unanswered question sailed
+        # past this check and reached StudentResponse(answer=None), whose
+        # answer field is typed str: one ValidationError took the whole quiz
+        # submission with it. Streamlit's st.radio(index=None) returns None
+        # for exactly that case. A multiselect returns a list, and a numeric
+        # answer an int; neither is a str either.
+        ans = _answer_text(raw_answer)
+        if not ans:
             continue
         question = rt.questions.get(question_id) or _GLOBAL_QUESTIONS.get(question_id)
         if question is None:
@@ -958,7 +1065,7 @@ Return ONLY a valid JSON object matching this structure:
         _build_media(session, new_seg)
         _remember_question(session, new_seg)
         return new_seg
-    except Exception as exc:
+    except Exception:
         try:
             _build_media(session, current_segment)
         except Exception:
@@ -969,8 +1076,6 @@ Return ONLY a valid JSON object matching this structure:
 def regenerate_current(session: SessionState, current_segment: TeachingSegment) -> TeachingSegment:
     """Regenerate the current segment with an alternative explanation and analogy."""
     concept_id = current_segment.concept_id
-    concept = next((c for c in session.plan.concepts if c.id == concept_id), None)
-    
     attempt = session.attempts.get(concept_id, 0) + 1
     session.attempts[concept_id] = attempt
     

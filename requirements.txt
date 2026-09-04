@@ -22,6 +22,16 @@ openai>=1.40                   # Groq and Ollama speak the OpenAI API
 
 # Pair C — prompt_101/media_pipeline (Santosh, Hamza)
 imageio-ffmpeg>=1.4            # NOT a system ffmpeg
+# Imported by code that runs on every lesson but never declared: they arrive
+# transitively from streamlit/matplotlib/torch today, so the repo works by
+# accident. A fresh install that resolves differently loses the diagram and
+# concept-map renderers (networkx), every PNG save (Pillow), Wav2Lip's audio
+# front end (scipy) and the Replicate download (requests).
+Pillow>=10.0                   # renderers save_figure, avatar photo checks
+networkx>=3.0                  # diagram and concept_map renderers
+scipy>=1.11                    # vendor/wav2lip audio
+requests>=2.31                 # downloads the Replicate render
+huggingface-hub>=0.23          # mentora_video.py text-to-video bridge
 
 # Local avatar (local_avatar/) — free alternative to Replicate
 torch>=2.2                     # Wav2Lip inference in local_avatar/
@@ -32,7 +42,8 @@ piper-tts>=1.7                 # local voice: en, hi, te. Offline, no key.
 edge-tts>=7.0                  # free neural voice for ta, kn, bn, mr and as
                                # fallback everywhere. No key, needs network.
 # Voice models are NOT in the repo (63MB each). See README "Voice models".
-# REPLICATE_API_TOKEN env var  # real avatar; without it it is a still image
+# The talking head is local_avatar/ (Wav2Lip), free and on this machine.
+# There is no paid avatar backend any more.
 
 fastapi>=0.110.0
 uvicorn>=0.28.0

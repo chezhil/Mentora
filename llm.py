@@ -124,6 +124,52 @@ def cache_stats() -> dict:
     return {"enabled": True, "entries": len(list(CACHE_DIR.glob("*.txt")))}
 
 
+def configure(provider: str | None = None, api_key: str | None = None,
+              model: str | None = None, local_url: str | None = None) -> None:
+    """Change provider / key / model at runtime, correctly.
+
+    PROVIDER, MODEL and the keys are read once at import, and both SDK clients
+    are built once and cached. So setting os.environ["GEMINI_API_KEY"] after
+    import — which is what server.py's /api/start did with the key pasted into
+    the web form — changed nothing at all: the request still went out on
+    whatever was present at startup.
+
+    app.py did the whole dance by hand, including reaching into llm._client and
+    llm._openai_client. One place to get it right, so the two callers cannot
+    drift apart.
+    """
+    global PROVIDER, MODEL, API_KEY, LOCAL_KEY, LOCAL_BASE_URL
+    global _client, _openai_client
+
+    if provider:
+        provider = provider.strip().lower()
+        if provider != PROVIDER:
+            PROVIDER = provider
+            os.environ["AI_TEACHER_PROVIDER"] = provider
+
+    if local_url:
+        LOCAL_BASE_URL = local_url
+        os.environ["GEMINI_URL"] = local_url
+
+    if api_key:
+        if PROVIDER == "groq":
+            os.environ["GROQ_API_KEY"] = api_key
+        elif PROVIDER == "local":
+            LOCAL_KEY = api_key
+            os.environ["GEMINI_API_KEY"] = api_key
+        else:
+            API_KEY = api_key
+            os.environ["GEMINI_API_KEY"] = api_key
+
+    if model:
+        MODEL = model
+        os.environ["AI_TEACHER_MODEL"] = model
+
+    # Both clients bake the key and base URL in at construction time.
+    _client = None
+    _openai_client = None
+
+
 def _mock_response(prompt: str) -> str | None:
     """Offline replay: AI_TEACHER_MOCK=<json file> maps a prompt substring
     to the JSON response the model should 'return'. Lets the contract's
@@ -164,7 +210,6 @@ DEFAULT_MODELS = {
     "gemini": "gemini-3.6-flash",
     "groq": "openai/gpt-oss-120b",
     "ollama": "llama3.1:8b",
-    "local": "gemini-3.7-flash",
 }
 
 OPENAI_BASE_URLS = {
@@ -354,6 +399,12 @@ def _complete(prompt: str) -> str:
         text = _complete_local(prompt)
         _cache_put(prompt, text)
         return text
+
+    # `types` is imported inside _get_client(), which is a DIFFERENT scope.
+    # Using it here raised NameError on every Gemini call, so selecting Gemini
+    # in the APIs panel could not work at all. Same delayed import, so the app
+    # still boots without google-genai installed.
+    from google.genai import types
 
     resp = _get_client().models.generate_content(
         model=MODEL,

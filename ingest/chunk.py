@@ -5,7 +5,6 @@ Splits on paragraph/sentence boundaries (target 500-800 words, ~100 word overlap
 """
 import sys
 import re
-from pathlib import Path
 from typing import List, Tuple, Optional
 
 if sys.platform == "win32":
@@ -45,10 +44,39 @@ CHUNK_MAX_WORDS = 500
 CHUNK_OVERLAP_WORDS = 40
 
 
+# A sentence ends at ., !, ? or the Indic danda, and the next sentence starts
+# with anything that is not a lowercase Latin letter.
+#
+# The lookahead used to be (?=[A-Z0-9]) -- a Latin capital or a digit. Nothing
+# in Devanagari, Tamil, Telugu, Kannada, Bengali, Malayalam, Gujarati, Arabic
+# or Cyrillic matches that, and the danda was not a terminator at all, so for
+# every non-Latin document _split_into_sentences returned the whole paragraph
+# as ONE sentence. The chunker then emitted it whole, so Hindi chunks were
+# paragraph-sized while English ones were ~200 words -- and MIN_SCORE is
+# calibrated against the English size. Retrieval was quietly worse in exactly
+# the languages this is built for.
+#
+# Keeping "not a lowercase letter" preserves the behaviour that matters: "e.g.
+# foo" and "3.5 million" still do not split.
+_SENTENCE_END = re.compile(r'(?<=[.!?।॥])\s+(?=[^\sa-z])')
+
+
 def _split_into_sentences(text: str) -> List[str]:
-    sentence_end = re.compile(r'(?<=[.!?])\s+(?=[A-Z0-9])')
-    raw_sentences = sentence_end.split(text.strip())
-    return [s.strip() for s in raw_sentences if s.strip()]
+    out = []
+    for raw in _SENTENCE_END.split(text.strip()):
+        raw = raw.strip()
+        if not raw:
+            continue
+        # A "sentence" longer than a whole chunk means the source had no
+        # usable punctuation. Break it on words so nothing downstream can be
+        # handed a chunk many times the size MIN_SCORE was calibrated for.
+        words = raw.split()
+        if len(words) <= CHUNK_MAX_WORDS:
+            out.append(raw)
+            continue
+        for i in range(0, len(words), CHUNK_MAX_WORDS):
+            out.append(" ".join(words[i:i + CHUNK_MAX_WORDS]))
+    return out
 
 
 def chunk(pages: List[Tuple[str, Optional[int]]]) -> List[SourceChunk]:

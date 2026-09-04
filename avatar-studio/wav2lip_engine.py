@@ -20,9 +20,7 @@ detection geometry, paste-back blending and head motion below.
 
 from __future__ import annotations
 
-import hashlib
 import math
-import os
 import shutil
 import subprocess
 import threading

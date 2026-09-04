@@ -4,7 +4,7 @@ import re
 import uuid
 from shared.models import (
     LessonPlan, SessionState, SourceChunk, TeachingSegment, 
-    Question, StudentResponse, Evaluation, Turn
+    Question, StudentResponse, Evaluation
 )
 from prompts import SEGMENT_PROMPT, EVALUATE_PROMPT, REEXPLAIN_PROMPT
 from llm import generate_json
@@ -106,6 +106,12 @@ def normalise_question(raw: dict | None, concept_id: str) -> dict | None:
     raw = dict(raw)
     raw["id"] = _fresh_question_id(concept_id)
     raw["concept_id"] = concept_id
+    # Question.prompt and .expected are typed str, and pydantic does not coerce
+    # into str. A model answering a numeric question with "expected": 42 --
+    # entirely plausible -- raised ValidationError out of next_segment and took
+    # the whole lesson step with it. Coerce here, where the shape is being
+    # normalised anyway.
+    raw["prompt"] = str(raw.get("prompt", "")).strip()
 
     options = raw.get("options")
     if isinstance(options, list):
@@ -123,7 +129,7 @@ def normalise_question(raw: dict | None, concept_id: str) -> dict | None:
     if options and len(options) >= 2:
         raw["kind"] = "mcq"
         raw["options"] = options
-        snapped = _match_option(str(raw.get("expected", "")), options)
+        snapped = _match_option(str(raw.get("expected") or ""), options)
         # An mcq whose correct answer is not one of the options cannot be
         # marked by clicking, so it stops being an mcq.
         if snapped is None:
@@ -138,9 +144,60 @@ def normalise_question(raw: dict | None, concept_id: str) -> dict | None:
 
     if raw.get("kind") not in ("mcq", "short", "explain", "problem"):
         raw["kind"] = "short"
-    if not str(raw.get("expected", "")).strip():
+    # str(None) is "None", which is not empty — so a model returning
+    # "expected": null produced the literal string "None" as the correct
+    # answer, and EVALUATE_PROMPT then told the marker that "None" was right.
+    expected = raw.get("expected")
+    # str(None) is "None", not empty, so "expected": null used to become the
+    # literal string "None" and EVALUATE_PROMPT was told that was the answer.
+    if expected is None or not str(expected).strip():
         raw["expected"] = "(open answer — mark on understanding)"
+    else:
+        raw["expected"] = str(expected)
     return raw
+
+
+VISUAL_KINDS = ("equation", "graph", "diagram", "timeline", "code",
+                "concept_map", "none")
+
+# What models reach for when they do not use the exact word we asked for.
+_KIND_ALIASES = {
+    "flowchart": "diagram", "flow": "diagram", "flow_chart": "diagram",
+    "picture": "none", "image": "none", "photo": "none", "illustration": "none",
+    "chart": "graph", "plot": "graph", "line_graph": "graph", "bar": "graph",
+    "formula": "equation", "math": "equation", "equations": "equation",
+    "map": "concept_map", "mindmap": "concept_map", "concept map": "concept_map",
+    "conceptmap": "concept_map", "snippet": "code", "program": "code",
+    "timeline_chart": "timeline", "none_needed": "none", "null": "none",
+}
+
+
+def _clean_segment(data: dict | None, concept_id: str) -> dict:
+    """Coerce a model's segment into the shape TeachingSegment demands.
+
+    Six plausible outputs used to raise straight out of next_segment and take
+    the lesson step with them: a numeric script, a visual kind the model
+    invented, a null payload, no visual key at all, a numeric caption, and an
+    empty object. TeachingSegment is typed and pydantic will not coerce into
+    str, so every one of those was a ValidationError mid-lesson.
+    """
+    data = dict(data) if isinstance(data, dict) else {}
+    data["concept_id"] = concept_id
+    data["script"] = str(data.get("script") or "")
+
+    visual = data.get("visual")
+    if not isinstance(visual, dict):
+        visual = {}
+    kind = str(visual.get("kind") or "none").strip().lower().replace("-", "_")
+    if kind not in VISUAL_KINDS:
+        kind = _KIND_ALIASES.get(kind, "none")
+    caption = visual.get("caption")
+    data["visual"] = {
+        "kind": kind,
+        "payload": str(visual.get("payload") or ""),
+        "caption": None if caption is None else (str(caption).strip() or None),
+    }
+    return data
 
 
 def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk]) -> TeachingSegment:
@@ -172,8 +229,7 @@ def next_segment(plan: LessonPlan, state: SessionState, chunks: list[SourceChunk
         .replace("<<ASK>>", "True") \
         .replace("<<CONCEPT_ID>>", concept.id)
 
-    data = generate_json(prompt)
-    data["concept_id"] = concept.id  # Enforce matching concept ID
+    data = _clean_segment(generate_json(prompt), concept.id)
     if data.get("question"):
         data["question"]["id"] = f"q_{concept.id}_{uuid.uuid4().hex[:6]}"
         data["question"]["concept_id"] = concept.id
@@ -196,19 +252,42 @@ def evaluate(question: Question, response: StudentResponse) -> Evaluation:
         .replace("<<ANSWER>>", response.answer)
         
     data = generate_json(prompt)
+    if not isinstance(data, dict):
+        data = {}
+
+    # Evaluation is a typed model and pydantic will not coerce into str, so
+    # every field the model might get wrong is normalised here. A marking call
+    # that raises ValidationError ends the lesson on a perfectly good answer,
+    # which is a far worse outcome than a slightly-guessed verdict.
+    verdict = data.get("correct")
+    if isinstance(verdict, str):
+        verdict = verdict.strip().lower() in ("true", "yes", "correct", "1", "y")
+    data["correct"] = bool(verdict)
+
     action = str(data.get("action", "")).lower().strip()
     if action not in ("continue", "reexplain", "simplify", "harden", "example"):
         action = "continue" if data.get("correct") else "reexplain"
     data["action"] = action
 
-    # If marked correct, clear misconception to adhere to schema
-    if data.get("correct"):
-        data["misconception"] = None
-    elif not data.get("misconception"):
-        data["misconception"] = "Incomplete or inaccurate explanation"
+    # Normalise BEFORE defaulting: a misconception of "   " is truthy, so it
+    # skipped the default and was only stripped to None afterwards, leaving a
+    # wrong answer with no named mistake. The contract, and the adaptation
+    # panel, both require one.
+    misconception = data.get("misconception")
+    misconception = "" if misconception is None else str(misconception).strip()
+    if data["correct"]:
+        data["misconception"] = None                 # schema: correct => none
+    else:
+        data["misconception"] = (misconception
+                                 or "Incomplete or inaccurate explanation")
 
-    if not data.get("feedback"):
-        data["feedback"] = "Great work! Let's continue." if data.get("correct") else "Let's review this concept carefully."
+    # `if not feedback` only catches the falsy ones: a numeric feedback of 5
+    # is truthy, survived to model_validate and failed the str field there.
+    feedback = data.get("feedback")
+    feedback = "" if feedback is None else str(feedback).strip()
+    data["feedback"] = feedback or (
+        "Great work! Let's continue." if data["correct"]
+        else "Let's review this concept carefully.")
 
     return Evaluation.model_validate(data)
 
@@ -265,8 +344,7 @@ def reexplain(concept_id: str, misconception: str, attempt: int, state: SessionS
         .replace("<<HISTORY>>", history_str) \
         .replace("<<CONCEPT_ID>>", concept_id)
         
-    data = generate_json(prompt)
-    data["concept_id"] = concept_id
+    data = _clean_segment(generate_json(prompt), concept_id)
     if data.get("question"):
         data["question"]["id"] = f"q_{concept_id}_{attempt}_{uuid.uuid4().hex[:6]}"
         data["question"]["concept_id"] = concept_id

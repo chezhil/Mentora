@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Optional
 
 # Mentora shared shape (kept local so this bridge runs without the app import).
 from shared.models import TeachingSegment, VisualSpec
@@ -109,7 +108,8 @@ def render_video(prompt: str, out_path: str) -> str:
     return out_path
 
 
-def render_avatar_fallback(topic: str, out_path: str) -> str:
+def render_avatar_fallback(topic: str, out_path: str,
+                           level: str = "beginner") -> str:
     """Fallback: generate a talking-head avatar video (Piper TTS + Wav2Lip)."""
     import mentora_avatar as avatar
     out_dir = os.path.dirname(out_path) or "."
@@ -117,7 +117,7 @@ def render_avatar_fallback(topic: str, out_path: str) -> str:
     slug = os.path.splitext(os.path.basename(out_path))[0]
     wav = os.path.join(out_dir, f"{slug}.wav")
 
-    script = avatar.make_script(topic, "beginner")
+    script = avatar.make_script(topic, level)
     print(f"[avatar] script ({len(script)} chars)")
     avatar.speak(script, wav)
     avatar.render_avatar_mp4(wav, out_path)
@@ -146,7 +146,7 @@ def main() -> None:
         print(f"\nRESULT: Wan video -> {out}")
     except Exception as e:
         print(f"\n[wan] fallback triggered: {e}")
-        render_avatar_fallback(topic, out)
+        render_avatar_fallback(topic, out, level)
         print(f"\nRESULT: avatar fallback video -> {out}")
 
 

@@ -8,7 +8,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from media_pipeline import render, choose_visual, speak, compose, stitch
+from media_pipeline import render, choose_visual, speak
 
 
 def demo_choose_visual():

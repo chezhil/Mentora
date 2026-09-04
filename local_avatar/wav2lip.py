@@ -178,6 +178,17 @@ def _mel_chunks(wav_path: str) -> list[np.ndarray]:
     if np.isnan(mel.reshape(-1)).sum() > 0:
         raise ValueError("Mel spectrogram contains NaN — is the WAV silent?")
 
+    # Wav2Lip wants a mel window MEL_STEP wide. Under about 0.2s of audio the
+    # spectrogram is narrower than that, and the loop below then slices
+    # mel[:, shape[1] - MEL_STEP:] with a NEGATIVE start, which wraps and
+    # yields a window of the wrong width -- (80, 5) for a tenth of a second.
+    # The model rejects it with "Calculated padded input size per channel:
+    # (3 x 2). Kernel size: (3 x 3)", so the whole avatar render fails.
+    # The orchestrator catches that, so the lesson survives and just quietly
+    # loses its teacher for the segment. Pad to one full window instead.
+    if mel.shape[1] < MEL_STEP:
+        mel = np.pad(mel, ((0, 0), (0, MEL_STEP - mel.shape[1])), mode="edge")
+
     chunks, i, step = [], 0, 80.0 / FPS
     while True:
         start = int(i * step)
@@ -217,10 +228,17 @@ PERIODS = (5.7, 4.3, 6.9, 8.1)   # seconds; no common multiple
 
 def _speech_envelope(wav_path: str, n_frames: int) -> np.ndarray:
     """Per-frame loudness in 0..1, so motion tracks the voice."""
+    # The resting amplitude the formula at the end floors at. Returning ones
+    # here instead would ask for MAXIMUM motion, which is backwards: this
+    # module's whole point is that "the head settles when the teacher stops
+    # talking". Silence and an unreadable WAV both mean "no voice to follow",
+    # so both get the resting level, not the liveliest one. The silent
+    # placeholder WAV that voice.py falls back to hits this exactly.
+    rest = np.full(n_frames, 0.45, dtype=np.float32)
     try:
         samples = w2l_audio.load_wav(wav_path, 16000)
     except Exception:
-        return np.ones(n_frames, dtype=np.float32)
+        return rest
 
     per_frame = int(16000 / FPS)
     env = np.zeros(n_frames, dtype=np.float32)
@@ -229,7 +247,7 @@ def _speech_envelope(wav_path: str, n_frames: int) -> np.ndarray:
         env[i] = float(np.sqrt(np.mean(chunk ** 2))) if len(chunk) else 0.0
     peak = env.max()
     if peak <= 0:
-        return np.ones(n_frames, dtype=np.float32)
+        return rest
     env = env / peak
     # Smooth, or the head jitters on every syllable.
     kernel = np.ones(9, dtype=np.float32) / 9.0
