@@ -236,35 +236,53 @@ def analyse(wav_path, fps: int, frames: int, seed: int = 7) -> list[dict]:
 # Drawing
 # ---------------------------------------------------------------------------
 
+def _one(group: str, p, px, axn: float, ayn: float) -> Affine2D:
+    """The transform a single <g> applies to its own contents."""
+    tr = Affine2D()
+    if group == "root":
+        return tr.rotate_deg_around(200, 300, p["angleZ"])
+    if group == "body":
+        return tr.translate(0, (1 - p["breath"]) * 2.5)
+    if group == "hairBack":
+        return tr.translate(axn * px["hairBack"], ayn * px["hairBack"] * 0.8)
+    if group == "hairFront":
+        return tr.translate(axn * px["hairFront"], ayn * px["hairFront"] * 0.7)
+    if group == "head":
+        sq = 1 - abs(axn) * 0.05
+        return (tr.translate(200, 220).scale(sq, 1).translate(-200, -220)
+                  .translate(axn * px["head"], ayn * px["head"] * 0.7))
+    if group == "features":
+        return tr.translate(axn * px["features"], ayn * px["features"] * 0.65)
+    if group in ("eyeL", "eyeR"):
+        cx = 158 if group == "eyeL" else 242
+        lid = max(p["eyeOpen"], 0.02)
+        return tr.translate(-cx, -222).scale(1, lid).translate(cx, 222)
+    if group in ("irisL", "irisR"):
+        return tr.translate(p["eyeX"] * 7, p["eyeY"] * 5)
+    if group == "brows":
+        return tr.translate(0, -p["brow"] * 5)
+    return tr
+
+
 def _group_transform(chain, p, variant) -> Affine2D:
-    """Compose the same per-group transforms character.js applies."""
+    """Compose the chain the way SVG does: INNERMOST first.
+
+    This was folded outermost-first, which is the wrong way round. Matplotlib's
+    Affine2D methods post-concatenate, so building the chain in document order
+    meant a point was moved by the outer groups BEFORE the inner one acted on
+    it — and the inner transforms pivot about fixed points. The blink scales
+    about the eye centre at (158, 222); once the head had already translated
+    that point away, the eye collapsed about the wrong place and dragged the
+    lash line with it, which is what "the eyebrows fly when she blinks" looks
+    like. At rest the outer transforms are near-identity, so it only showed up
+    once the head was turned.
+    """
     px = PARALLAX.get(variant, PARALLAX["f"])
     axn, ayn = p["angleX"] / 26.0, p["angleY"] / 18.0
-    tr = Affine2D()
-    for g in chain:
-        if g == "root":
-            tr = tr.rotate_deg_around(200, 300, p["angleZ"])
-        elif g == "body":
-            tr = tr.translate(0, (1 - p["breath"]) * 2.5)
-        elif g == "hairBack":
-            tr = tr.translate(axn * px["hairBack"], ayn * px["hairBack"] * 0.8)
-        elif g == "hairFront":
-            tr = tr.translate(axn * px["hairFront"], ayn * px["hairFront"] * 0.7)
-        elif g == "head":
-            sq = 1 - abs(axn) * 0.05
-            tr = (tr.translate(axn * px["head"], ayn * px["head"] * 0.7)
-                    .translate(200, 220).scale(sq, 1).translate(-200, -220))
-        elif g == "features":
-            tr = tr.translate(axn * px["features"], ayn * px["features"] * 0.65)
-        elif g in ("eyeL", "eyeR"):
-            cx = 158 if g == "eyeL" else 242
-            lid = max(p["eyeOpen"], 0.02)
-            tr = tr.translate(cx, 222).scale(1, lid).translate(-cx, -222)
-        elif g in ("irisL", "irisR"):
-            tr = tr.translate(p["eyeX"] * 7, p["eyeY"] * 5)
-        elif g == "brows":
-            tr = tr.translate(0, -p["brow"] * 5)
-    return tr
+    total = Affine2D()
+    for group in reversed(chain):
+        total = total + _one(group, p, px, axn, ayn)
+    return total
 
 
 def draw_avatar(ax, shapes_, p, x, y, width, variant="f", z=30) -> None:

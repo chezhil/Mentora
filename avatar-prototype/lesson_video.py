@@ -497,8 +497,21 @@ def title_bar(ax, t, caption) -> None:
     a = ease(t, 0.0, 0.45)
     if a <= 0.0:
         return
-    line = wrap(caption or "", 46).split("\n")[0]
-    fs = 28 if len(line) <= 40 else 23
+    # Measure, do not guess. Wrapping at 46 characters and keeping only the
+    # first line silently ate the end of any longer caption -- "How eating at
+    # a laptop impacts hardware and", with the "focus." missing. Scale the
+    # type to fit one line instead, and ellipsise only if even the smallest
+    # will not go.
+    line = " ".join((caption or "").split())
+    avail = 14.1                     # from x=1.18 to the right edge
+    for fs in (28.0, 25.0, 23.0, 21.0, 19.0):
+        if _text_size(ax, line, fs)[0] <= avail:
+            break
+    else:
+        fs = 19.0
+        while len(line) > 12 and _text_size(ax, line + "\u2026", fs)[0] > avail:
+            line = line[:-1].rstrip()
+        line += "\u2026"
     rrect(ax, 0.62, 7.66, 0.30, 0.98, 0.15, face=YELLOW, z=6, alpha=a)
     ax.text(1.18, 8.15, line, fontsize=fs, fontweight="bold", color=INK,
             va="center", ha="left", zorder=8, alpha=a)
