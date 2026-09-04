@@ -105,7 +105,10 @@
     box.style.cssText = 'border:3px solid ' + INK + ';background:#fff;padding:1rem;' +
       (compact ? 'box-shadow:8px 8px 0 0 #000;width:270px;max-height:86vh;overflow:auto;'
                : 'box-shadow:5px 5px 0 0 #000;');
-    box.appendChild(nav());
+    // The dashboard has its own Quick Actions panel, so the rail there is
+    // just the ask box; printing the same five links twice on one screen
+    // would be noise, not access.
+    if (window.location.pathname !== '/dashboard') box.appendChild(nav());
     box.appendChild(ask());
     return box;
   }
