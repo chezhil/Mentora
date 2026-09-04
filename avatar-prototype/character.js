@@ -185,6 +185,14 @@ function solo(keep) {
   });
 }
 
+/* Driven by the play EVENT, not by the buttons. The <audio> element has native
+ * controls, and pressing its own play button never went through a handler of
+ * ours — so the file player could start underneath a running lesson however
+ * carefully the buttons behaved. */
+document.querySelectorAll("audio, video").forEach((m) => {
+  m.addEventListener("play", () => solo(m));
+});
+
 // The teaching video carries its own narration, so the same driver that reads
 // a WAV can read the video's audio track — the teacher lip-syncs to the lesson
 // she is standing in front of. A click is required before any of it makes a
@@ -200,6 +208,11 @@ $("lessonPlay").addEventListener("click", async (e) => {
     lesson.pause();
     e.target.textContent = "Play the lesson";
   }
+});
+
+// A lesson that has finished is not paused mid-thought; say so on the button.
+lesson.addEventListener("ended", () => {
+  $("lessonPlay").textContent = "Play the lesson again";
 });
 
 $("mic").addEventListener("click", async (e) => {

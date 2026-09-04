@@ -145,7 +145,15 @@ export class AvatarDriver {
    * speakers, so the lesson is audible as well as visible. */
   attachElement(el) {
     const ctx = this._audioContext();
-    if (this.source) this.source.disconnect();
+    // Tear the graph down before rebuilding it. Reconnecting the analyser to
+    // the destination on every attach relies on duplicate connections being a
+    // no-op; making it explicit means there is exactly one path to the
+    // speakers however many times this is called.
+    if (this.source) {
+      try { this.source.disconnect(); } catch { /* already gone */ }
+    }
+    try { this.analyser.disconnect(); } catch { /* not connected yet */ }
+
     // An element can only ever be the source of ONE MediaElementSourceNode;
     // creating a second throws. Cache it on the element itself.
     if (!el._avatarSource) el._avatarSource = ctx.createMediaElementSource(el);
