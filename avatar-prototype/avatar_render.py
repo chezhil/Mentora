@@ -159,6 +159,18 @@ LOW_BAND, HIGH_BAND = (120.0, 1000.0), (2200.0, 6500.0)
 BLINK_MIN, BLINK_MAX, BLINK_MS = 2.2, 6.0, 0.13
 WINDOW = 1024
 
+# Gaze. A teacher who never looks at her own slide reads as a video playing
+# beside a diagram rather than someone teaching from it, so each element that
+# pops onto the board pulls her eyes to it: a fast flick (eyes lead), a short
+# hold, then a slow drift back to the viewer. Between flicks the eyes wander a
+# little instead of locking dead ahead, which is the difference between idle
+# and switched off.
+GAZE_HOLD = 1.6           # seconds spent looking at a newly revealed element
+GAZE_SNAP_MS = 130.0      # eyes reach a new target quickly ...
+GAZE_REST_MS = 520.0      # ... and come back to the viewer unhurriedly
+GAZE_HEAD_X = 6.0         # degrees of head turn at full sideways gaze
+GAZE_HEAD_Y = 3.5         # degrees of head tilt at full vertical gaze
+
 
 def _drift(t: float, seed: float) -> float:
     return (math.sin(t * 0.31 + seed) * 0.55
@@ -170,8 +182,14 @@ def _coef(ms: float, dt: float) -> float:
     return 1.0 - math.exp(-dt / (ms / 1000.0))
 
 
-def analyse(wav_path, fps: int, frames: int, seed: int = 7) -> list[dict]:
-    """Per-frame avatar parameters for a narration WAV."""
+def analyse(wav_path, fps: int, frames: int, seed: int = 7,
+            gaze=None) -> list[dict]:
+    """Per-frame avatar parameters for a narration WAV.
+
+    `gaze` is an optional list of (time, x, y) look-at targets in BOARD
+    convention -- x right, y up, each roughly -1..1 relative to the head. The
+    caller supplies one per element it reveals; the head and eyes follow.
+    """
     with wave.open(str(wav_path)) as w:
         rate, n, width = w.getframerate(), w.getnframes(), w.getsampwidth()
         raw = np.frombuffer(w.readframes(n), dtype=np.int16 if width == 2 else np.uint8)
@@ -186,6 +204,8 @@ def analyse(wav_path, fps: int, frames: int, seed: int = 7) -> list[dict]:
     peak_db, mouth, form = -60.0, 0.0, 0.0
     energy, next_blink, blink_until = 0.0, 1.2, -1.0
     rng = np.random.default_rng(seed)
+    gz = sorted(gaze or [], key=lambda g: g[0])
+    gi, gx, gy = 0, 0.0, 0.0
     out = []
     for i in range(frames):
         t = i * dt
@@ -223,10 +243,27 @@ def analyse(wav_path, fps: int, frames: int, seed: int = 7) -> list[dict]:
         else:
             eye_open = 1.0
 
+        while gi < len(gz) and gz[gi][0] <= t:
+            gi += 1
+        if gi and t - gz[gi - 1][0] < GAZE_HOLD:
+            tx, ty, coef = gz[gi - 1][1], gz[gi - 1][2], _coef(GAZE_SNAP_MS, dt)
+        else:
+            tx = _drift(t, 12.3) * 0.10
+            ty = _drift(t, 15.8) * 0.08
+            coef = _coef(GAZE_REST_MS, dt)
+        gx += (tx - gx) * coef
+        gy += (ty - gy) * coef
+
         life = 0.35 + energy * 0.9
+        # SVG is y-down while the board is y-up, so the vertical terms invert:
+        # looking UP at the board is a NEGATIVE offset in the character's own
+        # coordinates. The head turn rides on top of the idle drift rather
+        # than replacing it, so she keeps breathing while she looks.
         out.append(dict(
-            mouthOpen=mouth, mouthForm=form, eyeOpen=eye_open, eyeX=0.0, eyeY=0.0,
-            angleX=_drift(t, 1.7) * 3.4 * life, angleY=_drift(t, 4.2) * 2.6 * life,
+            mouthOpen=mouth, mouthForm=form, eyeOpen=eye_open,
+            eyeX=gx, eyeY=-gy,
+            angleX=_drift(t, 1.7) * 3.4 * life + gx * GAZE_HEAD_X,
+            angleY=_drift(t, 4.2) * 2.6 * life - gy * GAZE_HEAD_Y,
             angleZ=_drift(t, 8.9) * 2.8 * life,
             breath=(math.sin(t * 1.1) + 1.0) / 2.0, brow=energy * 0.7))
     return out

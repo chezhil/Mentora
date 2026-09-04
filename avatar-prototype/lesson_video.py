@@ -123,9 +123,23 @@ def parse_diagram(payload: str) -> list[Element]:
     """
     payload = payload or ""
     names: dict[str, str] = {}
+
+    # Blank each match out as it is taken, so a later pattern cannot match
+    # INSIDE an earlier one's label. Running them independently over the raw
+    # payload meant `D[Ender Dragon (perches on top)]` matched the SQUARE
+    # pattern as D, and then the ROUND pattern matched "Dragon (perches on
+    # top)" inside that same label and invented a node called "Dragon" whose
+    # text was "perches on top". Any label with a parenthetical -- and models
+    # write those constantly -- produced a phantom node with no edges, which
+    # is what the stray A/B/C/D boxes beside the real ones were.
+    remaining = payload
+
+    def _capture(m):
+        names.setdefault(m.group(1), m.group(2).strip())
+        return " " * len(m.group(0))
+
     for pattern in NODE_PATTERNS:
-        for key, label in pattern.findall(payload):
-            names.setdefault(key, label.strip())
+        remaining = pattern.sub(_capture, remaining)
     # Edges are invisible until the labels are removed: `A[...] --> B[...]`
     # has a "]" where the edge pattern needs the node id, so nothing matched
     # and the nodes came out in dictionary order instead of flow order.
@@ -279,26 +293,49 @@ def schedule(elements: list[Element], sentences: list[Sentence]) -> None:
     to the sentence START put every box on screen before three of them were
     mentioned. The offset of the matched word WITHIN the sentence is used to
     interpolate across the sentence's own duration instead.
+
+    Which sentence is scored, not taken first-come. Accepting the earliest
+    sentence containing ANY word of a label meant the opening line -- which
+    names the topic, so it is full of the very nouns the boxes are made of --
+    swallowed most of them: "Alright, let's break down how a Nether portal
+    works" claimed both "Portal field appears" and "Arrive in Nether at scaled
+    coords", putting those two boxes on screen at 3.4s and 2.8s, ahead of the
+    first box at 7.6s. A word is now worth 1/(sentences it appears in), so
+    "obsidian" or "ignite" outweighs a "portal" that turns up in half the
+    script, and the sentence with the best total wins. Ties go to the earlier
+    sentence, and the reveal lands on the most distinctive word within it.
     """
     if not elements or not sentences:
         return
 
     lowered = [s.text.lower() for s in sentences]
+    words = {id(el): [w.lower() for w in _words(el.label)] for el in elements}
+    spread: dict[str, int] = {}
+    for ws in words.values():
+        for word in ws:
+            if word not in spread:
+                spread[word] = sum(1 for text in lowered
+                                   if _position(word, text) is not None)
+
     for el in elements:
-        words = _words(el.label)
-        hit = None
+        best = None
         for si, text in enumerate(lowered):
-            for word in words:
-                pos = _position(word, text)
-                if pos is not None:
-                    hit = (si, pos / max(len(text), 1))
-                    break
-            if hit:
-                break
-        el.matched = hit is not None
-        if hit:
-            si, frac = hit
+            score, pos, top = 0.0, None, 0.0
+            for word in words[id(el)]:
+                at = _position(word, text)
+                if at is None:
+                    continue
+                weight = 1.0 / max(spread.get(word, 1), 1)
+                score += weight
+                if weight > top:
+                    top, pos = weight, at
+            if score > 0.0 and (best is None or score > best[0]):
+                best = (score, si, pos)
+        el.matched = best is not None
+        if best:
+            _, si, pos = best
             sent = sentences[si]
+            frac = pos / max(len(lowered[si]), 1)
             el.at = sent.start + (sent.end - sent.start) * frac * 0.92
 
     # An element nobody says — an "=" between two named terms — belongs BETWEEN
@@ -386,6 +423,14 @@ def grid(n: int) -> list[tuple[float, float, float, float]]:
     second edge diagonally across the frame from top-right to bottom-left,
     which is the opposite of the direction the lesson is going. Boxes are
     narrower than the cell so the arrows between them have room to breathe.
+
+    Rows past the first run backwards (boustrophedon), the way a plough turns
+    at the end of a furrow. Left-to-right on every row meant the wrap edge --
+    last box of one row to first box of the next -- was a long diagonal from
+    the right edge back to the left, and on a five-box flow it crossed behind
+    every other box on the way. Reversing alternate rows turns that edge into
+    a short vertical drop, and it right-aligns a partly-filled final row so
+    the drop still lands directly under its parent.
     """
     if n <= 0:
         return []
@@ -398,6 +443,8 @@ def grid(n: int) -> list[tuple[float, float, float, float]]:
     out = []
     for i in range(n):
         r, c = divmod(i, cols)
+        if r % 2:
+            c = cols - 1 - c
         bx = x0 + c * cw + (cw - bw) / 2
         by = y1 - (r + 1) * ch + (ch - bh) / 2
         out.append((bx, by, bw, bh))
@@ -709,12 +756,17 @@ def draw_flow(ax, t, elements) -> None:
                 ha="center", va="center", linespacing=1.3, zorder=8, alpha=e)
 
 
+# Where terms sit; shared with gaze_track so the teacher looks at the term
+# she is actually saying rather than at where it used to be drawn.
+EQ_GAP, EQ_CX, EQ_CY = 2.3, 6.6, 4.95
+
+
 def draw_equation(ax, t, elements) -> None:
     """Terms settle into place in ink; each arrival flashes its accent once,
     so colour marks what is new without the finished equation looking like a
     row of unrelated symbols."""
     ops = ("=", "+", "-", "\\times", "\\cdot")
-    gap, cx, cy = 2.3, 6.6, 4.95
+    gap, cx, cy = EQ_GAP, EQ_CX, EQ_CY
     first = cx - gap * (len(elements) - 1) / 2
     for i, el in enumerate(elements):
         e = ease(t, el.at, 0.5)
@@ -821,6 +873,32 @@ def build(segment: dict, out: Path, voice: str) -> int:
 # The teacher stands here, in the corner make_visual reserves for her.
 AVATAR_X, AVATAR_Y, AVATAR_W = 12.9, 0.0, 2.95
 
+# Her head within that box: the SVG puts the face at (200, 220) of a 400x460
+# view, and draw_avatar scales by AVATAR_W/400 and flips y.
+HEAD_X = AVATAR_X + AVATAR_W * 0.50
+HEAD_Y = AVATAR_Y + AVATAR_W * 0.60
+
+
+def gaze_track(elements, kind) -> list[tuple[float, float, float]]:
+    """(time, x, y) look-at targets, one per element, as the board reveals it.
+
+    x and y are head-relative and roughly -1..1. Everything on the board is to
+    her left, so x stays negative throughout -- that is honest, and the spread
+    between a near column and a far one is still wide enough to read as a
+    change of direction.
+    """
+    if not elements:
+        return []
+    if kind == "equation":
+        first = EQ_CX - EQ_GAP * (len(elements) - 1) / 2
+        centres = [(first + EQ_GAP * i, EQ_CY) for i in range(len(elements))]
+    else:
+        boxes = grid(len(elements)) if _is_chain(elements) else layered(elements)
+        centres = [(bx + bw / 2, by + bh / 2) for bx, by, bw, bh in boxes]
+    clamp = lambda v: max(-1.0, min(1.0, v))
+    return [(el.at, clamp((x - HEAD_X) / 13.0), clamp((y - HEAD_Y) / 5.0))
+            for el, (x, y) in zip(elements, centres)]
+
 
 def _wav_for(audio: Path, ffmpeg: str, work: Path) -> Path:
     """A WAV to analyse. build() narrates to MP3; the pipeline hands us WAV."""
@@ -863,7 +941,8 @@ def encode(out: Path, elements: list[Element], kind: str, caption: str,
 
         shapes_ = avatar_render.shapes()
         wav = _wav_for(Path(narration.audio), ffmpeg, out.parent)
-        poses = avatar_render.analyse(wav, FPS, int(total * FPS))
+        poses = avatar_render.analyse(wav, FPS, int(total * FPS),
+                                      gaze=gaze_track(elements, kind))
     except Exception as exc:
         print(f"[avatar] not embedded ({type(exc).__name__}: {exc})")
     variant = os.environ.get("MENTORA_AVATAR_VARIANT", "f")
