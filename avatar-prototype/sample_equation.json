@@ -1,0 +1,20 @@
+{
+  "concept_id": "c2",
+  "script": "Now let’s talk about electric current – the actual flow of charge through a wire. Think of charge like water molecules moving through a pipe. The amount of charge that passes a given point each second is what we call current, symbol I and measured in amperes. One ampere equals one coulomb of charge moving past per second. Mathematically, I equals Q divided by t, where Q is the total charge in coulombs and t is the time in seconds. So if you know how many coulombs moved and how long it took, you can instantly find the current.",
+  "visual": {
+    "kind": "equation",
+    "payload": "I = \\frac{Q}{t}",
+    "caption": "Current is charge per unit time"
+  },
+  "question": {
+    "id": "q__AUX__",
+    "concept_id": "c2",
+    "kind": "short",
+    "prompt": "If 3 coulombs of charge pass a point in 2 seconds, what is the current in amperes?",
+    "options": null,
+    "expected": "1.5 A"
+  },
+  "used_chunk_indexes": [
+    0
+  ]
+}
