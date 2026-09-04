@@ -67,6 +67,15 @@ class RenderEngine(Protocol):
     def download(self, url: str, dest: Path) -> Path: ...
 
 
+def _as_time(value, fallback: float) -> float:
+    """A timestamp from a sidecar, however it was written."""
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return out if out == out and abs(out) != float("inf") else fallback
+
+
 class JobManager:
     """In-memory job store with a state machine per job and file cleanup."""
 
@@ -197,29 +206,39 @@ class JobManager:
         adopted = removed = 0
         for sidecar in self.video_dir.glob("*.json"):
             jid = sidecar.stem
+            # The try has to cover the WHOLE record, not just the parse. It
+            # used to wrap json.loads alone, so a sidecar that was valid JSON
+            # but the wrong shape got past it and then raised: a list or a
+            # string has no .get, and float() rejects "yesterday", null or a
+            # dict. _adopt runs from start(), inside the app's lifespan, so
+            # any of those took the whole service down at boot -- and a
+            # sidecar half-written by a crash or a full disk looks exactly
+            # like that. Treat every malformed one the way an unreadable one
+            # was already treated: delete it and move on.
+            mp4 = self.video_dir / f"{jid}.mp4"
             try:
                 meta = json.loads(sidecar.read_text(encoding="utf-8"))
+                if not isinstance(meta, dict):
+                    raise ValueError("sidecar is not an object")
+                if not mp4.is_file():
+                    raise FileNotFoundError("no video beside the sidecar")
+                record = {
+                    "id": jid,
+                    "status": "succeeded",
+                    "message": "Done",
+                    "text": str(meta.get("text") or ""),
+                    "voice": str(meta.get("voice") or ""),
+                    "video_url": f"/output/videos/{mp4.name}",
+                    "error": None,
+                    "video_path": str(mp4),
+                    "created": _as_time(meta.get("created"), now),
+                    "updated": _as_time(meta.get("updated"), now),
+                }
             except Exception:
                 sidecar.unlink(missing_ok=True)
                 removed += 1
                 continue
-            mp4 = self.video_dir / f"{jid}.mp4"
-            if not mp4.is_file():
-                sidecar.unlink(missing_ok=True)
-                removed += 1
-                continue
-            self._jobs[jid] = {
-                "id": jid,
-                "status": "succeeded",
-                "message": "Done",
-                "text": meta.get("text", ""),
-                "voice": meta.get("voice", ""),
-                "video_url": f"/output/videos/{mp4.name}",
-                "error": None,
-                "video_path": str(mp4),
-                "created": float(meta.get("created", now)),
-                "updated": float(meta.get("updated", now)),
-            }
+            self._jobs[jid] = record
             adopted += 1
         for mp4 in self.video_dir.glob("*.mp4"):
             if mp4.stem not in self._jobs:
