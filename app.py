@@ -307,12 +307,6 @@ def api_panel() -> None:
             "Model", models,
             index=models.index(llm.MODEL) if llm.MODEL in models else 0)
 
-        replicate = st.text_input(
-            "Replicate token", type="password",
-            placeholder="not needed — the avatar runs locally",
-            help="Only used if the local Wav2Lip weights are missing, or you "
-                 "set MENTORA_LOCAL_AVATAR=0. The local backend is free and "
-                 "needs no account.")
 
         new_offline = st.toggle("Offline mode (no API calls)", value=offline,
                                 help="Replays canned answers. Free, but every "
@@ -323,8 +317,6 @@ def api_panel() -> None:
         if st.button("Apply", type="primary"):
             saved = {}
             if provider != llm.PROVIDER:
-                os.environ["AI_TEACHER_PROVIDER"] = provider
-                llm.PROVIDER = provider
                 saved["AI_TEACHER_PROVIDER"] = provider
             if provider == "local" and local_url:
                 saved["GEMINI_URL"] = local_url
@@ -336,9 +328,6 @@ def api_panel() -> None:
             # both cached SDK clients, which hold the old key and base URL.
             llm.configure(provider=provider, api_key=key or None, model=model,
                           local_url=local_url if provider == "local" else None)
-            if replicate:
-                os.environ["REPLICATE_API_TOKEN"] = replicate
-                saved["REPLICATE_API_TOKEN"] = replicate
             if new_offline:
                 os.environ["AI_TEACHER_MOCK"] = "mocks/fixture_mock.json"
             else:
