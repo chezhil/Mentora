@@ -163,7 +163,6 @@ $("file").addEventListener("change", (e) => {
   solo(player);
   driver.attachElement(player);
   player.play();
-  $("lessonPlay").textContent = "Play the lesson";
 });
 
 // The variant switch is presentation only — it changes which paths are
@@ -176,9 +175,9 @@ $("variant").addEventListener("click", () => {
 /* One voice at a time.
  *
  * driver.attachElement() disconnects the previous SOURCE NODE from the graph,
- * which is not the same as stopping the element: measured with the lesson
- * video and the file player both started, two elements were reported playing
- * and both were audible. Pause everything else before starting a source. */
+ * which is not the same as stopping the element: with two sources started,
+ * both were measured playing and both were audible. Pause everything else
+ * before starting a new one. */
 function solo(keep) {
   document.querySelectorAll("audio, video").forEach((m) => {
     if (m !== keep && !m.paused) m.pause();
@@ -187,39 +186,16 @@ function solo(keep) {
 
 /* Driven by the play EVENT, not by the buttons. The <audio> element has native
  * controls, and pressing its own play button never went through a handler of
- * ours — so the file player could start underneath a running lesson however
- * carefully the buttons behaved. */
+ * ours — so it could start underneath another source however carefully the
+ * buttons behaved. */
 document.querySelectorAll("audio, video").forEach((m) => {
   m.addEventListener("play", () => solo(m));
-});
-
-// The teaching video carries its own narration, so the same driver that reads
-// a WAV can read the video's audio track — the teacher lip-syncs to the lesson
-// she is standing in front of. A click is required before any of it makes a
-// sound, which is the autoplay rule rather than a limitation of the driver.
-const lesson = $("lesson");
-$("lessonPlay").addEventListener("click", async (e) => {
-  solo(lesson);
-  driver.attachElement(lesson);
-  if (lesson.paused) {
-    await lesson.play();
-    e.target.textContent = "Pause the lesson";
-  } else {
-    lesson.pause();
-    e.target.textContent = "Play the lesson";
-  }
-});
-
-// A lesson that has finished is not paused mid-thought; say so on the button.
-lesson.addEventListener("ended", () => {
-  $("lessonPlay").textContent = "Play the lesson again";
 });
 
 $("mic").addEventListener("click", async (e) => {
   try {
     solo(null);              // nothing else may speak over you
     await driver.attachMicrophone();
-    $("lessonPlay").textContent = "Play the lesson";
     e.target.textContent = "Listening — talk to it";
     e.target.classList.add("live");
   } catch (err) {
