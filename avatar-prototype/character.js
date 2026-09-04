@@ -40,6 +40,12 @@ const el = {
  * sideways, which reads as a sticker being dragged rather than a head. */
 const PARALLAX = { hairBack: 4, head: 10, hairFront: 14, features: 17 };
 
+/* The lip line is the seam between closed lips, so it has to be gone almost as
+ * soon as they part. It was fading linearly with mouthOpen, which left it at
+ * 40% opacity with the mouth half open — a line drawn straight across the
+ * opening. Gone by this much open instead. */
+const LIP_SEAM_GONE_AT = 0.18;
+
 function setParams(p) {
   const ax = p.angleX / 26;             // -1 .. 1
   const ay = p.angleY / 18;
@@ -85,7 +91,8 @@ function setParams(p) {
   el.tongue.setAttribute("rx", (rx * 0.62).toFixed(2));
   el.tongue.setAttribute("ry", Math.max(0, p.mouthOpen * 11 - 2).toFixed(2));
   el.tongue.setAttribute("cy", (294 + p.mouthOpen * 7).toFixed(2));
-  el.line.setAttribute("opacity", (0.8 * (1 - p.mouthOpen)).toFixed(3));
+  const seam = Math.max(0, 1 - p.mouthOpen / LIP_SEAM_GONE_AT);
+  el.line.setAttribute("opacity", (0.8 * seam).toFixed(3));
 }
 
 // ---------------------------------------------------------------------------
