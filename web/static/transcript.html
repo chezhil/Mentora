@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mentora — Transcript</title>
+  <link rel="stylesheet" href="/static/brutalist.css">
+  <style>
+    .wrap { max-width: 900px; margin: 0 auto; padding: 2rem 1.25rem 5rem; }
+    .panel {
+      border: 3px solid var(--ink); background: #fff;
+      box-shadow: 8px 8px 0 0 #000; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .label {
+      font-family: 'Space Mono', monospace; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: rgba(0,0,0,0.45);
+    }
+    h1 {
+      font-family: 'Archivo Black', sans-serif;
+      font-size: clamp(1.6rem, 4vw, 2.6rem);
+      text-transform: uppercase; line-height: 1.05; margin: 0.35rem 0 0.75rem;
+    }
+    .meta { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+    .meta div span { display: block; }
+    .meta .v { font-family: 'Archivo Black', sans-serif; font-size: 1.5rem; line-height: 1; }
+    .sect {
+      font-family: 'Archivo Black', sans-serif; text-transform: uppercase;
+      font-size: 0.8rem; letter-spacing: 0.05em; background: var(--ink);
+      color: var(--acid); display: inline-block; padding: 0.3rem 0.7rem;
+      margin: 2rem 0 1rem;
+    }
+    .turn { border: 3px solid var(--ink); padding: 1rem 1.15rem; margin-bottom: 0.85rem; }
+    .turn.teacher { background: #fff; }
+    .turn.student { background: var(--acid); margin-left: 2.5rem; }
+    .turn.system  { background: rgba(0,0,0,0.05); font-style: italic; }
+    .who {
+      font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 0.4rem;
+      display: flex; justify-content: space-between; gap: 1rem;
+      color: rgba(0,0,0,0.5);
+    }
+    .turn p { line-height: 1.6; white-space: pre-wrap; }
+    .btn {
+      font-family: 'Archivo Black', sans-serif; text-transform: uppercase;
+      border: 3px solid var(--ink); padding: 0.9rem 1.5rem; font-size: 0.9rem;
+      background: #fff; color: var(--ink); box-shadow: 5px 5px 0 0 #000;
+      cursor: pointer; text-decoration: none; display: inline-block;
+    }
+    .row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <header style="border-bottom:3px solid var(--ink);padding:0.9rem 1.25rem;background:var(--paper);">
+    <nav style="display:flex;align-items:center;gap:0.75rem;max-width:900px;margin:0 auto;">
+      <a href="/dashboard" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:0.75rem;">
+        <div style="width:36px;height:36px;display:grid;place-items:center;background:var(--ink);color:var(--acid);font-family:'Archivo Black',sans-serif;font-size:1.1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;">M</div>
+        <div style="font-family:'Archivo Black',sans-serif;font-size:1rem;text-transform:uppercase;">Mentora</div>
+      </a>
+      <div class="label">/ Transcript</div>
+    </nav>
+  </header>
+
+  <main class="grid-bg" style="flex:1;">
+    <div class="wrap">
+      <div class="panel">
+        <div class="label">Transcript</div>
+        <h1 id="topic">Loading…</h1>
+        <div class="meta">
+          <div><span class="label">Date</span><span class="v" id="date">—</span></div>
+          <div><span class="label">Score</span><span class="v" id="score">—</span></div>
+          <div><span class="label">Concepts</span><span class="v" id="concepts">—</span></div>
+          <div><span class="label">Exchanges</span><span class="v" id="turns">—</span></div>
+        </div>
+        <div class="row" style="margin-top:1.5rem;">
+          <a class="btn" href="/dashboard">Back to dashboard</a>
+          <a class="btn" id="reviewLink" href="/review">Full report</a>
+        </div>
+      </div>
+
+      <div id="body"></div>
+    </div>
+  </main>
+
+  <script src="/static/ask-rail.js"></script>
+  <script>
+    const sid = new URLSearchParams(location.search).get('session') || '';
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,
+      c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+    function when(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return isNaN(d) ? '' : d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    }
+
+    (async function () {
+      if (!sid) { location.href = '/dashboard'; return; }
+      let d;
+      try {
+        const r = await fetch('/api/transcript?session_id=' + encodeURIComponent(sid));
+        d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Could not load that transcript.');
+      } catch (e) {
+        $('topic').textContent = 'Not available';
+        $('body').innerHTML = '<div class="panel" style="background:#ffd9d0;">' +
+          '<div class="label">Something broke</div><p>' + esc(e.message) + '</p></div>';
+        return;
+      }
+
+      $('topic').textContent = d.topic || 'Lesson';
+      const started = d.started ? new Date(d.started) : null;
+      $('date').textContent = started && !isNaN(started)
+        ? started.toLocaleDateString(undefined, {month: 'short', day: 'numeric'}) : '—';
+      $('score').textContent = d.score == null ? '—' : Math.round(d.score);
+      $('concepts').textContent = d.concepts || 0;
+      $('turns').textContent = d.turns.length;
+      $('reviewLink').href = '/review?session=' + encodeURIComponent(sid);
+
+      if (!d.turns.length) {
+        $('body').innerHTML = '<div class="panel"><div class="label">Nothing recorded</div>' +
+          '<p style="margin-top:0.5rem;">This lesson has no saved turns.</p></div>';
+        return;
+      }
+
+      // Group by concept so a long lesson reads as sections rather than one
+      // undifferentiated wall of speech.
+      let html = '', section = -1;
+      const who = {teacher: 'Mentora', student: 'You', system: 'Lesson'};
+      for (const t of d.turns) {
+        if (t.concept !== section) {
+          section = t.concept;
+          html += '<div class="sect">' +
+            (section ? 'Concept ' + section : 'Lesson') + '</div>';
+        }
+        html += '<div class="turn ' + esc(t.role) + '">' +
+          '<div class="who"><span>' + esc(who[t.role] || t.role) + '</span>' +
+          '<span>' + esc(when(t.at)) + '</span></div>' +
+          '<p>' + esc(t.content) + '</p></div>';
+      }
+      $('body').innerHTML = html;
+    })();
+  </script>
+</body>
+</html>

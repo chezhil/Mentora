@@ -625,3 +625,79 @@ def upload_material(body: UploadBody) -> JSONResponse:
 
     return JSONResponse({"ok": True, "name": name, "size": len(data),
                          "path": str(target.relative_to(_ROOT))})
+
+
+# ---------------------------------------------------------------------------
+# Transcripts
+#
+# Every turn of every lesson has been written to the turns table since the
+# history store shipped -- 450 of them here -- and nothing ever read them
+# back. Clicking a past lesson now opens what was actually said in it.
+# ---------------------------------------------------------------------------
+
+@router.get("/api/transcript")
+def transcript(session_id: str, student_id: str = "student") -> JSONResponse:
+    import sqlite3
+
+    if not session_id:
+        return JSONResponse({"error": "Which lesson?"}, status_code=400)
+
+    db = _ROOT / "mentora.db"
+    if not db.exists():
+        return JSONResponse({"error": "No history yet."}, status_code=404)
+
+    conn = sqlite3.connect(str(db))
+    conn.row_factory = sqlite3.Row
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM study_sessions WHERE session_id=? AND student_id=?",
+                    (session_id, student_id))
+        lesson = cur.fetchone()
+        cur.execute("SELECT * FROM reports WHERE session_id=? AND student_id=?",
+                    (session_id, student_id))
+        report = cur.fetchone()
+        cur.execute("SELECT role, content, concept_id, timestamp FROM turns "
+                    "WHERE session_id=? ORDER BY id ASC", (session_id,))
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    if lesson is None and not rows:
+        return JSONResponse({"error": "No transcript for that lesson."},
+                            status_code=404)
+
+    # Turns carry a concept id, not a name. Numbering the distinct ids in the
+    # order they were first spoken gives the transcript readable section
+    # headings without needing the plan, which is not persisted.
+    order: dict[str, int] = {}
+    turns = []
+    for r in rows:
+        cid = r["concept_id"] or ""
+        if cid and cid not in order:
+            order[cid] = len(order) + 1
+        turns.append({
+            "role": r["role"],
+            "content": r["content"],
+            "concept": order.get(cid, 0),
+            "at": r["timestamp"] or "",
+        })
+
+    return JSONResponse({
+        "session_id": session_id,
+        "topic": (lesson["topic"] if lesson else "") or "Lesson",
+        "started": (lesson["started_at"] if lesson else "") or "",
+        "ended": (lesson["ended_at"] if lesson else "") or "",
+        "minutes": (lesson["minutes_planned"] if lesson else 0) or 0,
+        "score": (report["score"] if report else None),
+        "next_topic": (report["next_topic"] if report else "") or "",
+        "concepts": len(order),
+        "turns": turns,
+    })
+
+
+@router.get("/transcript")
+def serve_transcript():
+    page = STATIC_DIR / "transcript.html"
+    if page.exists():
+        return HTMLResponse(page.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>transcript.html not found</h1>", status_code=404)
