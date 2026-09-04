@@ -98,23 +98,21 @@ def _build_review(conn: sqlite3.Connection, student_id: str,
     elif report and report["next_topic"]:
         topic = report["next_topic"]
 
-    # --- Total learning time (all sessions) ---
-    cur.execute(
-        "SELECT COALESCE(SUM(minutes_planned), 0) FROM study_sessions WHERE student_id=?",
-        (student_id,),
-    )
-    total_minutes = cur.fetchone()[0]
-
-    # --- Session duration from started_at / ended_at if available ---
-    if session and session["started_at"] and session["ended_at"]:
-        try:
-            start = datetime.fromisoformat(session["started_at"])
-            end = datetime.fromisoformat(session["ended_at"])
-            session_minutes = int((end - start).total_seconds() / 60)
-            if session_minutes > 0:
-                total_minutes = max(total_minutes, session_minutes)
-        except Exception:
-            pass
+    # --- How long THIS session took ---
+    # This summed minutes_planned across every session the student had ever
+    # started, so a two-minute lesson's own review page reported 160 minutes.
+    # It is a session review: it reports the session.
+    total_minutes = 0
+    if session:
+        if session["started_at"] and session["ended_at"]:
+            try:
+                start = datetime.fromisoformat(session["started_at"])
+                end = datetime.fromisoformat(session["ended_at"])
+                total_minutes = max(0, int(round((end - start).total_seconds() / 60)))
+            except Exception:
+                total_minutes = 0
+        if not total_minutes:
+            total_minutes = int(session["minutes_planned"] or 0)
 
     # --- Answers for this session ---
     session_id = report["session_id"] if report else (session["session_id"] if session else None)
@@ -317,7 +315,9 @@ def dashboard_api(student_id: str = "student") -> dict:
         avg_score = round(sum(scores) / len(scores)) if scores else 0
 
         # Level from XP (100 XP per level)
-        xp = total_minutes * 5 + total_lessons * 50
+        # total_minutes became a float when it started measuring real
+        # elapsed time, and XP is a whole number in the UI.
+        xp = int(round(total_minutes * 5 + total_lessons * 50))
         level = xp // 200 + 1
         xp_into = xp % 200
 

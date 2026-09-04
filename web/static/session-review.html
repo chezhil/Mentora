@@ -1685,64 +1685,6 @@ tailwind.config = {
 <div v-scope="{ ...{&quot;selectedDifficulty&quot;:&quot;Intermediate (Standard)&quot;,&quot;activePersona&quot;:&quot;socratic&quot;,&quot;showProBadge&quot;:true}, $emit() {} }">
 <aside class="w-80 hidden lg:flex flex-col bg-[#f4f1ea] border-r-[3px] border-black overflow-y-auto z-20">
   <div class="p-6 space-y-8">
-    <div>
-      <span class="font-mono text-xs font-bold uppercase tracking-widest text-black/65 mb-4 block">01 / Materials</span>
-      <div class="border-[3px] border-black p-5 shadow-[8px_8px_0_0_#000000] bg-white">
-        <div class="mb-4 grid place-items-center w-12 h-12 border-[3px] border-black bg-[#e8ff00]">
-          <iconify-icon icon="ph:file-pdf-bold" class="text-2xl"></iconify-icon>
-        </div>
-        <h3 class="font-black uppercase text-lg leading-none mb-2 text-black">Upload PDF</h3>
-        <p class="text-xs font-medium text-black/70 leading-relaxed mb-4">Mentora reads your slides and builds the curriculum.</p>
-        <button 
-          @click="$emit('uploadFiles')"
-          class="w-full bg-black text-[#f4f1ea] font-black uppercase text-xs tracking-widest py-3 border-[3px] border-black shadow-[5px_5px_0_0_#000000] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none">
-          Select Files
-        </button>
-      </div>
-    </div>
-
-    <div>
-      <span class="font-mono text-xs font-bold uppercase tracking-widest text-black/65 mb-4 block">02 / Topic Config</span>
-      <div class="space-y-4">
-        <div class="group">
-          <label class="font-mono text-[10px] font-bold uppercase tracking-widest mb-1 block">Difficulty Level</label>
-          <select 
-            @change="$emit('changeDifficulty', { value: $event.target.value })"
-            class="w-full bg-[#f4f1ea] border-[3px] border-black p-2.5 font-black uppercase text-xs cursor-pointer">
-            <option :selected="selectedDifficulty === 'Beginner (Fundamentals)'">Beginner (Fundamentals)</option>
-            <option :selected="selectedDifficulty === 'Intermediate (Standard)'">Intermediate (Standard)</option>
-            <option :selected="selectedDifficulty === 'Advanced (Technical)'">Advanced (Technical)</option>
-          </select>
-        </div>
-        <div class="group">
-          <label class="font-mono text-[10px] font-bold uppercase tracking-widest mb-1 block">Avatar Persona</label>
-          <div class="grid grid-cols-2 gap-2">
-            <button 
-              @click="$emit('personaChange', { persona: 'socratic' })"
-              class="border-[3px] border-black p-2 font-black text-[10px] uppercase shadow-[5px_5px_0_0_#000000] transition-all"
-              :class="activePersona === 'socratic' ? 'bg-[#e8ff00]' : 'bg-[#f4f1ea] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none'">
-              Socratic
-            </button>
-            <button 
-              @click="$emit('personaChange', { persona: 'strict' })"
-              class="border-[3px] border-black p-2 font-black text-[10px] uppercase shadow-[5px_5px_0_0_#000000] transition-all"
-              :class="activePersona === 'strict' ? 'bg-[#e8ff00]' : 'bg-[#f4f1ea] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none'">
-              Strict
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showProBadge">
-      <div class="bg-black text-[#f4f1ea] p-4 border-[3px] border-black shadow-[8px_8px_0_0_#000000]">
-        <div class="flex items-center gap-2 mb-2">
-          <iconify-icon icon="ph:lightning-bold" class="text-[#e8ff00]"></iconify-icon>
-          <span class="font-black uppercase text-xs tracking-tighter">Mentora Pro active</span>
-        </div>
-        <p class="text-[10px] font-mono text-[#f4f1ea]/60 leading-tight uppercase">Unlimited context window enabled for this session.</p>
-      </div>
-    </div>
   </div>
 </aside>
 </div>
@@ -1772,7 +1714,7 @@ tailwind.config = {
         <!-- Progress Metrics Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6" data-sd-id="13">
           <div class="border-[3px] border-ink bg-white p-6 shadow-brutal-sm" data-sd-id="14">
-            <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-ink/50" data-sd-id="15">Total Learning Time</span>
+            <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-ink/50" data-sd-id="15">Time On This Lesson</span>
             <div class="flex items-end gap-2 mt-2" data-sd-id="16">
               <span class="font-black text-4xl uppercase leading-none" id="rv-time">00</span>
               <span class="font-black text-lg uppercase pb-0.5" data-sd-id="18">Minutes</span>
@@ -1947,5 +1889,6 @@ tailwind.config = {
   })();
   </script>
 
+  <script src="/static/progress-panel.js"></script>
   <script src="/static/ask-rail.js"></script>
 </body></html>
