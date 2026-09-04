@@ -40,10 +40,10 @@
       <p>AI-powered adaptive tutor. Upload material, learn at your pace, track every concept.</p>
 
       <div class="role-grid">
-        <a href="/dashboard" class="role-card">
+        <a href="/upload" class="role-card">
           <div class="icon">🙋</div>
           <h2>Student</h2>
-          <p>Your dashboard, progress and lessons</p>
+          <p>Start learning with AI tutoring</p>
         </a>
         <a href="/config" class="role-card">
           <div class="icon">👩‍🏫</div>
@@ -55,6 +55,14 @@
       <div style="margin-top:3rem;">
         <p style="font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.3);">Choose your role to begin</p>
       </div>
+
+      <section id="history" style="max-width:600px;margin:3.5rem auto 0;text-align:left;display:none;">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:0.9rem;">
+          <h2 style="font-family:'Archivo Black',sans-serif;font-size:1rem;text-transform:uppercase;letter-spacing:0.02em;">Pick up where you left off</h2>
+          <a href="/dashboard" style="font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.5);">All progress &rarr;</a>
+        </div>
+        <div id="historyList"></div>
+      </section>
     </div>
   </main>
 
@@ -72,5 +80,48 @@
       </div>
     </div>
   </div>
+  <script>
+  // Returning students should not have to re-pick a role to find the lesson
+  // they did yesterday. Hidden entirely when there is nothing to show, so a
+  // first-time visitor still sees the clean two-card choice.
+  (async function () {
+    var list = document.getElementById('historyList');
+    var wrap = document.getElementById('history');
+    var d;
+    try {
+      var r = await fetch('/api/dashboard');
+      if (!r.ok) return;
+      d = await r.json();
+    } catch (e) { return; }
+
+    var recent = (d.recent_lessons || []).filter(function (l) { return l.session_id; });
+    if (!recent.length) return;
+
+    list.innerHTML = recent.slice(0, 4).map(function (l) {
+      var score = l.score == null ? '' : Math.round(l.score) + '%';
+      var when = l.date ? new Date(l.date) : null;
+      var day = when && !isNaN(when)
+        ? when.toLocaleDateString(undefined, {month: 'short', day: 'numeric'})
+        : (l.date || '');
+      return '<a href="/transcript?session=' + encodeURIComponent(l.session_id) + '" ' +
+        'style="display:flex;justify-content:space-between;align-items:center;gap:1rem;' +
+        'border:3px solid var(--ink);background:#fff;padding:0.75rem 1rem;margin-bottom:0.6rem;' +
+        'box-shadow:5px 5px 0 0 #000;text-decoration:none;color:var(--ink);">' +
+        '<span style="min-width:0;">' +
+          '<span style="display:block;font-family:\'Archivo Black\',sans-serif;font-size:0.85rem;' +
+          'text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+          (l.topic || 'Lesson') + '</span>' +
+          '<span style="display:block;font-family:\'Space Mono\',monospace;font-size:10px;' +
+          'color:rgba(0,0,0,0.5);text-transform:uppercase;">' + day +
+          (score ? ' &middot; ' + score : '') + '</span>' +
+        '</span>' +
+        '<span style="font-family:\'Space Mono\',monospace;font-size:10px;text-transform:uppercase;' +
+        'border:2px solid var(--ink);padding:0.25rem 0.5rem;white-space:nowrap;">Transcript</span>' +
+        '</a>';
+    }).join('');
+    wrap.style.display = 'block';
+  })();
+  </script>
+  <script src="/static/ask-rail.js"></script>
 </body>
 </html>

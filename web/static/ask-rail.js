@@ -14,6 +14,11 @@
  */
 (function () {
   var ACID = '#e8ff00', INK = '#000';
+  var KEY = 'mentora_rail_open';
+
+  // Settings is the one page it stays off: it is a full-page form, and a
+  // floating panel over it competes with the thing you came to do.
+  if (window.location.pathname === '/config') return;
 
   var LINKS = [
     {href: '/upload',    label: 'Start new lesson', primary: true},
@@ -135,14 +140,33 @@
       'border-left:none;';
 
     var body = rail(true);
-    body.style.display = 'none';
     body.style.marginLeft = '0.5rem';
 
-    tab.onclick = function () {
-      var open = body.style.display === 'none';
+    function show(open) {
       body.style.display = open ? 'block' : 'none';
       tab.textContent = open ? 'CLOSE' : 'MENU';
-    };
+      try { localStorage.setItem(KEY, open ? '1' : '0'); } catch (e) {}
+    }
+
+    // Remember the choice, and on a first visit open it on a screen wide
+    // enough to spare the room. A menu that hides itself again on every
+    // navigation is the thing that makes people stop using it.
+    var saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) {}
+    show(saved === null ? window.innerWidth >= 1100 : saved === '1');
+
+    tab.onclick = function () { show(body.style.display === 'none'); };
+
+    // Escape closes, and so does a click anywhere else -- on a narrow screen
+    // the panel covers content, so it needs an exit that is not a small tab.
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && body.style.display !== 'none') show(false);
+    });
+    document.addEventListener('click', function (e) {
+      if (body.style.display === 'none') return;
+      if (window.innerWidth >= 1100) return;
+      if (!wrap.contains(e.target)) show(false);
+    });
 
     wrap.appendChild(tab);
     wrap.appendChild(body);
