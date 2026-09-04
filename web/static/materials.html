@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mentora — Materials</title>
+  <link rel="stylesheet" href="/static/brutalist.css">
+  <style>
+    .wrap { max-width: 820px; margin: 0 auto; padding: 2rem 1.25rem 5rem; }
+    .panel { border: 3px solid var(--ink); background: #fff;
+             box-shadow: 8px 8px 0 0 #000; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .label { font-family: 'Space Mono', monospace; font-size: 11px;
+             text-transform: uppercase; letter-spacing: 0.12em; color: rgba(0,0,0,0.45); }
+    h1 { font-family: 'Archivo Black', sans-serif; font-size: clamp(1.6rem,4vw,2.4rem);
+         text-transform: uppercase; line-height: 1.05; margin: 0.35rem 0 0.5rem; }
+    .mat { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+           border: 3px solid var(--ink); background: #fff; padding: 0.85rem 1rem;
+           margin-bottom: 0.6rem; }
+    .btn { font-family: 'Archivo Black', sans-serif; text-transform: uppercase;
+           border: 3px solid var(--ink); padding: 0.7rem 1rem; font-size: 0.75rem;
+           background: #fff; color: var(--ink); box-shadow: 4px 4px 0 0 #000;
+           cursor: pointer; text-decoration: none; display: inline-block; white-space: nowrap; }
+    .btn.dark { background: var(--ink); color: var(--acid); }
+    .drop { border: 3px dashed var(--ink); padding: 2rem 1rem; text-align: center;
+            cursor: pointer; background: var(--paper); }
+    .hint { font-size: 0.82rem; color: rgba(0,0,0,0.55); line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <header style="border-bottom:3px solid var(--ink);padding:0.9rem 1.25rem;background:var(--paper);">
+    <nav style="display:flex;align-items:center;gap:0.75rem;max-width:820px;margin:0 auto;">
+      <a href="/dashboard" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:0.75rem;">
+        <div style="width:36px;height:36px;display:grid;place-items:center;background:var(--ink);color:var(--acid);font-family:'Archivo Black',sans-serif;font-size:1.1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;">M</div>
+        <div style="font-family:'Archivo Black',sans-serif;font-size:1rem;text-transform:uppercase;">Mentora</div>
+      </a>
+      <div class="label">/ Materials</div>
+    </nav>
+  </header>
+
+  <main class="grid-bg" style="flex:1;">
+    <div class="wrap">
+      <div class="panel">
+        <div class="label">Your library</div>
+        <h1>Materials</h1>
+        <p class="hint">Everything you have uploaded. Teach from any of it, or add more.</p>
+        <div class="drop" id="drop" style="margin-top:1.25rem;" onclick="document.getElementById('file').click()">
+          <input type="file" id="file" multiple accept=".pdf,.docx,.pptx,.txt,.md" style="display:none;">
+          <div style="font-family:'Archivo Black',sans-serif;text-transform:uppercase;">Add material</div>
+          <div class="label" style="margin-top:0.4rem;">PDF, DOCX, PPTX, TXT — max 200MB</div>
+        </div>
+        <div id="uploadState" class="label" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <div class="panel">
+        <div class="label" id="count">Loading…</div>
+        <div id="list" style="margin-top:0.9rem;"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/ask-rail.js"></script>
+  <script>
+    var $ = function (id) { return document.getElementById(id); };
+    var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g,
+      function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+
+    function human(b) {
+      if (b > 1048576) return (b / 1048576).toFixed(1) + ' MB';
+      if (b > 1024) return Math.round(b / 1024) + ' KB';
+      return b + ' B';
+    }
+
+    async function load() {
+      var d = {materials: []};
+      try {
+        var r = await fetch('/api/materials');
+        if (r.ok) d = await r.json();
+      } catch (e) {}
+      $('count').textContent = d.materials.length
+        ? d.materials.length + ' file' + (d.materials.length === 1 ? '' : 's')
+        : 'Nothing uploaded yet';
+      $('list').innerHTML = d.materials.length ? d.materials.map(function (m) {
+        return '<div class="mat"><div style="min-width:0;">' +
+          '<div style="font-family:\'Archivo Black\',sans-serif;font-size:0.85rem;' +
+          'text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+          esc(m.name) + '</div><div class="label">' + esc(m.kind) + ' · ' + human(m.size) +
+          (m.topic ? ' · ' + esc(m.topic) : '') + '</div></div>' +
+          '<a class="btn dark" href="/upload?material=' + encodeURIComponent(m.path) + '">Teach me this</a>' +
+          '</div>';
+      }).join('') : '<p class="hint">Add a PDF or a document above and it will be kept here.</p>';
+    }
+
+    function b64(file) {
+      return new Promise(function (res, rej) {
+        var fr = new FileReader();
+        fr.onload = function () { res(String(fr.result).split(',')[1] || ''); };
+        fr.onerror = function () { rej(new Error('Could not read ' + file.name)); };
+        fr.readAsDataURL(file);
+      });
+    }
+
+    $('file').addEventListener('change', async function (e) {
+      var files = [].slice.call(e.target.files || []);
+      if (!files.length) return;
+      for (var i = 0; i < files.length; i++) {
+        $('uploadState').textContent = 'Uploading ' + files[i].name + '…';
+        try {
+          var r = await fetch('/api/materials/upload', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: files[i].name, content: await b64(files[i])}),
+          });
+          var d = await r.json();
+          if (!r.ok) throw new Error(d.error || 'Upload failed.');
+        } catch (err) {
+          $('uploadState').textContent = err.message;
+          return;
+        }
+      }
+      $('uploadState').textContent = 'Added.';
+      e.target.value = '';
+      load();
+    });
+
+    load();
+  </script>
+</body>
+</html>

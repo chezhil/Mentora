@@ -804,3 +804,144 @@ def summary(session_id: str, student_id: str = "student") -> JSONResponse:
         "\n".join(lines),
         headers={"Content-Disposition": f'attachment; filename="{name}"'},
     )
+
+
+# ---------------------------------------------------------------------------
+# Voice mode
+#
+# A spoken conversation with the teacher. Speech in and speech out both
+# happen in the BROWSER -- SpeechRecognition and speechSynthesis -- because a
+# server round trip through edge-tts plus a board render is 30-60 seconds,
+# which is a lecture, not a conversation. The server does the two things the
+# browser cannot: think of the reply, and draw the diagram.
+#
+# The visual is a still PNG, not a board video. Rendering one measures 0.07s
+# against 30s+ for video, and in a live exchange the picture has to be there
+# while the sentence is still being spoken.
+# ---------------------------------------------------------------------------
+
+_VOICE_DIR = (_ROOT / "out" / "voice").resolve()
+
+VOICE_PROMPT = """You are Mentora, a patient human teacher, talking OUT LOUD
+with a student. This is speech, not an essay.
+
+Rules for what you say:
+- At most 70 words. It is spoken aloud; long answers are unbearable to listen
+  to and the student cannot re-read them.
+- Answer the actual question first, in one or two plain sentences.
+- No markdown, no bullet points, no headings, no emoji, no stage directions.
+  Write what a person would SAY.
+- End by inviting the next step only if it is natural. Do not end every turn
+  with a question.
+- Speak in the language with code '<<LANGUAGE>>'.
+
+Draw something ONLY when a picture genuinely helps -- a relationship, a
+process, a formula. Most conversational turns need no visual at all, and a
+gratuitous one is worse than none.
+
+<<HISTORY>>
+
+Student just said: <<QUESTION>>
+
+Return ONLY this JSON:
+{"answer": "what you say out loud",
+ "visual": {"kind": "diagram|equation|none",
+            "payload": "mermaid graph LR ... | LaTeX | \"\"",
+            "caption": "short caption or null"}}
+"""
+
+
+class VoiceBody(BaseModel):
+    text: str
+    history: list[dict] = []          # [{role: "student"|"teacher", text: ...}]
+    student_id: str = "student"
+    language: str | None = None
+
+
+@router.post("/api/voice/reply")
+def voice_reply(body: VoiceBody) -> JSONResponse:
+    import llm
+
+    said = (body.text or "").strip()
+    if not said:
+        return JSONResponse({"error": "Nothing was heard."}, status_code=400)
+
+    prefs = hdb.get_preferences(body.student_id)
+    language = body.language or prefs.get("language") or "en"
+
+    # Only the last few turns: this is a conversation, and the whole history
+    # would cost latency the student hears as a pause.
+    tail = [t for t in (body.history or []) if t.get("text")][-6:]
+    history = "\n".join(
+        f"{'Student' if t.get('role') == 'student' else 'You'}: {t['text']}"
+        for t in tail
+    )
+    prompt = (VOICE_PROMPT
+              .replace("<<LANGUAGE>>", language)
+              .replace("<<HISTORY>>", ("Conversation so far:\n" + history) if history else "")
+              .replace("<<QUESTION>>", said))
+
+    try:
+        data = llm.generate_json(prompt)
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"},
+                            status_code=502)
+
+    answer = (data or {}).get("answer")
+    if not isinstance(answer, str) or not answer.strip():
+        return JSONResponse({"error": "The teacher had nothing to say."},
+                            status_code=502)
+
+    image = caption = None
+    visual = (data or {}).get("visual")
+    if isinstance(visual, dict):
+        kind = str(visual.get("kind") or "none").strip().lower()
+        payload = str(visual.get("payload") or "").strip()
+        # Models routinely emit a mermaid graph with LITERAL backslash-n
+        # between the edges rather than real newlines. The parser then reads
+        # the whole graph as a single line and invents nodes out of the
+        # fragments -- "\n A[Light reactions]", "C[Calvin cycle]\n C" -- so
+        # the picture is worse than no picture. Undo the escaping first.
+        if "\\n" in payload:
+            payload = payload.replace("\\r\\n", "\n").replace("\\n", "\n")
+        payload = payload.replace("\\t", " ").strip()
+        if kind in ("diagram", "equation", "graph", "concept_map") and payload:
+            try:
+                import hashlib
+
+                import board_media
+
+                caption = (visual.get("caption") or "").strip() or None
+                lv = board_media._lesson_video()
+                _VOICE_DIR.mkdir(parents=True, exist_ok=True)
+                stamp = hashlib.sha1(
+                    (kind + payload).encode("utf-8", "ignore")).hexdigest()[:10]
+                dest = _VOICE_DIR / f"voice_{kind}_{stamp}.png"
+                if not dest.exists():
+                    # The board renderer, not the media pipeline's still one:
+                    # same parse and layout as the lesson videos, where a
+                    # chained mermaid arrow and a long label are handled.
+                    lv.still(dest, "equation" if kind == "equation" else "diagram",
+                             payload, caption or "")
+                image = _media_url(str(dest.relative_to(_ROOT)))
+            except Exception:
+                image = caption = None      # never lose the reply over a picture
+
+    return JSONResponse({"answer": answer.strip(), "image": image,
+                         "caption": caption, "language": language})
+
+
+@router.get("/voice")
+def serve_voice():
+    page = STATIC_DIR / "voice.html"
+    if page.exists():
+        return HTMLResponse(page.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>voice.html not found</h1>", status_code=404)
+
+
+@router.get("/materials")
+def serve_materials():
+    page = STATIC_DIR / "materials.html"
+    if page.exists():
+        return HTMLResponse(page.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>materials.html not found</h1>", status_code=404)

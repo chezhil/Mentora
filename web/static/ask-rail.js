@@ -22,7 +22,8 @@
 
   var LINKS = [
     {href: '/upload',    label: 'Start new lesson', primary: true},
-    {href: '/upload',    label: 'View materials'},
+    {href: '/voice',     label: 'Talk out loud'},
+    {href: '/materials', label: 'View materials'},
     {href: '/review',    label: 'Review progress'},
     {href: '/flashcards', label: 'Flashcards'},
     {href: '/dashboard', label: 'Dashboard'},

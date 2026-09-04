@@ -110,8 +110,13 @@ LABEL_BLOCK = re.compile(r"\[[^\]]*\]|\{[^}]*\}|\([^)]*\)")
 # The optional `|edge label|` has to be an all-or-nothing group. Written as
 # `\|?[^|]*\|?` the middle is greedy and matches across the whole payload, so
 # `A --> B  B --> C  C --> D` parsed as the single edge A -> D.
+# The target is matched with a LOOKAHEAD so it is not consumed: mermaid
+# chains edges on one line -- `A --> B --> C` -- and a consuming match would
+# swallow B, leaving " --> C" with nothing in front of it. Half the arrows in
+# a chained payload went missing that way, which is how a five-step process
+# came out as three loose boxes and two orphans.
 MERMAID_EDGE = re.compile(
-    r"([A-Za-z]\w*)\s*[-=.]{1,2}[->.]*>\s*(?:\|[^|]*\|\s*)?([A-Za-z]\w*)")
+    r"([A-Za-z]\w*)\s*[-=.]{1,2}[->.]*>\s*(?:\|[^|]*\|\s*)?(?=([A-Za-z]\w*))")
 
 
 def parse_diagram(payload: str) -> list[Element]:
@@ -817,6 +822,48 @@ def draw_fallback(ax, t, caption) -> None:
     ax.text(cx, cy, "\n".join(lines), fontsize=fs, fontweight="bold",
             color=INK, ha="center", va="center", linespacing=1.35, zorder=8,
             alpha=a)
+
+
+def still(out: Path, kind: str, payload: str, caption: str,
+          width: int = W, height: int = H) -> Path:
+    """One finished board, as a PNG.
+
+    Voice mode needs a picture while the sentence is still being spoken, so
+    it cannot wait on a video. This is the same parse and the same layout the
+    lesson videos use -- the label-blanking fix, the serpentine grid, the
+    fitted text -- drawn once with every element already revealed. The
+    separate still renderer in the media pipeline mis-reads chained mermaid
+    arrows (`A --> B --> C`) and splits node labels down the middle, which is
+    what "B[Split H2O" and "Glucose]" boxes are.
+    """
+    setup_fonts()
+    elements = (parse_equation(payload) if kind == "equation"
+                else parse_diagram(payload))
+    for el in elements:
+        el.at = 0.0                       # everything already on the board
+
+    fig = plt.figure(figsize=(width / DPI, height / DPI), dpi=DPI, facecolor=PAPER)
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_facecolor(PAPER)
+    try:
+        ax.clear()
+        ax.set_xlim(0, 16)
+        ax.set_ylim(0, 9)
+        ax.axis("off")
+        t = 10.0                          # past every reveal
+        if kind == "equation" and elements:
+            title_bar(ax, t, caption)
+            draw_equation(ax, t, elements)
+        elif elements:
+            title_bar(ax, t, caption)
+            draw_flow(ax, t, elements)
+        else:
+            draw_fallback(ax, t, caption)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, dpi=DPI, facecolor=PAPER)
+    finally:
+        plt.close(fig)
+    return out
 
 
 def draw(ax, t, elements, kind, caption, sentences, total):
