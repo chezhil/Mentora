@@ -249,7 +249,17 @@ def _build_media(session: SessionState,
         out.notes.append(f"audio failed: {exc}")
 
     if out.audio_wav:
-        seconds = wiring.audio_seconds(out.audio_wav)
+        # Every other call to Pair C in this function is wrapped; this one was
+        # not, so a truncated or unreadable WAV raised straight out of
+        # _build_media and ended the lesson at step(). Injecting a failure into
+        # each media dependency in turn, this was the only one that did.
+        # Treat an unmeasurable clip as short and let the avatar backend
+        # enforce its own limit.
+        try:
+            seconds = wiring.audio_seconds(out.audio_wav)
+        except Exception as exc:
+            out.notes.append(f"could not measure narration length: {exc}")
+            seconds = 0.0
         if seconds > MAX_AVATAR_SECONDS:
             # Do not even attempt an avatar — Pair C refuses, and rightly. A
             # segment this long is a planning bug, so say so loudly.
