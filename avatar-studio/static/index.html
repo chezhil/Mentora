@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Avatar Studio — photo-real talking heads from text</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <h1>Avatar <em>Studio</em></h1>
+    </div>
+    <div class="topbar-meta">
+      <span class="pill" id="engine-pill">checking engine…</span>
+      <span class="pill subtle">free · runs on this machine</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Left: composer -->
+    <section class="panel composer">
+      <h2>Write the script</h2>
+
+      <div class="field">
+        <label for="text">What should the avatar say?</label>
+        <textarea id="text" rows="6"
+          placeholder="Hello! I'm your AI presenter. Type anything and I'll say it with real lip sync…"></textarea>
+        <div class="row-between">
+          <button id="sample" class="linklike">Use a sample script</button>
+          <span class="counter"><span id="chars">0</span>/<span id="max-chars"></span></span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="voice">Voice</label>
+        <select id="voice"></select>
+      </div>
+
+      <button id="generate" class="primary">✨ Generate avatar video</button>
+      <div class="hint cost-hint">Everything is free — neural speech (edge-tts)
+        and the on-device render. No API keys.</div>
+
+      <div id="banner" class="banner hidden"></div>
+    </section>
+
+    <!-- Right: stage -->
+    <section class="panel stage">
+      <div id="stage-idle" class="stage-state">
+        <img src="/assets/avatar.jpg" alt="Avatar preview" class="still" />
+        <div class="caption">Your avatar — ready for its debut</div>
+      </div>
+
+      <div id="stage-busy" class="stage-state hidden">
+        <div class="spinner"></div>
+        <div class="stage-label" id="stage-label">Working…</div>
+        <div class="hint">This usually takes 30–90 seconds. Grab a coffee.</div>
+      </div>
+
+      <div id="stage-done" class="stage-state hidden">
+        <video id="player" controls playsinline autoplay loop></video>
+        <div class="row-between stage-actions">
+          <a id="download" class="linklike" download>Download video</a>
+          <button id="again" class="linklike">Generate another</button>
+        </div>
+      </div>
+
+      <div id="stage-failed" class="stage-state hidden">
+        <div class="error-icon">⚠</div>
+        <div class="stage-label">Something went wrong</div>
+        <pre id="error-text" class="error-text"></pre>
+      </div>
+    </section>
+  </main>
+
+  <section class="panel history hidden" id="history">
+    <h2>Recent renders</h2>
+    <div id="history-grid" class="history-grid"></div>
+  </section>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
