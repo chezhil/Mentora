@@ -31,6 +31,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import uuid
 from datetime import datetime, timezone
@@ -428,6 +429,11 @@ def step(session: SessionState) -> TeachingSegment:
     return segment
 
 
+# Question ids this system mints: "q3_c1" from teacher.engine, "q2" from
+# planner.quiz. Used to tell a genuine post-restart id from a bad one.
+_OURS = re.compile(r"q\d+(?:_c\d+)?")
+
+
 def answer(session: SessionState,
            response: StudentResponse,
            question: Question | None = None) -> Evaluation:
@@ -452,7 +458,20 @@ def answer(session: SessionState,
                 if response.question_id.startswith(f"q_{q.concept_id}") or q.id == response.question_id:
                     question = q
                     break
-        # 6. Safe synthesized fallback if state was wiped by restart
+        # 6. Safe synthesized fallback if state was wiped by restart.
+        #
+        # Only for ids we could actually have MINTED. teacher.engine writes
+        # "q<n>_<concept>" and planner.quiz writes "q<n>"; anything else did
+        # not come from us. Synthesising for any string at all meant a garbage
+        # question_id produced a real Evaluation, appended to
+        # session.evaluations, marked against an invented `expected` the
+        # student never saw — and session.evaluations is what the score is
+        # computed from. A client sending junk could move the grade.
+        if question is None and not _OURS.fullmatch(response.question_id or ""):
+            raise KeyError(
+                f"unknown question id {response.question_id!r} — "
+                f"step() must run before answer()"
+            )
         if question is None:
             concept_id = None
             if "_" in response.question_id:
