@@ -121,18 +121,12 @@
       <div class="config-card">
         <h2 class="font-black" style="font-size:1.25rem;text-transform:uppercase;margin-bottom:1rem;">Features</h2>
 
-        <div class="toggle-row">
-          <div>
-            <div class="font-black" style="font-size:0.85rem;text-transform:uppercase;">Voice Narration</div>
-            <div style="font-size:0.75rem;color:rgba(0,0,0,0.5);">Read explanations aloud</div>
-          </div>
-          <div class="toggle on" onclick="this.classList.toggle('on')" id="toggleVoice"></div>
-        </div>
+                </div>
 
         <div class="toggle-row">
           <div>
             <div class="font-black" style="font-size:0.85rem;text-transform:uppercase;">Auto-Generate Quiz</div>
-            <div style="font-size:0.75rem;color:rgba(0,0,0,0.5);">Quiz after each lesson</div>
+            <div style="font-size:0.75rem;color:rgba(0,0,0,0.5);">Marked quiz at the end of every lesson</div>
           </div>
           <div class="toggle on" onclick="this.classList.toggle('on')" id="toggleQuiz"></div>
         </div>
@@ -145,13 +139,7 @@
           <div class="toggle on" onclick="this.classList.toggle('on')" id="toggleFlash"></div>
         </div>
 
-        <div class="toggle-row">
-          <div>
-            <div class="font-black" style="font-size:0.85rem;text-transform:uppercase;">Mentora Pro</div>
-            <div style="font-size:0.75rem;color:rgba(0,0,0,0.5);">Unlimited context window</div>
-          </div>
-          <div class="toggle on" onclick="this.classList.toggle('on')" id="togglePro"></div>
-        </div>
+                </div>
       </div>
 
       <!-- Language -->
@@ -250,6 +238,7 @@
       selectedLevel = s.difficulty || 'intermediate';
       selectedAvatar = s.avatar || 'f';
       if (s.language) document.getElementById('langSelect').value = s.language;
+      document.getElementById('toggleQuiz').classList.toggle('on', s.auto_quiz !== false);
       if (s.provider) document.getElementById('providerSelect').value = s.provider;
 
       // Say which keys already exist without ever sending their values back.
@@ -307,6 +296,7 @@
           body: JSON.stringify({
             persona: selectedPersona, difficulty: selectedLevel,
             language: language, avatar: selectedAvatar,
+            auto_quiz: document.getElementById('toggleQuiz').classList.contains('on'),
           }),
         });
         if (!r.ok) throw new Error('save failed');

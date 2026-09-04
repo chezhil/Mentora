@@ -65,6 +65,9 @@ class _Live:
         self.session = None
         self.segments: list[dict] = []
         self.report: dict | None = None
+        self.quiz: list[dict] | None = None
+        self.auto_quiz: bool = True
+        self.student_id: str = "student"
         self.job: dict = {"state": "idle", "phase": "", "error": ""}
         self.lock = threading.Lock()
 
@@ -173,7 +176,7 @@ def _teach_one(live: _Live) -> None:
     # on the runtime, and step() serves it before any new concept. Checking
     # is_finished alone would drop the re-teach the student just earned.
     if runtime.pending is None and orch.is_finished(session):
-        _finish(live)
+        _end_lesson(live)
         return
     segment = orch.step(session)
     media = orch.media_for(session, segment)
@@ -181,9 +184,27 @@ def _teach_one(live: _Live) -> None:
         live.segments.append(_segment_dict(session, segment, media))
 
 
-def _finish(live: _Live) -> None:
-    report = orch.finish(live.session)
-    live.report = {
+def _build_quiz(live: _Live) -> None:
+    """Generate the end-of-lesson quiz and hold it for the page.
+
+    finish() built a quiz and then wrote the report without ever asking it,
+    so "auto-generate quiz" produced a quiz nobody ever saw and a score drawn
+    only from mid-lesson questions.
+    """
+    questions = orch.quiz_questions(live.session)
+    live.quiz = [_question_dict(q) for q in questions if q is not None]
+    if not live.quiz:
+        _finish(live)
+
+
+def _submit_quiz(live: _Live, answers: dict) -> None:
+    report = orch.submit_quiz(live.session, answers)
+    live.quiz = None
+    live.report = _report_dict(report)
+
+
+def _report_dict(report) -> dict:
+    return {
         "score": report.score,
         "strong": list(report.strong),
         "weak": list(report.weak),
@@ -191,6 +212,19 @@ def _finish(live: _Live) -> None:
         "revise": list(report.revise),
         "next_topic": report.next_topic,
     }
+
+
+def _finish(live: _Live) -> None:
+    report = orch.finish(live.session)
+    live.report = _report_dict(report)
+
+
+def _end_lesson(live: _Live) -> None:
+    """Quiz first if the student wants one, otherwise straight to the report."""
+    if live.auto_quiz:
+        _build_quiz(live)
+    else:
+        _finish(live)
 
 
 def _state(session_id: str, live: _Live) -> dict:
@@ -206,6 +240,7 @@ def _state(session_id: str, live: _Live) -> dict:
         "current": getattr(session, "current_concept", 0) if session else 0,
         "total": len(plan.concepts) if plan else 0,
         "finished": live.report is not None,
+        "quiz": live.quiz,
         "segments": live.segments,
         "report": live.report,
     }
@@ -251,6 +286,8 @@ def lesson_start(body: StartBody) -> JSONResponse:
     )
 
     session_id, live = _new_live()
+    live.student_id = body.student_id
+    live.auto_quiz = bool(prefs.get("auto_quiz", True))
 
     def build() -> None:
         live.session = orch.start_session(
@@ -327,7 +364,27 @@ def lesson_finish(session_id: str) -> JSONResponse:
                             status_code=404)
     if live.job.get("state") == "running":
         return JSONResponse({"ok": False, "job": live.job})
-    _spawn(live, "Marking the final quiz", lambda: _finish(live))
+    phase = "Writing the final quiz" if live.auto_quiz else "Marking the lesson"
+    _spawn(live, phase, lambda: _end_lesson(live))
+    return JSONResponse({"ok": True})
+
+
+class QuizBody(BaseModel):
+    session_id: str
+    answers: dict[str, str] = {}
+
+
+@router.post("/api/lesson/quiz")
+def lesson_quiz(body: QuizBody) -> JSONResponse:
+    live = _live(body.session_id)
+    if live is None or live.session is None:
+        return JSONResponse({"error": "That lesson is no longer open."},
+                            status_code=404)
+    if live.job.get("state") == "running":
+        return JSONResponse({"ok": False, "job": live.job})
+    answers = {k: v for k, v in (body.answers or {}).items() if str(v).strip()}
+    _spawn(live, "Marking the final quiz",
+           lambda: _submit_quiz(live, answers))
     return JSONResponse({"ok": True})
 
 
@@ -387,6 +444,7 @@ def _settings(student_id: str) -> dict:
         "difficulty": prefs.get("difficulty") or "intermediate",
         "persona": prefs.get("persona") or "socratic",
         "avatar": prefs.get("avatar") or "f",
+        "auto_quiz": bool(prefs.get("auto_quiz", True)),
         "daily_goal": prefs.get("daily_goal") or 0,
         "languages": [{"code": c, "name": n} for c, n in LANGUAGES],
         # Whether a key exists, never the key. Reading one back to the browser
@@ -409,6 +467,7 @@ class SettingsBody(BaseModel):
     persona: str | None = None
     avatar: str | None = None
     daily_goal: int | None = None
+    auto_quiz: bool | None = None
 
 
 @router.post("/api/settings")
@@ -424,6 +483,8 @@ def save_settings(body: SettingsBody) -> JSONResponse:
         patch["avatar"] = body.avatar
     if body.daily_goal is not None:
         patch["daily_goal"] = int(body.daily_goal)
+    if body.auto_quiz is not None:
+        patch["auto_quiz"] = bool(body.auto_quiz)
     if patch:
         hdb.set_preferences(body.student_id, patch)
     return JSONResponse(_settings(body.student_id))

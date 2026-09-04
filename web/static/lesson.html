@@ -124,6 +124,17 @@
         </div>
       </div>
 
+      <div class="panel" id="quizPanel" style="display:none;">
+        <div class="label">Final quiz</div>
+        <p style="font-size:0.9rem;color:rgba(0,0,0,0.6);margin-bottom:1.25rem;">
+          Answer everything you can. Blanks are simply left unmarked.
+        </p>
+        <div id="quizBody"></div>
+        <div class="row" style="margin-top:1rem;">
+          <button class="btn btn-brutal" id="quizSubmit">Submit quiz</button>
+        </div>
+      </div>
+
       <div class="panel" id="reportPanel" style="display:none;">
         <div class="label">Lesson report</div>
         <div class="score" id="score">0</div>
@@ -202,10 +213,12 @@
       if (seg.answered) paintVerdict(seg.answered);
     }
 
+    if (s.quiz && s.quiz.length) paintQuiz(s.quiz);
     if (s.report) paintReport(s.report);
 
     $('nextBtn').disabled = running || !!s.report;
     $('finishBtn').disabled = running || !!s.report;
+    if (s.quiz && s.quiz.length && !s.report) $('quizSubmit').disabled = running;
     if (running) setTimeout(poll, 1500);
   }
 
@@ -216,8 +229,12 @@
     // The board video already carries the visual and the narration; the still
     // image is only a fallback for when the render did not happen.
     if (seg.video) {
+      // No autoplay: a lesson that starts talking the moment it is ready
+      // takes the room by surprise, and the student may not be looking yet.
+      // preload="metadata" still paints the first frame, so the player reads
+      // as a slide waiting to be played rather than an empty black box.
       $('mediaBox').innerHTML =
-        '<video controls autoplay playsinline src="' + seg.video + '"></video>';
+        '<video controls playsinline preload="metadata" src="' + seg.video + '"></video>';
     } else if (seg.image) {
       $('mediaBox').innerHTML = '<img src="' + seg.image + '" style="width:100%;border:3px solid var(--ink);">' +
         (seg.audio ? '<audio controls style="width:100%;margin-top:0.5rem;" src="' + seg.audio + '"></audio>' : '');
@@ -265,8 +282,35 @@
     $('submitBtn').disabled = true;
   }
 
+  let quizShown = 0;
+
+  function paintQuiz(qs) {
+    if (quizShown === qs.length) return;
+    quizShown = qs.length;
+    $('quizPanel').style.display = 'block';
+    $('segment').style.display = 'none';
+    $('quizBody').innerHTML = qs.map((q, i) =>
+      '<div class="verdict" style="margin-bottom:1rem;background:#fff;">' +
+      '<div class="label">Question ' + (i + 1) + '</div>' +
+      '<p style="font-weight:700;margin:0.35rem 0 0.85rem;">' + esc(q.prompt) + '</p>' +
+      (q.options && q.options.length
+        ? '<div data-q="' + esc(q.id) + '">' + q.options.map(o =>
+            '<button class="opt" data-v="' + esc(o) + '">' + esc(o) + '</button>').join('') + '</div>'
+        : '<input type="text" data-q="' + esc(q.id) + '" placeholder="Your answer" ' +
+          'style="width:100%;border:3px solid var(--ink);padding:0.8rem 1rem;">') +
+      '</div>').join('');
+
+    $('quizBody').querySelectorAll('[data-q] .opt').forEach(b => b.onclick = () => {
+      const group = b.parentElement;
+      [...group.children].forEach(x => x.classList.remove('sel'));
+      b.classList.add('sel');
+      group.dataset.value = b.dataset.v;
+    });
+  }
+
   function paintReport(rep) {
     $('reportPanel').style.display = 'block';
+    $('quizPanel').style.display = 'none';
     $('segment').style.display = 'none';
     $('score').textContent = Math.round(rep.score);
     const list = (title, arr) => (arr && arr.length)
@@ -298,6 +342,22 @@
   $('nextBtn').onclick = async () => {
     $('nextBtn').disabled = true;
     await fetch('/api/lesson/next?session_id=' + encodeURIComponent(sid), {method: 'POST'});
+    poll();
+  };
+
+  $('quizSubmit').onclick = async () => {
+    const answers = {};
+    $('quizBody').querySelectorAll('div[data-q]').forEach(g => {
+      if (g.dataset.value) answers[g.dataset.q] = g.dataset.value;
+    });
+    $('quizBody').querySelectorAll('input[data-q]').forEach(i => {
+      if (i.value.trim()) answers[i.dataset.q] = i.value.trim();
+    });
+    $('quizSubmit').disabled = true;
+    await fetch('/api/lesson/quiz', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({session_id: sid, answers}),
+    });
     poll();
   };
 

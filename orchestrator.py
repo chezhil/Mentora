@@ -751,6 +751,14 @@ def submit_quiz(session: SessionState,
 
     report = wiring.build_report(trim_state(session))
     _persist("save_report", session.session_id, report, rt.student_id)
+    # Marking the quiz IS the end of the lesson. Only finish() recorded the
+    # end time, so a lesson completed through the quiz screen left ended_at
+    # null forever -- and that column is what the dashboard measures time
+    # with, so those lessons counted as zero minutes. record_study_end is an
+    # UPDATE keyed on session_id, so a lesson that went through finish() as
+    # well is not double counted.
+    _persist("record_study_end", session.session_id, report.score)
+    rt.finished = True
     return report
 
 
