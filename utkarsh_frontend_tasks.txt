@@ -1,0 +1,49 @@
+===============================================================================
+MENTORA FRONTEND OVERHAUL
+===============================================================================
+You are rebuilding the interface. The backend is finished and working — do not modify backend code. 
+Only edit your assigned files.
+
+GETTING RUNNING (no API key needed)
+    git checkout main && git pull
+    git checkout -b frontend/your-branch-name
+    .venv/bin/pip install -r requirements.txt
+    AI_TEACHER_MOCK=mocks/fixture_mock.json .venv/bin/streamlit run app_v2.py
+
+HOW PAGES WORK
+Streamlit re-runs your script on every click. Read/write to `st.session_state`:
+    st.session_state.session      SessionState | None
+    st.session_state.segment      TeachingSegment | None
+    st.session_state.report       LessonReport | None
+    st.session_state.student_id   str
+
+Guard every page against arriving first:
+    session = st.session_state.session
+    if session is None:
+        st.info("Start a lesson on the Setup page first.")
+        st.stop()
+
+WHAT YOU OWN:
+    pages/3_Quiz.py
+    pages/4_Progress.py
+
+API FUNCTIONS NEEDED:
+    import orchestrator as orch
+
+    # For Quiz
+    orch.quiz_questions(session) -> list[Question]
+    orch.submit_quiz(session, {question_id: answer}) -> LessonReport
+    
+    # For Progress
+    orch.past_reports(student_id) -> list[LessonReport]
+    orch.learning_path_for(topic) -> list[str]
+
+SUGGESTED PAGE DESIGNS:
+  Quiz: show orch.quiz_questions(), collect answers, and call orch.submit_quiz(). Store the returned report in st.session_state.report and redirect to Report page if possible, or show a summary.
+  Progress: show past_reports() over time, weak concepts, and learning_path_for() steps (each step is "Step name - one line on why it comes here").
+
+BEFORE YOU PUSH
+Check you broke nothing:
+    AI_TEACHER_MOCK=mocks/fixture_mock.json .venv/bin/python smoke_test.py
+    .venv/bin/python -m pytest tests/ prompt_101/ planner/ -q
+===============================================================================

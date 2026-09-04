@@ -1,0 +1,49 @@
+===============================================================================
+MENTORA FRONTEND OVERHAUL
+===============================================================================
+You are rebuilding the interface. The backend is finished and working — do not modify backend code. 
+Only edit your assigned files.
+
+GETTING RUNNING (no API key needed)
+    git checkout main && git pull
+    git checkout -b frontend/your-branch-name
+    .venv/bin/pip install -r requirements.txt
+    AI_TEACHER_MOCK=mocks/fixture_mock.json .venv/bin/streamlit run app_v2.py
+
+HOW PAGES WORK
+Streamlit re-runs your script on every click. Read/write to `st.session_state`:
+    st.session_state.session      SessionState | None
+    st.session_state.segment      TeachingSegment | None
+    st.session_state.report       LessonReport | None
+    st.session_state.student_id   str
+
+Guard every page against arriving first:
+    session = st.session_state.session
+    if session is None:
+        st.info("Start a lesson on the Setup page first.")
+        st.stop()
+
+WHAT YOU OWN:
+    pages/1_Setup.py
+    pages/5_Report.py
+
+API FUNCTIONS NEEDED:
+    import orchestrator as orch
+
+    # For Setup
+    orch.past_reports(student_id) -> list[LessonReport]
+    orch.start_session(topic, profile, file_path=None, student_id="student") -> SessionState
+    
+    # For Report
+    # Use st.session_state.report (set by Quiz page or orchestrator.finish)
+    orch.lesson_video(session) -> str
+
+SUGGESTED PAGE DESIGNS:
+  Setup: upload or topic, level, language, time, name. Shows a welcome back line if past_reports() is non-empty. Wrap slow orch.start_session in st.spinner.
+  Report: show score, strong and weak areas, misconceptions, what to revise, next topic, and orch.lesson_video() to play the whole lesson.
+
+BEFORE YOU PUSH
+Check you broke nothing:
+    AI_TEACHER_MOCK=mocks/fixture_mock.json .venv/bin/python smoke_test.py
+    .venv/bin/python -m pytest tests/ prompt_101/ planner/ -q
+===============================================================================

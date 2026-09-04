@@ -27,69 +27,54 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Connect to Backend API for Chat
-    const sendBtn = document.getElementById('send-btn');
-    const promptInput = document.getElementById('prompt-input');
-    const chatHistory = document.getElementById('chat-history');
+    // AI Tutor Avatar Initialization (Only on lesson.html)
+    if (document.getElementById('avatar-canvas')) {
+        window.aiTutor = new window.AITutorAvatar({
+            canvasId: 'avatar-canvas',
+            transcriptBoxId: 'chat-history',
+            promptInputId: 'prompt-input',
+            micBtnId: 'ptt-btn',
+            sendBtnId: 'send-btn'
+        });
 
-    async function sendMessage() {
-        if (!promptInput || !chatHistory) return;
-        const text = promptInput.value.trim();
-        if (!text) return;
-
-        // Append User Message
-        const userMsg = document.createElement('div');
-        userMsg.className = 'message user';
-        userMsg.innerHTML = `<strong>USR</strong> ${text}`;
-        chatHistory.appendChild(userMsg);
-
-        promptInput.value = '';
-        chatHistory.scrollTop = chatHistory.scrollHeight;
-
-        try {
-            // Check if we are on the setup page starting a lesson
-            if(window.location.pathname.includes('index.html') || window.location.pathname === '/') {
+        // Play queued startup data if navigated from index.html
+        const pending = sessionStorage.getItem('pendingStartData');
+        if (pending) {
+            sessionStorage.removeItem('pendingStartData');
+            const data = JSON.parse(pending);
+            setTimeout(() => {
+                window.aiTutor.appendTranscript('ai', data.segment_text);
+                if (data.audio_url) {
+                    window.aiTutor.playAudio(data.audio_url, data.gestures || []);
+                }
+            }, 500);
+        }
+    } else {
+        // Setup Logic (index.html)
+        const startBtn = document.getElementById('start-session-btn');
+        const promptInput = document.getElementById('topic-input');
+        
+        if (startBtn && promptInput) {
+            startBtn.addEventListener('click', async () => {
+                const text = promptInput.value.trim();
                 const apiKeyInput = document.getElementById('api-key-input');
                 const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
                 
-                const response = await fetch('/api/start', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ topic: text, api_key: apiKey })
-                });
-                const data = await response.json();
-                window.location.href = '/lesson.html';
-                return;
-            }
-
-            // Normal lesson question
-            const response = await fetch('/api/ask', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ question: text })
+                try {
+                    const response = await fetch('/api/start', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ topic: text, api_key: apiKey })
+                    });
+                    const data = await response.json();
+                    
+                    // We pass the start data to sessionStorage so lesson.html can play it immediately
+                    sessionStorage.setItem('pendingStartData', JSON.stringify(data));
+                    window.location.href = '/lesson.html';
+                } catch (err) {
+                    console.error("Failed to start session:", err);
+                }
             });
-            const data = await response.json();
-            
-            const aiMsg = document.createElement('div');
-            aiMsg.className = 'message ai';
-            aiMsg.innerHTML = `<strong>MENTORA</strong> ${data.reply || "ERROR: NO RESPONSE"}`;
-            chatHistory.appendChild(aiMsg);
-            chatHistory.scrollTop = chatHistory.scrollHeight;
-        } catch (error) {
-            const aiMsg = document.createElement('div');
-            aiMsg.className = 'message system';
-            aiMsg.innerHTML = `<strong>SYS</strong> Error connecting to backend: ${error.message}`;
-            chatHistory.appendChild(aiMsg);
         }
-    }
-
-    if (sendBtn && promptInput) {
-        sendBtn.addEventListener('click', sendMessage);
-        promptInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
     }
 });

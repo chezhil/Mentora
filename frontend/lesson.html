@@ -43,20 +43,18 @@
                 <div class="panel chat-interface">
                     <div class="lesson-layout">
                         <div class="video-container">
-                            <div class="video-placeholder">AVATAR FEED [OFFLINE]</div>
-                            <div class="visual-placeholder">DIAGRAM / EQUATION VIEWER</div>
+                            <canvas id="avatar-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
+                            <div class="visual-placeholder" id="visual-viewer">DIAGRAM / EQUATION VIEWER</div>
                         </div>
                         <div class="chat-history" id="chat-history">
                             <div class="message system">
-                                <strong>SYS</strong> TEACHING SEGMENT 1: VOLTAGE & CURRENT.
-                            </div>
-                            <div class="message ai">
-                                <strong>MENTORA</strong> Voltage is the push that moves the charge, like pressure in a hose. Does that make sense?
+                                <strong>SYS</strong> CONNECTING TO AVATAR STREAM...
                             </div>
                         </div>
                     </div>
 
                     <div class="input-area">
+                        <button id="ptt-btn" class="brutal-btn action-btn" style="background-color: var(--accent-3); padding: 0 15px; margin-right: 10px;">🎤 PTT</button>
                         <textarea id="prompt-input" placeholder="ASK A FOLLOW-UP QUESTION..."></textarea>
                         <button id="send-btn" class="action-btn">SEND</button>
                     </div>
@@ -65,6 +63,8 @@
             </main>
         </div>
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="AITutorAvatar.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

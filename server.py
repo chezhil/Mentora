@@ -1,10 +1,12 @@
+import os
+from pathlib import Path
+
 from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+
 import orchestrator as orch
 from shared.models import LearnerProfile, StudentResponse
-from pathlib import Path
-import os
+from utils_gesture import parse_gestures
 
 app = FastAPI(title="Mentora API")
 
@@ -21,6 +23,12 @@ async def serve_file(filename: str):
     file_path = frontend_dir / filename
     if file_path.exists() and file_path.is_file():
         return FileResponse(file_path)
+    return HTMLResponse("Not Found", status_code=404)
+
+@app.get("/api/media")
+async def get_media(path: str):
+    if os.path.exists(path):
+        return FileResponse(path)
     return HTMLResponse("Not Found", status_code=404)
 
 @app.post("/api/start")
@@ -46,11 +54,19 @@ async def start_lesson(request: Request):
     segment = orch.step(session)
     media = orch.media_for(session, segment)
     
+    clean_text, gestures = parse_gestures(segment.script)
+    
     return JSONResponse({
         "status": "started",
         "topic": topic,
-        "segment_text": segment.script,
+        "segment_text": clean_text,
+        "gestures": gestures,
+        "audio_url": f"/api/media?path={media.audio_wav}" if media and media.audio_wav else None,
+        "visual_url": f"/api/media?path={media.visual_png}" if media and media.visual_png else None
     })
+
+import wiring
+
 
 @app.post("/api/ask")
 async def ask_question(request: Request):
@@ -62,8 +78,19 @@ async def ask_question(request: Request):
         return JSONResponse({"error": "No active session"}, status_code=400)
         
     reply = orch.ask(session, question)
+    
+    clean_text, gestures = parse_gestures(reply)
+    
+    audio_wav = None
+    try:
+        audio_wav = wiring.speak(clean_text, session.profile.language)
+    except Exception as exc:
+        print(f"TTS generation failed: {exc}")
+    
     return JSONResponse({
-        "reply": reply
+        "reply": clean_text,
+        "gestures": gestures,
+        "audio_url": f"/api/media?path={audio_wav}" if audio_wav else None
     })
 
 @app.post("/api/answer")
