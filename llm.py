@@ -23,7 +23,8 @@ from typing import Callable
 # local/OpenAI provider on a local base_url is in use, or the module import
 # (which resolves the package) may be shadowed.
 
-_PROVIDER_EARLY = os.environ.get("AI_TEACHER_PROVIDER", "local").strip().lower()
+# Default: groq. See the provider note below for why it is not "local".
+_PROVIDER_EARLY = os.environ.get("AI_TEACHER_PROVIDER", "groq").strip().lower()
 _MODEL_DEFAULTS = {
     "local": "gemini-3.7-flash",
     "gemini": "gemini-3.6-flash",
@@ -195,15 +196,24 @@ def _mock_response(prompt: str) -> str | None:
 # free tier is thousands a day and serves Llama 3.3 70B, which is close enough
 # in quality for teaching content and misconception naming.
 #
-#   AI_TEACHER_PROVIDER=gemini   (default) needs GEMINI_API_KEY
-#   AI_TEACHER_PROVIDER=groq               needs GROQ_API_KEY
+#   AI_TEACHER_PROVIDER=groq     (default) needs GROQ_API_KEY
+#   AI_TEACHER_PROVIDER=gemini             needs GEMINI_API_KEY
 #   AI_TEACHER_PROVIDER=ollama             needs ollama running locally
+#   AI_TEACHER_PROVIDER=local              needs a proxy on GEMINI_URL
+#
+# The default was "local", which points at http://127.0.0.1:8010 -- a private
+# proxy that exists on one developer's machine and nowhere else. Every fresh
+# clone therefore failed on its first LLM call with a bare connection-refused
+# to a localhost port the README never mentions, and the comment here claimed
+# the default was gemini, so neither the docs nor the code told the truth.
+# Defaulting to groq means a clone with no key gets the actionable message in
+# _openai_key() instead, pointing at the free tier the README recommends.
 #
 # Groq and Ollama both speak the OpenAI API, so one client covers both. The
 # cache, the timeout and the JSON parsing are shared by every provider.
 # ---------------------------------------------------------------------------
 
-PROVIDER = os.environ.get("AI_TEACHER_PROVIDER", "local").strip().lower()
+PROVIDER = os.environ.get("AI_TEACHER_PROVIDER", "groq").strip().lower()
 
 DEFAULT_MODELS = {
     "local": "gemini-3.7-flash",

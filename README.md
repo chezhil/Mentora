@@ -11,7 +11,18 @@ works out *why* you got something wrong, and changes its approach.
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
+echo "GROQ_API_KEY=your-key-here" > .env     # free, see "Which LLM provider"
 .venv/bin/streamlit run app.py
+```
+
+Without that key the app boots and the UI works, but the first lesson fails:
+every provider needs either a key or a local model server. Groq's is free and
+takes a minute to create.
+
+## Tests
+
+```bash
+.venv/bin/python -m pytest -q
 ```
 
 ## Two roles
@@ -101,8 +112,11 @@ echo "AI_TEACHER_PROVIDER=groq" >> .env
 echo "GROQ_API_KEY=your-key-here" >> .env
 ```
 
-`AI_TEACHER_PROVIDER` accepts `gemini`, `groq` or `ollama`. Ollama runs
-locally with no key and no limit; install it and `ollama pull llama3.1:8b`.
+`AI_TEACHER_PROVIDER` accepts `groq` (the default), `gemini`, `ollama` or
+`local`. Ollama runs locally with no key and no limit; install it and
+`ollama pull llama3.1:8b`. `local` expects an OpenAI-compatible proxy at
+`GEMINI_URL` (default `http://127.0.0.1:8010`) and is only useful if you
+are running one.
 
 Responses are cached in `.cache/llm` keyed on the exact prompt and model, so
 repeating a lesson costs nothing. `AI_TEACHER_CACHE=0` disables it.

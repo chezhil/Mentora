@@ -21,7 +21,13 @@ google-genai>=1.0              # NOT google-generativeai
 openai>=1.40                   # Groq and Ollama speak the OpenAI API
 
 # Pair C — prompt_101/media_pipeline (Santosh, Hamza)
-imageio-ffmpeg>=1.4            # NOT a system ffmpeg
+imageio-ffmpeg>=0.5            # NOT a system ffmpeg. Ships its own binary.
+                               # This read >=1.4, a version that has never
+                               # existed -- the package is still on 0.6.0 --
+                               # so `pip install -r requirements.txt` failed
+                               # outright on any machine without a warm
+                               # cache. It worked here only because 0.6.0
+                               # was already installed before the pin landed.
 # Imported by code that runs on every lesson but never declared: they arrive
 # transitively from streamlit/matplotlib/torch today, so the repo works by
 # accident. A fresh install that resolves differently loses the diagram and
@@ -47,3 +53,8 @@ edge-tts>=7.0                  # free neural voice for ta, kn, bn, mr and as
 
 fastapi>=0.110.0
 uvicorn>=0.28.0
+
+# Tests. The repo ships tests/ and pyproject configures pytest, but nothing
+# declared it, so a fresh clone could not run the suite at all -- the one
+# command that would have caught the imageio-ffmpeg pin above.
+pytest>=7.0
