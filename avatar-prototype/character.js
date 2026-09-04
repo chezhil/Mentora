@@ -171,6 +171,22 @@ $("variant").addEventListener("click", () => {
   svg.dataset.variant = svg.dataset.variant === "f" ? "m" : "f";
 });
 
+// The teaching video carries its own narration, so the same driver that reads
+// a WAV can read the video's audio track — the teacher lip-syncs to the lesson
+// she is standing in front of. A click is required before any of it makes a
+// sound, which is the autoplay rule rather than a limitation of the driver.
+const lesson = $("lesson");
+$("lessonPlay").addEventListener("click", async (e) => {
+  driver.attachElement(lesson);
+  if (lesson.paused) {
+    await lesson.play();
+    e.target.textContent = "Pause the lesson";
+  } else {
+    lesson.pause();
+    e.target.textContent = "Play the lesson";
+  }
+});
+
 $("mic").addEventListener("click", async (e) => {
   try {
     await driver.attachMicrophone();
