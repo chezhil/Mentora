@@ -553,6 +553,13 @@ def serve_review():
     return HTMLResponse("<h1>Session Review not found</h1>", status_code=404)
 
 
+# The teaching loop -- /lesson, /api/lesson/* -- lives in its own module so
+# that edits to this file and edits to the lesson flow do not collide.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lesson_api import router as lesson_router   # noqa: E402
+
+app.include_router(lesson_router)
+
 # Mount static files (CSS, JS, images if any)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

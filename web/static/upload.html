@@ -209,56 +209,48 @@
       if (!topic) { alert('Please enter a topic.'); return; }
 
       const level = document.getElementById('levelSelect').value;
-      const minutes = document.getElementById('timeSelect').value;
+      const minutes = parseInt(document.getElementById('timeSelect').value, 10);
       const goal = document.getElementById('goalInput').value;
-      const files = uploadedFiles.map(f => f.name);
 
-      document.getElementById('progress').style.display = 'block';
-      document.getElementById('startBtn').disabled = true;
-      document.getElementById('startBtn').style.opacity = '0.5';
+      const progress = document.getElementById('progress');
+      const btn = document.getElementById('startBtn');
+      progress.style.display = 'block';
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      document.getElementById('progressBar').style.width = '35%';
 
-      // Save config so Streamlit picks it up
+      let language = 'en';
       try {
+        const cfg = JSON.parse(localStorage.getItem('mentora_config') || '{}');
+        language = cfg.language || 'en';
         localStorage.setItem('mentora_config', JSON.stringify({
-          topic, level, minutes: parseInt(minutes), goal,
-          files: files,
-          persona: localStorage.getItem('mentora_persona') || 'socratic',
-          language: (JSON.parse(localStorage.getItem('mentora_config') || '{}')).language || 'en'
+          ...cfg, topic, level, minutes, goal,
         }));
-      } catch(e) {}
+      } catch (e) {}
 
-      let pct = 0;
-      const iv = setInterval(() => {
-        pct += Math.random() * 15 + 5;
-        if (pct >= 100) {
-          pct = 100;
-          clearInterval(iv);
-          // Check if Streamlit is running, then redirect
-          fetch('http://127.0.0.1:8501/_stcore/health')
-            .then(function(r) {
-              if (r.ok) {
-                window.location.href = 'http://127.0.0.1:8501';
-              } else {
-                showLessonReady(topic, level, minutes);
-              }
-            })
-            .catch(function() {
-              showLessonReady(topic, level, minutes);
-            });
-        }
-        document.getElementById('progressBar').style.width = pct + '%';
-      }, 300);
-    }
-
-    function showLessonReady(topic, level) {
-      document.getElementById('progress').innerHTML =
-        '<div style="border:3px solid var(--ink);padding:1.5rem;background:var(--acid);box-shadow:8px 8px 0 0 #000;margin-top:1rem;">' +
-        '<p class="font-black" style="font-size:1.1rem;text-transform:uppercase;margin-bottom:0.5rem;">Lesson Ready!</p>' +
-        '<p style="font-size:0.85rem;">Topic: <strong>' + topic + '</strong> (' + level + ')</p>' +
-        '<p style="font-size:0.8rem;color:rgba(0,0,0,0.6);margin-top:0.5rem;">' +
-        'The interactive lesson will start in the Mentora app. Make sure the Streamlit server is running on port 8501.</p>' +
-        '<button onclick="window.location.href=\'http://127.0.0.1:8501\'" style="margin-top:1rem;padding:1rem 2rem;background:var(--ink);color:var(--acid);font-family:Archivo Black,sans-serif;text-transform:uppercase;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;cursor:pointer;">Open Mentora App</button>' +
-        '</div>';
+      // Teach here. This used to run a fake progress bar and then send the
+      // browser to Streamlit on :8501 -- so "start lesson" meant leaving the
+      // app, and it simply failed if that other server was not running.
+      try {
+        const r = await fetch('/api/lesson/start', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({topic, level, minutes, goal, language}),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Could not start the lesson.');
+        document.getElementById('progressBar').style.width = '100%';
+        window.location.href = '/lesson?sid=' + encodeURIComponent(data.session_id);
+      } catch (e) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        progress.innerHTML =
+          '<div style="border:3px solid var(--ink);padding:1.25rem;background:#ffd9d0;' +
+          'box-shadow:8px 8px 0 0 #000;margin-top:1rem;text-align:left;">' +
+          '<p class="font-black" style="font-size:1rem;text-transform:uppercase;">Could not start</p>' +
+          '<p style="font-size:0.85rem;margin-top:0.5rem;font-family:Space Mono,monospace;">' +
+          String(e.message) + '</p></div>';
+      }
     }
   </script>
 </body>

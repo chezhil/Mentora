@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mentora — Lesson</title>
+  <link rel="stylesheet" href="/static/brutalist.css">
+  <style>
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    .panel {
+      border: 3px solid var(--ink); background: #fff;
+      box-shadow: 8px 8px 0 0 #000; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .label {
+      font-family: 'Space Mono', monospace; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: rgba(0,0,0,0.45); margin-bottom: 0.5rem;
+    }
+    h1.topic {
+      font-family: 'Archivo Black', sans-serif; font-size: clamp(1.6rem, 4vw, 2.6rem);
+      text-transform: uppercase; line-height: 1.05; margin-bottom: 0.35rem;
+    }
+    .pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.85rem; }
+    .pill {
+      font-family: 'Space Mono', monospace; font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.08em; border: 2px solid var(--ink); padding: 0.3rem 0.6rem;
+      background: #fff;
+    }
+    .pill.done { background: var(--ink); color: var(--acid); }
+    .pill.now  { background: var(--acid); }
+    video { width: 100%; display: block; border: 3px solid var(--ink); background: var(--paper); }
+    .script { font-size: 1.05rem; line-height: 1.6; }
+    .btn {
+      font-family: 'Archivo Black', sans-serif; text-transform: uppercase;
+      border: 3px solid var(--ink); padding: 1rem 1.75rem; font-size: 1rem;
+      background: var(--ink); color: var(--acid); box-shadow: 5px 5px 0 0 #000;
+      cursor: pointer;
+    }
+    .btn.ghost { background: #fff; color: var(--ink); }
+    .btn[disabled] { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: translate(3px,3px); }
+    .row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+    input[type=text] {
+      flex: 1; min-width: 240px; font-family: 'Archivo', sans-serif; font-size: 1rem;
+      border: 3px solid var(--ink); padding: 0.9rem 1rem; background: #fff;
+    }
+    .opt {
+      display: block; width: 100%; text-align: left; border: 3px solid var(--ink);
+      background: #fff; padding: 0.85rem 1rem; margin-bottom: 0.5rem; cursor: pointer;
+      font-family: 'Archivo', sans-serif; font-size: 0.98rem;
+    }
+    .opt.sel { background: var(--acid); box-shadow: 4px 4px 0 0 #000; }
+    .verdict { border: 3px solid var(--ink); padding: 1rem 1.25rem; margin-top: 1rem; }
+    .verdict.ok  { background: var(--acid); }
+    .verdict.bad { background: #ffd9d0; }
+    .cite {
+      font-family: 'Space Mono', monospace; font-size: 11px; line-height: 1.5;
+      border-left: 3px solid var(--ink); padding-left: 0.75rem; margin-top: 0.5rem;
+      color: rgba(0,0,0,0.7);
+    }
+    .bar { height: 14px; border: 3px solid var(--ink); background: #fff; overflow: hidden; }
+    .bar > div { height: 100%; background: var(--acid); width: 0; transition: width .4s; }
+    .score { font-family: 'Archivo Black', sans-serif; font-size: 4rem; line-height: 1; }
+    .spin { display: inline-block; animation: blink 1s steps(2,start) infinite; }
+    @keyframes blink { to { visibility: hidden; } }
+    ul.tight { margin: 0.35rem 0 0 1.1rem; }
+    ul.tight li { margin-bottom: 0.25rem; }
+  </style>
+</head>
+<body>
+  <header style="border-bottom:3px solid var(--ink);padding:0.9rem 1.25rem;background:var(--paper);">
+    <nav style="display:flex;align-items:center;gap:0.75rem;max-width:1100px;margin:0 auto;">
+      <a href="/" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:0.75rem;">
+        <div style="width:36px;height:36px;display:grid;place-items:center;background:var(--ink);color:var(--acid);font-family:'Archivo Black',sans-serif;font-size:1.1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;">M</div>
+        <div style="font-family:'Archivo Black',sans-serif;font-size:1rem;text-transform:uppercase;">Mentora</div>
+      </a>
+      <div style="font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.4);">/ Lesson</div>
+    </nav>
+  </header>
+
+  <main class="grid-bg" style="flex:1;">
+    <div class="wrap">
+
+      <div class="panel" id="head">
+        <div class="label">Now teaching</div>
+        <h1 class="topic" id="topic">Starting…</h1>
+        <div class="bar"><div id="bar"></div></div>
+        <div class="pills" id="pills"></div>
+      </div>
+
+      <div class="panel" id="statusPanel">
+        <div class="label">Status</div>
+        <div style="font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:1.1rem;">
+          <span id="phase">Planning the lesson</span><span class="spin">_</span>
+        </div>
+        <p style="margin-top:0.5rem;font-size:0.9rem;color:rgba(0,0,0,0.6);" id="phaseNote">
+          Mentora is writing the plan, narrating it and rendering the board video. This takes a minute.
+        </p>
+      </div>
+
+      <div id="segment" style="display:none;">
+        <div class="panel">
+          <div class="label" id="segLabel">Segment</div>
+          <div id="mediaBox"></div>
+          <p class="script" id="script" style="margin-top:1.25rem;"></p>
+          <div id="cites"></div>
+        </div>
+
+        <div class="panel" id="qPanel" style="display:none;">
+          <div class="label">Check yourself</div>
+          <p style="font-size:1.1rem;font-weight:700;margin-bottom:1rem;" id="qPrompt"></p>
+          <div id="qOptions"></div>
+          <div class="row" id="qFreeRow">
+            <input type="text" id="qInput" placeholder="Type your answer" autocomplete="off">
+          </div>
+          <div class="row" style="margin-top:1rem;">
+            <button class="btn btn-brutal" id="submitBtn">Submit answer</button>
+          </div>
+          <div id="verdict"></div>
+        </div>
+
+        <div class="row">
+          <button class="btn btn-brutal" id="nextBtn">Next segment</button>
+          <button class="btn ghost btn-brutal" id="finishBtn">Finish &amp; get report</button>
+        </div>
+      </div>
+
+      <div class="panel" id="reportPanel" style="display:none;">
+        <div class="label">Lesson report</div>
+        <div class="score" id="score">0</div>
+        <div class="label" style="margin-top:0.25rem;">out of 100</div>
+        <div id="reportBody" style="margin-top:1.25rem;"></div>
+        <div class="row" style="margin-top:1.5rem;">
+          <a class="btn btn-brutal" href="/upload" style="text-decoration:none;">Teach me something else</a>
+          <a class="btn ghost btn-brutal" href="/dashboard" style="text-decoration:none;">Dashboard</a>
+        </div>
+      </div>
+
+      <div class="panel" id="errPanel" style="display:none;background:#ffd9d0;">
+        <div class="label">Something broke</div>
+        <p id="errText" style="font-family:'Space Mono',monospace;font-size:12px;line-height:1.6;"></p>
+      </div>
+
+    </div>
+  </main>
+
+<script>
+  const sid = new URLSearchParams(location.search).get('sid') || '';
+  let shownSegments = 0, currentQ = null, selected = null, polling = false;
+
+  const $ = id => document.getElementById(id);
+
+  if (!sid) { location.href = '/upload'; }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g,
+      c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+
+  async function poll() {
+    if (polling) return;
+    polling = true;
+    try {
+      const r = await fetch('/api/lesson/state?session_id=' + encodeURIComponent(sid));
+      if (!r.ok) { showError('This lesson is no longer open. Start a new one.'); return; }
+      render(await r.json());
+    } catch (e) {
+      showError(e.message);
+    } finally { polling = false; }
+  }
+
+  function showError(msg) {
+    $('errPanel').style.display = 'block';
+    $('errText').textContent = msg;
+    $('statusPanel').style.display = 'none';
+  }
+
+  function render(s) {
+    if (s.topic) $('topic').textContent = s.topic;
+
+    // Progress across the planned concepts.
+    if (s.total) {
+      $('bar').style.width = Math.round((s.current / s.total) * 100) + '%';
+      $('pills').innerHTML = s.concepts.map((c, i) =>
+        '<span class="pill ' + (i < s.current ? 'done' : i === s.current ? 'now' : '') +
+        '">' + esc(c) + '</span>').join('');
+    }
+
+    const running = s.job && s.job.state === 'running';
+    $('statusPanel').style.display = running ? 'block' : 'none';
+    if (running) $('phase').textContent = s.job.phase || 'Working';
+
+    if (s.job && s.job.state === 'error') showError(s.job.error);
+
+    // Newest segment wins the screen.
+    if (s.segments && s.segments.length) {
+      $('segment').style.display = 'block';
+      const seg = s.segments[s.segments.length - 1];
+      if (s.segments.length !== shownSegments) {
+        shownSegments = s.segments.length;
+        paintSegment(seg, s.segments.length, s.total);
+      }
+      if (seg.answered) paintVerdict(seg.answered);
+    }
+
+    if (s.report) paintReport(s.report);
+
+    $('nextBtn').disabled = running || !!s.report;
+    $('finishBtn').disabled = running || !!s.report;
+    if (running) setTimeout(poll, 1500);
+  }
+
+  function paintSegment(seg, n, total) {
+    $('segLabel').textContent = 'Segment ' + n + ' · ' + (seg.concept || '');
+    $('script').textContent = seg.script || '';
+
+    // The board video already carries the visual and the narration; the still
+    // image is only a fallback for when the render did not happen.
+    if (seg.video) {
+      $('mediaBox').innerHTML =
+        '<video controls autoplay playsinline src="' + seg.video + '"></video>';
+    } else if (seg.image) {
+      $('mediaBox').innerHTML = '<img src="' + seg.image + '" style="width:100%;border:3px solid var(--ink);">' +
+        (seg.audio ? '<audio controls style="width:100%;margin-top:0.5rem;" src="' + seg.audio + '"></audio>' : '');
+    } else {
+      $('mediaBox').innerHTML = '';
+    }
+
+    $('cites').innerHTML = (seg.citations || []).length
+      ? '<div class="label" style="margin-top:1.25rem;">From your material</div>' +
+        seg.citations.map(c => '<div class="cite">' + esc(c.text) + '</div>').join('')
+      : '';
+
+    currentQ = seg.question; selected = null;
+    $('verdict').innerHTML = '';
+    if (currentQ) {
+      $('qPanel').style.display = 'block';
+      $('qPrompt').textContent = currentQ.prompt;
+      $('submitBtn').disabled = false;
+      $('qInput').value = '';
+      if (currentQ.options && currentQ.options.length) {
+        $('qFreeRow').style.display = 'none';
+        $('qOptions').innerHTML = currentQ.options.map((o, i) =>
+          '<button class="opt" data-v="' + esc(o) + '">' + esc(o) + '</button>').join('');
+        [...$('qOptions').children].forEach(b => b.onclick = () => {
+          selected = b.dataset.v;
+          [...$('qOptions').children].forEach(x => x.classList.remove('sel'));
+          b.classList.add('sel');
+        });
+      } else {
+        $('qOptions').innerHTML = '';
+        $('qFreeRow').style.display = 'flex';
+      }
+    } else {
+      $('qPanel').style.display = 'none';
+    }
+  }
+
+  function paintVerdict(v) {
+    $('verdict').innerHTML =
+      '<div class="verdict ' + (v.correct ? 'ok' : 'bad') + '">' +
+      '<div class="label">' + (v.correct ? 'Correct' : 'Not quite') + '</div>' +
+      '<p style="margin-top:0.35rem;">' + esc(v.feedback) + '</p>' +
+      (v.misconception ? '<p class="cite" style="margin-top:0.75rem;">' + esc(v.misconception) + '</p>' : '') +
+      '</div>';
+    $('submitBtn').disabled = true;
+  }
+
+  function paintReport(rep) {
+    $('reportPanel').style.display = 'block';
+    $('segment').style.display = 'none';
+    $('score').textContent = Math.round(rep.score);
+    const list = (title, arr) => (arr && arr.length)
+      ? '<div class="label" style="margin-top:1rem;">' + title + '</div><ul class="tight">' +
+        arr.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '';
+    $('reportBody').innerHTML =
+      list('Solid', rep.strong) + list('Needs work', rep.weak) +
+      list('Misconceptions named', rep.misconceptions) + list('Revise', rep.revise) +
+      (rep.next_topic ? '<div class="label" style="margin-top:1rem;">Suggested next</div><p>' +
+        esc(rep.next_topic) + '</p>' : '');
+  }
+
+  $('submitBtn').onclick = async () => {
+    if (!currentQ) return;
+    const value = selected != null ? selected : $('qInput').value.trim();
+    if (!value) return;
+    $('submitBtn').disabled = true;
+    try {
+      const r = await fetch('/api/lesson/answer', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({session_id: sid, question_id: currentQ.id, answer: value}),
+      });
+      const data = await r.json();
+      if (!r.ok) { showError(data.error || 'Could not grade that.'); return; }
+      paintVerdict(data);
+    } catch (e) { showError(e.message); }
+  };
+
+  $('nextBtn').onclick = async () => {
+    $('nextBtn').disabled = true;
+    await fetch('/api/lesson/next?session_id=' + encodeURIComponent(sid), {method: 'POST'});
+    poll();
+  };
+
+  $('finishBtn').onclick = async () => {
+    $('finishBtn').disabled = true;
+    await fetch('/api/lesson/finish?session_id=' + encodeURIComponent(sid), {method: 'POST'});
+    poll();
+  };
+
+  poll();
+</script>
+</body>
+</html>
