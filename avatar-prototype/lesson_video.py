@@ -93,6 +93,7 @@ class Element:
     label: str
     at: float = 0.0                      # seconds, filled in by schedule()
     edge_from: int | None = None         # index of the node this arrives from
+    matched: bool = False                # True when a spoken word placed it
 
 
 # One pattern per bracket style. A single combined class does NOT work: on the
@@ -233,66 +234,99 @@ def narrate(text: str, voice: str, workdir: Path) -> Narration:
     return Narration(audio=mp3, sentences=sentences)
 
 
-# Split on separators rather than matching a letter class. `[^\W\d_]` excludes
-# Devanagari combining vowel signs, so "बैटरी" was being chopped at every
-# matra and nothing ever matched a Hindi sentence — every element fell back to
-# even spacing, which is what the first run did.
-_SEPARATORS = re.compile(r"[\s\u0964\u0965,.;:!?()\[\]{}\"'\u2014\u2013-]+")
+_TOKEN = re.compile(r"[^\s,.;:!?()\[\]{}\"'\u0964\u0965\u2014\u2013-]+")
+_LATEX_CMD = re.compile(r"\\[a-zA-Z]+")
 
 
-def _words(text: str) -> list[str]:
-    return [w for w in _SEPARATORS.split(text) if len(w) >= 3]
+def _words(label: str) -> list[str]:
+    """The words worth looking for in the script.
+
+    LaTeX is stripped first: `\\frac{Q}{t}` has to yield Q and t, not "frac".
+    Tokens are split on separators rather than matched with a letter class,
+    because `[^\\W\\d_]` excludes Devanagari combining vowel signs and chopped
+    every Hindi word at its matras.
+    """
+    text = _LATEX_CMD.sub(" ", label)
+    text = re.sub(r"[{}$^_\\]", " ", text)
+    return [w for w in _TOKEN.findall(text) if w]
 
 
-MIN_GAP = 0.7          # seconds; two reveals closer than this read as one
+def _position(word: str, text: str) -> int | None:
+    """Where `word` occurs in `text`, or None.
+
+    Words of one or two characters must match a WHOLE token. An equation term
+    is often a single letter, and a substring search for "I" hits the i in
+    "divided" and lands the reveal on the wrong sentence entirely.
+    """
+    word = word.lower()
+    if len(word) >= 3:
+        i = text.find(word)
+        return i if i >= 0 else None
+    for m in _TOKEN.finditer(text):
+        if m.group(0).lower() == word:
+            return m.start()
+    return None
+
+
+MIN_GAP = 0.35         # seconds; two reveals closer than this read as one
 
 
 def schedule(elements: list[Element], sentences: list[Sentence]) -> None:
-    """Give each element the time of the first sentence that mentions it.
+    """Time each element to the moment its word is actually spoken.
 
-    Matching is on words of three characters or more, split on separators so
-    it behaves the same in Devanagari as in Latin.
-
-    Several elements often match the SAME sentence — one Hindi script named
-    four of them in a single breath — so a matched group is spread across that
-    sentence's own span rather than stacked on its start. Without that they
-    all appeared on one frame, which is the thing this file exists to avoid.
+    Matching to a sentence is not precise enough on its own. One Hindi script
+    names four things in a single nine-second sentence, so anchoring all four
+    to the sentence START put every box on screen before three of them were
+    mentioned. The offset of the matched word WITHIN the sentence is used to
+    interpolate across the sentence's own duration instead.
     """
     if not elements or not sentences:
         return
 
     lowered = [s.text.lower() for s in sentences]
-    matched: list[int | None] = []
     for el in elements:
-        words = [w.lower() for w in _words(el.label)]
-        matched.append(next(
-            (i for i, text in enumerate(lowered)
-             if any(w in text for w in words)), None))
+        words = _words(el.label)
+        hit = None
+        for si, text in enumerate(lowered):
+            for word in words:
+                pos = _position(word, text)
+                if pos is not None:
+                    hit = (si, pos / max(len(text), 1))
+                    break
+            if hit:
+                break
+        el.matched = hit is not None
+        if hit:
+            si, frac = hit
+            sent = sentences[si]
+            el.at = sent.start + (sent.end - sent.start) * frac * 0.92
 
-    groups: dict[int, list[int]] = {}
-    for i, sidx in enumerate(matched):
-        if sidx is not None:
-            groups.setdefault(sidx, []).append(i)
-
-    for sidx, idxs in groups.items():
-        sent = sentences[sidx]
-        span = max(sent.end - sent.start, 0.6)
-        for j, i in enumerate(idxs):
-            # Land inside the sentence, never on its final word.
-            elements[i].at = sent.start + span * (j / len(idxs)) * 0.8
-
+    # An element nobody says — an "=" between two named terms — belongs BETWEEN
+    # its matched neighbours, not spread across the whole narration. Sending it
+    # to an even fraction of the total put the equals sign ten seconds before
+    # the fraction it joins.
     first, last = sentences[0].start, sentences[-1].end
     for i, el in enumerate(elements):
-        if matched[i] is None:
-            frac = (i + 1) / (len(elements) + 1)
-            el.at = first + (last - first) * frac * 0.75
+        if el.matched:
+            continue
+        prev = next((e.at for e in reversed(elements[:i]) if e.matched), first)
+        nxt = next((e.at for e in elements[i + 1:] if e.matched), last)
+        gap_before = sum(1 for e in elements[:i] if not e.matched)
+        run = sum(1 for e in elements[i:] if not e.matched) + 1
+        el.at = prev + (nxt - prev) * (gap_before + 1) / (gap_before + run)
 
-    # A reveal must never precede one that comes before it in the flow, and two
-    # must never land close enough to read as a single pop.
-    running = 0.0
-    for el in elements:
-        el.at = running = max(el.at, running)
-        running += MIN_GAP
+    # Spread collisions in the order things are SPOKEN, not the order they sit
+    # in the flowchart. The script names these in its own order — one Hindi
+    # segment mentions the battery last though it is node A — and clamping to
+    # flow order dragged every later box back to within 0.35s of the first,
+    # which is what "the images do not show up on time" was. Layout keeps the
+    # flow order; only the timing follows the voice.
+    for i in sorted(range(len(elements)), key=lambda i: elements[i].at):
+        el = elements[i]
+        earlier = [e.at for j, e in enumerate(elements)
+                   if j != i and e.at <= el.at]
+        if earlier:
+            el.at = max(el.at, max(earlier) + MIN_GAP)
 
 
 # ---------------------------------------------------------------------------
