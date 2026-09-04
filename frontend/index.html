@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html class="scroll-smooth" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -73,7 +74,6 @@ tailwind.config = {
     }
   </script>
 <style>sd-component { display: block; }</style>
-<script defer="" init="" src="https://cdn.jsdelivr.net/npm/petite-vue@0.4.1/dist/petite-vue.iife.js"></script>
 <title>Mentora Interactive Discussion</title>
 <meta content="Mentora Interactive Discussion" property="og:title"/>
 <meta content="website" property="og:type"/>
@@ -1323,17 +1323,16 @@ tailwind.config = {
       };
     }
   </script>
-
 </head>
 <body class="selection:bg-acid selection:text-ink">
 <div class="min-h-screen bg-paper text-ink flex flex-col overflow-hidden" data-sd-id="1">
 <!-- Navigation via Reusable Header -->
 <!-- component: HeaderNav (e186f640-4cf0-4369-8268-daf0d95ba8c5) -->
-<div v-scope='{ ...{"homeHref":"#","endSessionHref":"#end-session","lessonTitle":"Quantum Mechanics Overview"}, $emit() {} }'>
+<div>
 <header class="sticky top-0 z-50 bg-[#f4f1ea] border-b-[3px] border-black">
 <nav class="mx-auto w-full px-5 md:px-8 h-[68px] flex items-center justify-between">
 <div class="flex items-center gap-3">
-<a :href="homeHref" class="w-9 h-9 grid place-items-center bg-black text-[#e8ff00] font-black text-lg shadow-[5px_5px_0_0_#000000] border-[3px] border-black transition-all duration-75 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none">M</a>
+<a class="w-9 h-9 grid place-items-center bg-black text-[#e8ff00] font-black text-lg shadow-[5px_5px_0_0_#000000] border-[3px] border-black transition-all duration-75 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none">M</a>
 <div class="flex items-center font-black text-base md:text-lg tracking-tight uppercase">
 <span>Mentora</span>
 <span class="mx-2 text-black/30">/</span>
@@ -1345,10 +1344,10 @@ tailwind.config = {
 <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-black/50">Current Lesson</span>
 <span class="font-black text-sm uppercase tracking-tight">{{ lessonTitle }}</span>
 </div>
-<button @click="$emit('openSettings')" class="w-10 h-10 grid place-items-center border-[3px] border-black bg-[#f4f1ea] shadow-[5px_5px_0_0_#000000] transition-all duration-75 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none">
+<button class="w-10 h-10 grid place-items-center border-[3px] border-black bg-[#f4f1ea] shadow-[5px_5px_0_0_#000000] transition-all duration-75 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none">
 <iconify-icon class="text-xl" icon="ph:gear-six-bold"></iconify-icon>
 </button>
-<a :href="endSessionHref" class="bg-black text-[#f4f1ea] font-black text-[13px] uppercase tracking-wide px-4 py-2.5 shadow-[5px_5px_0_0_#000000] border-[3px] border-black transition-all duration-75 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none">
+<a class="bg-black text-[#f4f1ea] font-black text-[13px] uppercase tracking-wide px-4 py-2.5 shadow-[5px_5px_0_0_#000000] border-[3px] border-black transition-all duration-75 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none">
         End Session <span class="text-[#e8ff00]">-&gt;</span>
 </a>
 </div>
@@ -1359,7 +1358,7 @@ tailwind.config = {
 <main class="flex-1 flex overflow-hidden grid-bg" data-sd-id="2">
 <!-- Left Sidebar: Session Configuration -->
 <!-- component: SidebarControls (ff31add6-a2ea-4628-80d8-17adcc1789d2) -->
-<div v-scope='{ ...{"selectedDifficulty":"Intermediate (Standard)","activePersona":"socratic","showProBadge":true}, $emit() {} }'>
+<div>
 <aside class="w-80 hidden lg:flex flex-col bg-[#f4f1ea] border-r-[3px] border-black overflow-y-auto z-20">
 <div class="p-6 space-y-8">
 <div>
@@ -1370,7 +1369,7 @@ tailwind.config = {
 </div>
 <h3 class="font-black uppercase text-lg leading-none mb-2 text-black">Upload PDF</h3>
 <p class="text-xs font-medium text-black/70 leading-relaxed mb-4">Mentora reads your slides and builds the curriculum.</p>
-<button @click="$emit('uploadFiles')" class="w-full bg-black text-[#f4f1ea] font-black uppercase text-xs tracking-widest py-3 border-[3px] border-black shadow-[5px_5px_0_0_#000000] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none">
+<button class="w-full bg-black text-[#f4f1ea] font-black uppercase text-xs tracking-widest py-3 border-[3px] border-black shadow-[5px_5px_0_0_#000000] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none" id="upload-btn">
           Select Files
         </button>
 </div>
@@ -1380,26 +1379,26 @@ tailwind.config = {
 <div class="space-y-4">
 <div class="group">
 <label class="font-mono text-[10px] font-bold uppercase tracking-widest mb-1 block">Difficulty Level</label>
-<select @change="$emit('changeDifficulty', { value: $event.target.value })" class="w-full bg-[#f4f1ea] border-[3px] border-black p-2.5 font-black uppercase text-xs cursor-pointer">
-<option :selected="selectedDifficulty === 'Beginner (Fundamentals)'">Beginner (Fundamentals)</option>
-<option :selected="selectedDifficulty === 'Intermediate (Standard)'">Intermediate (Standard)</option>
-<option :selected="selectedDifficulty === 'Advanced (Technical)'">Advanced (Technical)</option>
+<select class="w-full bg-[#f4f1ea] border-[3px] border-black p-2.5 font-black uppercase text-xs cursor-pointer">
+<option>Beginner (Fundamentals)</option>
+<option>Intermediate (Standard)</option>
+<option>Advanced (Technical)</option>
 </select>
 </div>
 <div class="group">
 <label class="font-mono text-[10px] font-bold uppercase tracking-widest mb-1 block">Avatar Persona</label>
 <div class="grid grid-cols-2 gap-2">
-<button :class="activePersona === 'socratic' ? 'bg-[#e8ff00]' : 'bg-[#f4f1ea] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none'" @click="$emit('personaChange', { persona: 'socratic' })" class="border-[3px] border-black p-2 font-black text-[10px] uppercase shadow-[5px_5px_0_0_#000000] transition-all">
+<button class="border-[3px] border-black p-2 font-black text-[10px] uppercase shadow-[5px_5px_0_0_#000000] transition-all bg-[#e8ff00]">
               Socratic
             </button>
-<button :class="activePersona === 'strict' ? 'bg-[#e8ff00]' : 'bg-[#f4f1ea] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none'" @click="$emit('personaChange', { persona: 'strict' })" class="border-[3px] border-black p-2 font-black text-[10px] uppercase shadow-[5px_5px_0_0_#000000] transition-all">
+<button class="border-[3px] border-black p-2 font-black text-[10px] uppercase shadow-[5px_5px_0_0_#000000] transition-all bg-[#f4f1ea]">
               Strict
             </button>
 </div>
 </div>
 </div>
 </div>
-<div v-if="showProBadge">
+<div>
 <div class="bg-black text-[#f4f1ea] p-4 border-[3px] border-black shadow-[8px_8px_0_0_#000000]">
 <div class="flex items-center gap-2 mb-2">
 <iconify-icon class="text-[#e8ff00]" icon="ph:lightning-bold"></iconify-icon>
@@ -1518,18 +1517,18 @@ tailwind.config = {
 </main>
 <!-- Reusable Bottom Input -->
 <!-- component: BottomInputBar (ecae0f41-7a0a-4318-9897-1ce18e1febaf) -->
-<div v-scope='{ ...{"isMicActive":false}, $emit() {} }'>
+<div>
 <footer class="sticky bottom-0 z-50 bg-[#f4f1ea] border-t-[3px] border-[#000000] p-4">
 <div class="mx-auto max-w-[1240px] flex items-center gap-4">
-<button :class="isMicActive ? 'bg-[#d4e600]' : 'bg-[#e8ff00]'" @click="$emit('micClick')" class="w-16 h-16 sm:w-20 sm:h-20 flex-none border-[3px] border-[#000000] shadow-[8px_8px_0_0_#000000] hover:shadow-[4px_4px_0_0_#000000] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[8px] active:translate-y-[8px] transition-all duration-[80ms] grid place-items-center" id="ptt-btn">
+<button class="w-16 h-16 sm:w-20 sm:h-20 flex-none border-[3px] border-[#000000] shadow-[8px_8px_0_0_#000000] hover:shadow-[4px_4px_0_0_#000000] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[8px] active:translate-y-[8px] transition-all duration-[80ms] grid place-items-center bg-[#e8ff00]" id="ptt-btn">
 <iconify-icon class="text-3xl sm:text-4xl text-[#000000]" icon="ph:microphone-bold"></iconify-icon>
 <span class="sr-only">Push to Talk</span>
 </button>
 <div class="flex-1 relative">
-<input @input="$emit('input', { value: $event.target.value })" @keyup.enter="$emit('send', { value: $event.target.value })" class="w-full h-16 sm:h-20 bg-white border-[3px] border-[#000000] px-6 font-medium text-lg shadow-[5px_5px_0_0_#000000] focus:shadow-[8px_8px_0_0_#000000] transition-shadow text-[#000000] placeholder:text-[#000000]/40 outline-none" id="prompt-input" placeholder="Ask Mentora a follow-up question..." type="text"/>
+<input class="w-full h-16 sm:h-20 bg-white border-[3px] border-[#000000] px-6 font-medium text-lg shadow-[5px_5px_0_0_#000000] focus:shadow-[8px_8px_0_0_#000000] transition-shadow text-[#000000] placeholder:text-[#000000]/40 outline-none" id="prompt-input" placeholder="Ask Mentora a follow-up question..." type="text"/>
 <div class="absolute right-6 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-3">
 <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-[#000000]/40">Press Enter to send</span>
-<button @click="$emit('sendClick')" class="w-10 h-10 bg-[#000000] text-[#e8ff00] grid place-items-center border-[3px] border-[#000000] transition-all duration-[80ms] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none" id="send-btn">
+<button class="w-10 h-10 bg-[#000000] text-[#e8ff00] grid place-items-center border-[3px] border-[#000000] transition-all duration-[80ms] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none" id="send-btn">
 <iconify-icon class="text-xl" icon="ph:paper-plane-right-bold"></iconify-icon>
 </button>
 </div>
@@ -1565,7 +1564,6 @@ tailwind.config = {
       if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
     };
   </script>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="/AITutorAvatar.js"></script>
 <script src="/script.js"></script>

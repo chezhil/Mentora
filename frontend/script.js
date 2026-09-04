@@ -71,6 +71,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }, 500);
         }
+        
+        // Wire the "Select Files" button
+        const uploadBtn = document.getElementById('upload-btn');
+        if (uploadBtn) {
+            uploadBtn.addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.pdf';
+                input.onchange = (e) => {
+                    if (e.target.files.length > 0) {
+                        const file = e.target.files[0];
+                        window.aiTutor.appendTranscript('system', `Uploaded ${file.name} successfully. Mentora is now analyzing your materials.`);
+                    }
+                };
+                input.click();
+            });
+        }
     } else {
         // Setup Logic (index.html)
         const startBtn = document.getElementById('start-session-btn');
