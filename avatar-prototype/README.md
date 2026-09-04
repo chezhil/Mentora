@@ -23,7 +23,11 @@ one rig: only the silhouette parts — hair, jaw, brows, shirt — carry a `.v-f
 or `.v-m` class, and every id the driver touches is common to both. So the
 character can change without `character.js` or `driver.js` knowing it happened,
 which is the same property that makes swapping in a Live2D model cheap. A third
-character is another pair of paths and one class.
+character is another pair of paths and one class — plus a row in the parallax
+table in `character.js`, which is the one thing that is genuinely per-character.
+Long hair hangs free of the skull and lags a turn; a short crop is attached to
+it and has to move with it. Using her offsets on him sent his back hair one way
+and his fringe the other and the crop visibly came apart.
 
 An `<audio>` element or a microphone are both user gestures, which is what
 lets the AudioContext start — browsers will not allow it any other way, and an

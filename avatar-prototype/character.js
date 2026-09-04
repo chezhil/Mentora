@@ -31,14 +31,27 @@ const el = {
   eyeL: $("eyeL"), eyeR: $("eyeR"), irisL: $("irisL"), irisR: $("irisR"),
   brows: $("brows"), blush: $("blush"),
   cavity: $("mouthCavity"), tongue: $("mouthTongue"), line: $("mouthLine"),
+  svg: $("avatar"),
 };
 
 /* The parallax table. Layers further from the viewer move LESS when the head
  * turns; the features slide furthest because they are travelling across the
- * curve of the face. Getting these four numbers into proportion is the whole
+ * curve of the face. Getting these numbers into proportion is the whole
  * illusion — with everything on the same offset the head just slides
- * sideways, which reads as a sticker being dragged rather than a head. */
-const PARALLAX = { hairBack: 4, head: 10, hairFront: 14, features: 17 };
+ * sideways, which reads as a sticker being dragged rather than a head.
+ *
+ * It has to be PER CHARACTER, which the first version got wrong. Long hair
+ * hangs free of the skull and genuinely lags a turn, so her back hair at 4
+ * against a head at 10 looks right. A short crop is attached to the skull and
+ * has to move with it. Using her numbers on him sent the back hair one way and
+ * the fringe the other: measured at full turn, the back hair overhung 16.9px
+ * on one side and 6.0px on the other while the fringe did the reverse, so the
+ * crop visibly slid apart. Her hair mass is big enough to swallow the offset;
+ * his overhangs the face by about 8px, which is less than the error. */
+const PARALLAX = {
+  f: { hairBack: 4, head: 10, hairFront: 14, features: 17 },
+  m: { hairBack: 9, head: 10, hairFront: 11, features: 17 },
+};
 
 /* The lip line is the seam between closed lips, so it has to be gone almost as
  * soon as they part. It was fading linearly with mouthOpen, which left it at
@@ -49,23 +62,24 @@ const LIP_SEAM_GONE_AT = 0.18;
 function setParams(p) {
   const ax = p.angleX / 26;             // -1 .. 1
   const ay = p.angleY / 18;
+  const px = PARALLAX[el.svg.dataset.variant] || PARALLAX.f;
 
   el.root.setAttribute(
     "transform", `rotate(${p.angleZ.toFixed(2)} 200 300)`);
 
   el.hairBack.setAttribute("transform",
-    `translate(${ax * PARALLAX.hairBack} ${ay * PARALLAX.hairBack * .8})`);
+    `translate(${ax * px.hairBack} ${ay * px.hairBack * .8})`);
   el.hairFront.setAttribute("transform",
-    `translate(${ax * PARALLAX.hairFront} ${ay * PARALLAX.hairFront * .7})`);
+    `translate(${ax * px.hairFront} ${ay * px.hairFront * .7})`);
 
   // The face narrows very slightly as it turns away. Small, but without it
   // the head reads as flat card stock.
   const squash = 1 - Math.abs(ax) * 0.05;
   el.head.setAttribute("transform",
-    `translate(${ax * PARALLAX.head} ${ay * PARALLAX.head * .7}) ` +
+    `translate(${ax * px.head} ${ay * px.head * .7}) ` +
     `translate(200 220) scale(${squash.toFixed(3)} 1) translate(-200 -220)`);
   el.features.setAttribute("transform",
-    `translate(${ax * PARALLAX.features} ${ay * PARALLAX.features * .65})`);
+    `translate(${ax * px.features} ${ay * px.features * .65})`);
 
   el.body.setAttribute("transform", `translate(0 ${(1 - p.breath) * 2.5})`);
 
@@ -152,7 +166,7 @@ $("file").addEventListener("change", (e) => {
 
 // The variant switch is presentation only — it changes which paths are
 // visible and nothing else. driver.js is not even aware there are two.
-const svg = $("avatar");
+const svg = el.svg;
 $("variant").addEventListener("click", () => {
   svg.dataset.variant = svg.dataset.variant === "f" ? "m" : "f";
 });
