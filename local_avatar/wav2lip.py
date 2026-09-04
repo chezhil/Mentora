@@ -178,6 +178,17 @@ def _mel_chunks(wav_path: str) -> list[np.ndarray]:
     if np.isnan(mel.reshape(-1)).sum() > 0:
         raise ValueError("Mel spectrogram contains NaN — is the WAV silent?")
 
+    # Wav2Lip wants a mel window MEL_STEP wide. Under about 0.2s of audio the
+    # spectrogram is narrower than that, and the loop below then slices
+    # mel[:, shape[1] - MEL_STEP:] with a NEGATIVE start, which wraps and
+    # yields a window of the wrong width -- (80, 5) for a tenth of a second.
+    # The model rejects it with "Calculated padded input size per channel:
+    # (3 x 2). Kernel size: (3 x 3)", so the whole avatar render fails.
+    # The orchestrator catches that, so the lesson survives and just quietly
+    # loses its teacher for the segment. Pad to one full window instead.
+    if mel.shape[1] < MEL_STEP:
+        mel = np.pad(mel, ((0, 0), (0, MEL_STEP - mel.shape[1])), mode="edge")
+
     chunks, i, step = [], 0, 80.0 / FPS
     while True:
         start = int(i * step)
