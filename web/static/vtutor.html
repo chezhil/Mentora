@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mentora — VTutor</title>
+  <link rel="stylesheet" href="/static/brutalist.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+    .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; align-items: start; }
+    @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+    .panel { border: 3px solid var(--ink); background: #fff;
+             box-shadow: 8px 8px 0 0 #000; padding: 1.25rem; }
+    .label { font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700;
+             text-transform: uppercase; letter-spacing: 0.12em; color: rgba(0,0,0,0.45); }
+    .btn { font-family: 'Archivo Black', sans-serif; text-transform: uppercase;
+           border: 3px solid var(--ink); padding: 0.7rem 1rem; font-size: 0.8rem;
+           background: #fff; color: var(--ink); box-shadow: 5px 5px 0 0 #000;
+           cursor: pointer; transition: transform 0.08s, box-shadow 0.08s; }
+    .btn:hover { transform: translate(2px, 2px); box-shadow: 3px 3px 0 0 #000; }
+    .btn:active { transform: translate(5px, 5px); box-shadow: none; }
+    .btn[disabled] { opacity: 0.45; cursor: not-allowed; box-shadow: none; transform: none; }
+    .btn.primary { background: var(--acid); width: 100%; font-size: 1rem; padding: 1rem; }
+    .btn.primary.live { background: var(--ink); color: var(--acid); }
+
+    /* VTutor iframe container */
+    .vtutor-frame { width: 100%; height: 420px; border: 3px solid var(--ink);
+                    box-shadow: 8px 8px 0 0 #000; background: #1a1a2e; }
+    .vtutor-loading { display: flex; align-items: center; justify-content: center;
+                      height: 420px; border: 3px solid var(--ink);
+                      box-shadow: 8px 8px 0 0 #000; background: var(--paper);
+                      font-family: 'Space Mono', monospace; font-size: 0.85rem;
+                      color: rgba(0,0,0,0.5); }
+    .vtutor-loading .spinner { width: 24px; height: 24px; border: 3px solid var(--ink);
+      border-top-color: var(--acid); border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin-right: 0.75rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Transcript */
+    #log { max-height: 360px; overflow-y: auto; }
+    .turn { border: 3px solid var(--ink); padding: 0.75rem 1rem; margin-bottom: 0.6rem;
+            animation: slideIn 0.2s ease-out; }
+    .turn.student { background: var(--acid); margin-left: 1.5rem; }
+    .turn.teacher { background: #fff; }
+    .turn p { line-height: 1.5; margin-top: 0.25rem; white-space: pre-wrap; font-size: 0.9rem; }
+    .turn .timestamp { font-size: 0.6rem; color: rgba(0,0,0,0.3); margin-top: 0.25rem; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Status bar */
+    #vtutorStatus { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.8rem;
+                     background: var(--ink); color: var(--acid);
+                     font-family: 'Space Mono', monospace; font-size: 0.7rem;
+                     text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--acid); }
+    .status-dot.disconnected { background: #ff5e5e; }
+    .status-dot.connected { background: #10b981; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* Board area */
+    #boardContent { margin-top: 0.5rem; }
+    .mermaid { background: #fff; padding: 0.5rem; border: 3px solid var(--ink); }
+    .mermaid svg { width: 100%; height: auto; }
+
+    /* Quick prompts */
+    .quick-prompts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+    .quick-btn { padding: 0.4rem 0.7rem; background: var(--paper); border: 2px solid var(--ink);
+                 font-family: 'Space Mono', monospace; font-size: 0.68rem; font-weight: 700;
+                 cursor: pointer; box-shadow: 2px 2px 0 0 #000; text-transform: uppercase;
+                 transition: all 0.08s; }
+    .quick-btn:hover { background: var(--acid); transform: translate(1px, 1px); }
+
+    .hint { font-size: 0.8rem; color: rgba(0,0,0,0.55); line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <header style="border-bottom:3px solid var(--ink);padding:0.9rem 1.25rem;background:var(--paper);">
+    <nav style="display:flex;align-items:center;gap:0.75rem;max-width:1280px;margin:0 auto;">
+      <a href="/dashboard" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:0.75rem;">
+        <div style="width:36px;height:36px;display:grid;place-items:center;background:var(--ink);color:var(--acid);font-family:'Archivo Black',sans-serif;font-size:1.1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;">M</div>
+        <div style="font-family:'Archivo Black',sans-serif;font-size:1rem;text-transform:uppercase;">Mentora</div>
+      </a>
+      <div class="label">/ VTutor</div>
+      <div style="flex:1;"></div>
+      <a href="/voice" class="btn" style="font-size:0.7rem;padding:0.35rem 0.7rem;">SVG Voice</a>
+      <a href="/dashboard" class="btn" style="font-size:0.7rem;padding:0.35rem 0.7rem;">Dashboard</a>
+    </nav>
+  </header>
+
+  <main class="grid-bg" style="flex:1;">
+    <div class="wrap">
+      <!-- Status bar -->
+      <div id="vtutorStatus">
+        <div class="status-dot disconnected" id="statusDot"></div>
+        <span id="statusText">Connecting to VTutor avatar...</span>
+      </div>
+
+      <div class="main-grid">
+        <!-- LEFT: VTutor Avatar + Controls -->
+        <div>
+          <div class="panel" style="padding:0;overflow:hidden;">
+            <div id="vtutorContainer">
+              <div class="vtutor-loading" id="vtutorLoading">
+                <div class="spinner"></div>
+                Loading VTutor avatar (Unity WebGL)...
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top:1.25rem;">
+            <div class="label">Teacher</div>
+            <select id="teacher" style="width:100%;margin:0.4rem 0 0.9rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
+
+            <div class="label">Language</div>
+            <select id="lang" style="width:100%;margin:0.4rem 0 0.9rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;">
+              <option value="en">English</option>
+              <option value="hi">Hindi</option>
+              <option value="ta">Tamil</option>
+              <option value="te">Telugu</option>
+              <option value="kn">Kannada</option>
+              <option value="mr">Marathi</option>
+              <option value="bn">Bengali</option>
+              <option value="es">Spanish</option>
+            </select>
+          </div>
+
+          <div class="panel" style="margin-top:1.25rem;">
+            <div class="label">Speak</div>
+            <div style="display:flex;gap:0.6rem;margin-top:0.5rem;">
+              <input type="text" id="typed" placeholder="Ask anything..."
+                     style="flex:1;border:3px solid var(--ink);padding:0.75rem;font-family:inherit;font-size:0.9rem;">
+              <button class="btn primary" id="send" style="width:auto;padding:0.75rem 1.5rem;">Ask</button>
+            </div>
+
+            <div style="display:flex;gap:0.6rem;margin-top:0.7rem;">
+              <button class="btn" id="stopBtn" style="flex:1;">Stop Speaking</button>
+              <button class="btn" id="reloadBtn" style="flex:1;">Repeat Last</button>
+            </div>
+
+            <div class="label" style="margin-top:0.9rem;">Quick Questions</div>
+            <div class="quick-prompts" id="quickPrompts">
+              <button class="quick-btn" data-q="Explain this concept step by step">Step by step</button>
+              <button class="quick-btn" data-q="Give me a real-world example">Real example</button>
+              <button class="quick-btn" data-q="Show me a diagram of this">Show diagram</button>
+              <button class="quick-btn" data-q="What are the key formulas?">Key formulas</button>
+              <button class="quick-btn" data-q="Quiz me on this topic">Quiz me</button>
+              <button class="quick-btn" data-q="Explain like I'm 5">ELI5</button>
+            </div>
+
+            <p class="hint" style="margin-top:0.8rem;" id="hint">
+              Type a question or pick a quick prompt. The VTutor avatar will
+              speak the answer aloud with synchronized lip movements.
+            </p>
+          </div>
+        </div>
+
+        <!-- RIGHT: Transcript + Board -->
+        <div>
+          <div class="panel">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="label">Transcript</div>
+              <span class="label" id="turnCount" style="color:var(--ink);">0 turns</span>
+            </div>
+            <div id="log" style="margin-top:0.8rem;">
+              <p class="hint" id="empty">Ask the VTutor avatar a question to get started.</p>
+            </div>
+          </div>
+
+          <div class="panel" id="board" style="margin-top:1.25rem;display:none;">
+            <div class="label" id="boardCap">On the board</div>
+            <div id="boardContent"></div>
+          </div>
+
+          <!-- Session info -->
+          <div class="panel" style="margin-top:1.25rem;">
+            <div class="label">VTutor Info</div>
+            <div style="margin-top:0.6rem;font-size:0.8rem;">
+              <div style="display:flex;justify-content:space-between;padding:0.3rem 0;border-bottom:1px dashed rgba(0,0,0,0.15);">
+                <span>Avatar engine</span><strong>Unity WebGL</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:0.3rem 0;border-bottom:1px dashed rgba(0,0,0,0.15);">
+                <span>Lip sync</span><strong>uLipSync (MFCC)</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:0.3rem 0;border-bottom:1px dashed rgba(0,0,0,0.15);">
+                <span>Questions asked</span><strong id="statQuestions">0</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:0.3rem 0;">
+                <span>Render mode</span><strong>WebGL + postMessage</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+
+      var history = [];
+      var busy = false;
+      var vtutorReady = false;
+      var lastSpoken = '';
+
+      // ---- Mermaid setup ----
+      var mermaidReady = false;
+      try {
+        mermaid.initialize({
+          startOnLoad: false, theme: 'base',
+          themeVariables: { primaryColor: '#e8ff00', primaryBorderColor: '#000',
+            primaryTextColor: '#000', lineColor: '#000', secondaryColor: '#f4f1ea',
+            fontFamily: 'Archivo, sans-serif' },
+          securityLevel: 'loose'
+        });
+        mermaidReady = true;
+      } catch (e) {}
+
+      // ---- Load VTutor iframe ----
+      function loadVTutor() {
+        var container = $('vtutorContainer');
+        var loading = $('vtutorLoading');
+
+        // Create the VTutor iframe
+        var iframe = document.createElement('iframe');
+        iframe.id = 'unity-iframe';
+        iframe.src = 'https://full.iframe.sdk.vtutor.tools';
+        iframe.className = 'vtutor-frame';
+        iframe.style.border = 'none';
+        iframe.allow = 'microphone';
+        iframe.onload = function () {
+          loading.style.display = 'none';
+          vtutorReady = true;
+          setStatus('connected', 'VTutor avatar ready');
+          // Send initial greeting
+          setTimeout(function () {
+            vtutorSpeak('Hello! I am your VTutor assistant. Ask me anything and I will explain it with my voice and animations.');
+          }, 1000);
+        };
+        iframe.onerror = function () {
+          loading.innerHTML = '<div style="text-align:center;padding:2rem;"><p style="font-size:0.9rem;color:#ff5e5e;">Failed to load VTutor avatar.</p><p style="font-size:0.8rem;margin-top:0.5rem;">Make sure you have internet access. The Unity WebGL build (~115MB) needs to download.</p></div>';
+        };
+
+        container.appendChild(iframe);
+      }
+
+      function setStatus(state, text) {
+        var dot = $('statusDot');
+        var txt = $('statusText');
+        dot.className = 'status-dot ' + state;
+        txt.textContent = text;
+      }
+
+      // ---- Communication with VTutor ----
+      function vtutorSpeak(text) {
+        var iframe = document.getElementById('unity-iframe');
+        if (!iframe || !iframe.contentWindow) {
+          setStatus('disconnected', 'VTutor not connected');
+          return;
+        }
+        lastSpoken = text;
+        iframe.contentWindow.postMessage(
+          { action: 'unitySpeak', message: text },
+          '*'
+        );
+        setStatus('connected', 'Avatar speaking...');
+      }
+
+      function vtutorStop() {
+        var iframe = document.getElementById('unity-iframe');
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ action: 'unityStop' }, '*');
+        }
+        setStatus('connected', 'VTutor avatar ready');
+      }
+
+      // Listen for events from VTutor
+      window.addEventListener('message', function (e) {
+        if (e.data && e.data.action === 'unitySpeakComplete') {
+          setStatus('connected', 'VTutor avatar ready');
+          busy = false;
+          $('send').disabled = false;
+          document.querySelectorAll('.quick-btn').forEach(function (b) { b.disabled = false; });
+        }
+        if (e.data && e.data.action === 'unityReady') {
+          vtutorReady = true;
+          setStatus('connected', 'VTutor avatar ready');
+        }
+      });
+
+      // ---- Transcript ----
+      function addTurn(role, text) {
+        var empty = $('empty');
+        if (empty) empty.remove();
+        var el = document.createElement('div');
+        el.className = 'turn ' + role;
+        var now = new Date();
+        var ts = now.getHours().toString().padStart(2, '0') + ':' +
+                 now.getMinutes().toString().padStart(2, '0');
+        el.innerHTML = '<div class="label">' + (role === 'student' ? 'You' : 'VTutor') +
+          '</div><p></p><div class="timestamp">' + ts + '</div>';
+        el.querySelector('p').textContent = text;
+        $('log').appendChild(el);
+        $('log').scrollTop = $('log').scrollHeight;
+        history.push({ role: role, text: text });
+        $('turnCount').textContent = history.length + ' turns';
+        $('statQuestions').textContent = history.filter(function (h) { return h.role === 'student'; }).length;
+      }
+
+      // ---- Board rendering ----
+      function renderBoard(data) {
+        var board = $('board');
+        var content = $('boardContent');
+        if (!board || !content) return;
+        content.innerHTML = '';
+        board.style.display = 'block';
+        $('boardCap').textContent = data.caption || 'On the board';
+
+        // Mermaid blocks
+        var mermaidRe = /```mermaid\s*\n([\s\S]*?)```/gi;
+        var m;
+        while ((m = mermaidRe.exec(data.answer || '')) !== null) {
+          if (mermaidReady) {
+            var div = document.createElement('div');
+            div.style.marginTop = '0.5rem';
+            content.appendChild(div);
+            var id = 'mermaid-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+            mermaid.render(id, m[1].trim()).then(function (r) {
+              div.innerHTML = r.svg;
+            }).catch(function () {
+              div.innerHTML = '<pre style="padding:0.5rem;font-size:0.8rem;">' + m[1] + '</pre>';
+            });
+          }
+        }
+
+        // Equations
+        var eqRe = /\$\$([\s\S]+?)\$\$/g;
+        var eqs = [];
+        while ((m = eqRe.exec(data.answer || '')) !== null) {
+          eqs.push(m[1].trim());
+        }
+        if (eqs.length) {
+          var eqDiv = document.createElement('div');
+          eqDiv.style.cssText = 'margin-top:0.5rem;padding:0.75rem;border:3px solid var(--ink);background:var(--paper);';
+          eqDiv.innerHTML = '<div class="label">Equations</div>';
+          eqs.forEach(function (tex) {
+            var span = document.createElement('div');
+            span.style.textAlign = 'center';
+            span.style.margin = '0.5rem 0';
+            if (typeof katex !== 'undefined') {
+              try { katex.render(tex, span, { displayMode: true, throwOnError: false }); } catch (e) { span.textContent = tex; }
+            } else { span.textContent = tex; }
+            eqDiv.appendChild(span);
+          });
+          content.appendChild(eqDiv);
+        }
+
+        // Image from server
+        if (data.image) {
+          var img = document.createElement('div');
+          img.innerHTML = '<img src="' + data.image + '" style="width:100%;border:3px solid var(--ink);margin-top:0.5rem;">';
+          content.appendChild(img);
+        }
+      }
+
+      // ---- Clean answer for speech (remove code blocks) ----
+      function cleanForSpeech(text) {
+        return text.replace(/```mermaid\s*\n[\s\S]*?```/gi, '')
+                   .replace(/\$\$[\s\S]+?\$\$/g, '')
+                   .replace(/\$([^$\n]+)\$/g, '$1')
+                   .replace(/\*\*([^*]+)\*\*/g, '$1')
+                   .replace(/\*([^*]+)\*/g, '$1')
+                   .trim();
+      }
+
+      // ---- Ask the teacher ----
+      async function ask(text) {
+        if (busy || !text.trim()) return;
+        busy = true;
+        addTurn('student', text);
+        $('send').disabled = true;
+        document.querySelectorAll('.quick-btn').forEach(function (b) { b.disabled = true; });
+
+        setStatus('connected', 'Thinking...');
+        var data;
+        try {
+          var r = await fetch('/api/voice/reply', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text, history: history.slice(0, -1),
+                                   language: $('lang').value })
+          });
+          data = await r.json();
+          if (!r.ok) throw new Error(data.error || 'Failed to get response');
+        } catch (e) {
+          busy = false;
+          $('send').disabled = false;
+          document.querySelectorAll('.quick-btn').forEach(function (b) { b.disabled = false; });
+          setStatus('disconnected', 'Error: ' + e.message);
+          addTurn('teacher', 'Sorry — ' + e.message);
+          return;
+        }
+
+        // Render board if visual content exists
+        renderBoard(data);
+
+        var answer = data.answer || 'I had nothing to say about that.';
+        addTurn('teacher', cleanForSpeech(answer));
+
+        // Make VTutor speak the cleaned answer
+        vtutorSpeak(cleanForSpeech(answer));
+      }
+
+      // ---- Wire up controls ----
+      function sendTyped() {
+        var v = $('typed').value.trim();
+        if (!v) return;
+        $('typed').value = '';
+        ask(v);
+      }
+
+      $('send').onclick = sendTyped;
+      $('typed').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); sendTyped(); }
+      });
+
+      $('stopBtn').onclick = function () {
+        vtutorStop();
+        busy = false;
+        $('send').disabled = false;
+        document.querySelectorAll('.quick-btn').forEach(function (b) { b.disabled = false; });
+      };
+
+      $('reloadBtn').onclick = function () {
+        if (lastSpoken) vtutorSpeak(lastSpoken);
+      };
+
+      // Quick prompts
+      document.querySelectorAll('.quick-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (busy) return;
+          var q = btn.getAttribute('data-q');
+          if (q) { $('typed').value = q; sendTyped(); }
+        });
+      });
+
+      // ---- Init ----
+      loadVTutor();
+    })();
+  </script>
+</body>
+</html>

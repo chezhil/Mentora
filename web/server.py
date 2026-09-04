@@ -644,6 +644,14 @@ def serve_review():
     return HTMLResponse("<h1>Session Review not found</h1>", status_code=404)
 
 
+@app.get("/vtutor")
+def serve_vtutor():
+    html_path = STATIC_DIR / "vtutor.html"
+    if html_path.exists():
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>VTutor not found</h1>", status_code=404)
+
+
 # ---------------------------------------------------------------------------
 # Authentication UI Pages & APIs
 # ---------------------------------------------------------------------------

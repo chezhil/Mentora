@@ -5,14 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mentora — Voice</title>
   <link rel="stylesheet" href="/static/brutalist.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <style>
-    .wrap { max-width: 1080px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
-    .grid { display: grid; grid-template-columns: 360px 1fr; gap: 1.5rem; align-items: start; }
-    @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
-    .panel { border: 3px solid var(--ink); background: #fff;
-             box-shadow: 8px 8px 0 0 #000; padding: 1.25rem; }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+    .main-grid { display: grid; grid-template-columns: 360px 1fr 300px; gap: 1.25rem; align-items: start; }
+    @media (max-width: 1100px) { .main-grid { grid-template-columns: 360px 1fr; } .sidebar-col { display: none; } }
+    @media (max-width: 860px) { .main-grid { grid-template-columns: 1fr; } }
+    .panel { border: 3px solid var(--ink); background: #fff; box-shadow: 8px 8px 0 0 #000; padding: 1.25rem; }
     .label { font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700;
              text-transform: uppercase; letter-spacing: 0.12em; color: rgba(0,0,0,0.45); }
+
+    /* --- Avatar stage --- */
     #stage { background: var(--paper); border-bottom: 3px solid var(--ink); position: relative; }
     #avatar { width: 100%; display: block; }
     #avatar[data-variant="f"] .v-m, #avatar[data-variant="m"] .v-f { display: none; }
@@ -20,172 +25,153 @@
              background: var(--ink); color: var(--acid);
              font-family: 'Archivo Black', sans-serif; font-size: 0.7rem;
              text-transform: uppercase; letter-spacing: 0.1em; text-align: center; }
+
+    /* --- Audio visualizer --- */
+    #audioVis { height: 48px; background: var(--ink); border-bottom: 3px solid var(--ink);
+                display: flex; align-items: center; justify-content: center; gap: 3px; overflow: hidden; }
+    #audioVis .bar { width: 4px; background: var(--acid); border-radius: 2px; transition: height 0.08s ease; }
+    #audioVis.idle .bar { height: 3px !important; }
+
+    /* --- Buttons --- */
     .btn { font-family: 'Archivo Black', sans-serif; text-transform: uppercase;
            border: 3px solid var(--ink); padding: 0.9rem 1.2rem; font-size: 0.85rem;
            background: #fff; color: var(--ink); box-shadow: 5px 5px 0 0 #000;
-           cursor: pointer; text-decoration: none; display: inline-block; }
+           cursor: pointer; text-decoration: none; display: inline-block;
+           transition: transform 0.08s, box-shadow 0.08s; }
+    .btn:hover { transform: translate(2px, 2px); box-shadow: 3px 3px 0 0 #000; }
+    .btn:active { transform: translate(5px, 5px); box-shadow: 0 0 0 0 #000; }
     .btn.talk { background: var(--acid); width: 100%; font-size: 1rem; padding: 1.1rem; }
     .btn.talk.live { background: var(--ink); color: var(--acid); }
-    .btn[disabled] { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+    .btn[disabled] { opacity: 0.45; cursor: not-allowed; box-shadow: none; transform: none; }
     .row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
-    #log { max-height: 46vh; overflow-y: auto; }
-    .turn { border: 3px solid var(--ink); padding: 0.8rem 1rem; margin-bottom: 0.7rem; }
+
+    /* --- Transcript --- */
+    #log { max-height: 50vh; overflow-y: auto; }
+    .turn { border: 3px solid var(--ink); padding: 0.8rem 1rem; margin-bottom: 0.7rem;
+            animation: slideIn 0.2s ease-out; }
     .turn.student { background: var(--acid); margin-left: 2rem; }
     .turn.teacher { background: #fff; }
     .turn p { line-height: 1.55; margin-top: 0.3rem; white-space: pre-wrap; }
+    .turn .timestamp { font-size: 0.65rem; color: rgba(0,0,0,0.35); margin-top: 0.3rem; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* --- Board / Diagram area --- */
     #boardImg img { width: 100%; display: block; border: 3px solid var(--ink); }
+    .mermaid { background: #fff; padding: 0.5rem; border: 3px solid var(--ink); margin-top: 0.5rem; }
+    .mermaid svg { width: 100%; height: auto; }
+    .katex-display { margin: 0.5rem 0; overflow-x: auto; }
+
+    /* --- Steps panel --- */
+    #stepsList .step { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0;
+                       border-bottom: 1px dashed rgba(0,0,0,0.15); }
+    #stepsList .step:last-child { border-bottom: none; }
+    .step-num { width: 22px; height: 22px; background: var(--ink); color: var(--acid);
+                font-family: 'Space Mono', monospace; font-size: 0.65rem; font-weight: 700;
+                display: grid; place-items: center; flex-shrink: 0; }
+    .step-text { font-size: 0.82rem; line-height: 1.45; }
+
+    /* --- Quick prompts --- */
+    .quick-prompts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+    .quick-btn { padding: 0.4rem 0.7rem; background: var(--paper); border: 2px solid var(--ink);
+                 font-family: 'Space Mono', monospace; font-size: 0.68rem; font-weight: 700;
+                 cursor: pointer; box-shadow: 2px 2px 0 0 #000; text-transform: uppercase;
+                 transition: all 0.08s; }
+    .quick-btn:hover { background: var(--acid); transform: translate(1px, 1px); box-shadow: 1px 1px 0 0 #000; }
+
+    /* --- Sidebar gallery --- */
+    .gallery-item { border: 3px solid var(--ink); margin-bottom: 0.7rem; overflow: hidden; cursor: pointer;
+                    transition: transform 0.08s, box-shadow 0.08s; }
+    .gallery-item:hover { transform: translate(2px, 2px); box-shadow: 4px 4px 0 0 #000; }
+    .gallery-item img { width: 100%; display: block; }
+    .gallery-item .gallery-cap { padding: 0.4rem 0.6rem; font-size: 0.7rem; font-weight: 700;
+                                 text-transform: uppercase; background: var(--paper); border-top: 2px solid var(--ink); }
+
     .hint { font-size: 0.8rem; color: rgba(0,0,0,0.55); line-height: 1.5; }
+    .section-divider { border: none; border-top: 2px dashed rgba(0,0,0,0.15); margin: 0.8rem 0; }
   </style>
 </head>
 <body>
   <header style="border-bottom:3px solid var(--ink);padding:0.9rem 1.25rem;background:var(--paper);">
-    <nav style="display:flex;align-items:center;gap:0.75rem;max-width:1080px;margin:0 auto;">
+    <nav style="display:flex;align-items:center;gap:0.75rem;max-width:1280px;margin:0 auto;">
       <a href="/dashboard" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:0.75rem;">
         <div style="width:36px;height:36px;display:grid;place-items:center;background:var(--ink);color:var(--acid);font-family:'Archivo Black',sans-serif;font-size:1.1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;">M</div>
         <div style="font-family:'Archivo Black',sans-serif;font-size:1rem;text-transform:uppercase;">Mentora</div>
       </a>
       <div class="label">/ Voice</div>
+      <div style="flex:1;"></div>
+      <a href="/dashboard" class="btn" style="font-size:0.7rem;padding:0.4rem 0.8rem;">Dashboard</a>
+      <a href="/discuss" class="btn" style="font-size:0.7rem;padding:0.4rem 0.8rem;">Chat</a>
     </nav>
   </header>
 
   <main class="grid-bg" style="flex:1;">
     <div class="wrap">
-      <div class="grid">
+      <div class="main-grid">
+
+        <!-- LEFT COLUMN: Avatar + Controls -->
         <div>
           <div class="panel" style="padding:0;overflow:hidden;">
             <div id="stage">
-      <svg id="avatar" viewBox="0 0 400 460" aria-label="avatar" data-variant="f">
-      <defs>
-      <radialGradient id="cheek" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#ff8f9c" stop-opacity=".55"/>
-      <stop offset="100%" stop-color="#ff8f9c" stop-opacity="0"/>
-      </radialGradient>
-      </defs>
-
-      <!-- Two variants share ONE rig. Only the silhouette parts carry a
-      .v-f / .v-m class; every id the driver touches — brows, eyes, mouth,
-      head, features — is common to both, so switching character costs
-      character.js and driver.js nothing at all. That is the same property
-      that makes swapping in a Live2D model cheap. -->
-      <g id="root">
-      <!-- Neck first, shirt over it, head over both: that ordering is what
-      keeps the join hidden however far the head turns. -->
-      <g id="body">
-      <path class="v-f" d="M174 286 l52 0 l0 82 q-26 14 -52 0 z"
-      fill="#e8bf9c"/>
-      <path class="v-m" d="M170 286 l60 0 l0 86 q-30 14 -60 0 z"
-      fill="#e3b795"/>
-      <!-- The shirt runs PAST the bottom of the 460-tall view and wider
-      than the shoulders need. It used to stop exactly on y=460, so
-      the moment the body drifted upward the frame edge appeared
-      underneath it and the teacher looked like a sticker peeling
-      off the board. Everything below the view is clipped, so the
-      overhang costs nothing and no amount of movement can open a
-      gap. The collar sits higher for the same reason: it has to
-      stay over the neck join however far the head turns. -->
-      <path class="v-f" d="M80 520 q14 -184 120 -184 q106 0 120 184 z"
-      fill="#4A7DFF"/>
-      <path class="v-m" d="M72 520 q16 -180 128 -180 q112 0 128 180 z"
-      fill="#2f6f5e"/>
-      </g>
-
-      <g id="hairBack">
-      <path class="v-f"
-      d="M200 44 q104 0 108 122 q4 92 -14 150 q-30 -104 -94 -104
-      q-64 0 -94 104 q-18 -58 -14 -150 q4 -122 108 -122 z"
-      fill="#241d33"/>
-      <path class="v-m"
-      d="M200 52 q92 0 94 112 q2 34 -6 58 q-16 -40 -88 -40
-      q-72 0 -88 40 q-8 -24 -6 -58 q2 -112 94 -112 z"
-      fill="#1f1a14"/>
-      </g>
-
-      <g id="head">
-      <!-- ears -->
-      <ellipse cx="112" cy="214" rx="13" ry="20" fill="#f0c9a8"/>
-      <ellipse cx="288" cy="214" rx="13" ry="20" fill="#f0c9a8"/>
-      <!-- face: the jaw is the cue, so it is per-variant -->
-      <path class="v-f"
-      d="M200 96 q84 0 84 100 q0 58 -25 94 q-24 34 -59 34
-      q-35 0 -59 -34 q-25 -36 -25 -94 q0 -100 84 -100 z"
-      fill="#f7d9bd"/>
-      <path class="v-m"
-      d="M200 96 q86 0 86 102 q0 60 -18 94 q-20 36 -68 36
-      q-48 0 -68 -36 q-18 -34 -18 -94 q0 -102 86 -102 z"
-      fill="#efc9a4"/>
-
-      <g id="features">
-      <g id="blush" opacity="0">
-      <ellipse cx="146" cy="248" rx="26" ry="15" fill="url(#cheek)"/>
-      <ellipse cx="254" cy="248" rx="26" ry="15" fill="url(#cheek)"/>
-      </g>
-
-      <g id="brows">
-      <path class="v-f" d="M136 190 q22 -11 44 -2" stroke="#241d33"
-      stroke-width="7" fill="none" stroke-linecap="round"/>
-      <path class="v-f" d="M220 188 q22 -9 44 2" stroke="#241d33"
-      stroke-width="7" fill="none" stroke-linecap="round"/>
-      <path class="v-m" d="M134 199 q23 -7 45 -1" stroke="#1f1a14"
-      stroke-width="8" fill="none" stroke-linecap="round"/>
-      <path class="v-m" d="M221 198 q23 -6 45 1" stroke="#1f1a14"
-      stroke-width="8" fill="none" stroke-linecap="round"/>
-      </g>
-
-      <g id="eyeL" class="eye">
-      <ellipse cx="158" cy="222" rx="25" ry="21" fill="#fff"/>
-      <g id="irisL">
-      <circle cx="158" cy="223" r="14" fill="#3a7bd5"/>
-      <circle cx="158" cy="223" r="7" fill="#151226"/>
-      <circle cx="153" cy="217" r="4.5" fill="#fff" opacity=".9"/>
-      </g>
-      <path class="lash" d="M133 214 q25 -20 50 -2" stroke="#241d33"
-      stroke-width="5" fill="none" stroke-linecap="round"/>
-      </g>
-
-      <g id="eyeR" class="eye">
-      <ellipse cx="242" cy="222" rx="25" ry="21" fill="#fff"/>
-      <g id="irisR">
-      <circle cx="242" cy="223" r="14" fill="#3a7bd5"/>
-      <circle cx="242" cy="223" r="7" fill="#151226"/>
-      <circle cx="237" cy="217" r="4.5" fill="#fff" opacity=".9"/>
-      </g>
-      <path class="lash" d="M217 212 q25 -18 50 2" stroke="#241d33"
-      stroke-width="5" fill="none" stroke-linecap="round"/>
-      </g>
-
-      <!-- nose -->
-      <path d="M200 246 q6 10 -2 14" stroke="#d9a882" stroke-width="4"
-      fill="none" stroke-linecap="round"/>
-
-      <!-- The mouth is two ellipses: the cavity, and a tongue hint so an
-      open mouth has depth instead of reading as a hole. rx comes
-      from mouthForm (round vs wide), ry from mouthOpen. -->
-      <g id="mouth">
-      <ellipse id="mouthCavity" cx="200" cy="292" rx="22" ry="3"
-      fill="#7d2740"/>
-      <ellipse id="mouthTongue" cx="200" cy="299" rx="14" ry="0"
-      fill="#e3697f"/>
-      <path id="mouthLine" d="M178 291 q22 6 44 0" stroke="#c98d76"
-      stroke-width="3" fill="none" stroke-linecap="round"
-      opacity=".8"/>
-      </g>
-      </g>
-      </g>
-
-      <g id="hairFront">
-      <path class="v-f"
-      d="M104 178 q6 -110 96 -110 q90 0 96 110 q-24 -58 -50 -62
-      q10 34 -12 48 q-16 -46 -60 -44 q-46 2 -70 58 z"
-      fill="#2e2542"/>
-      <path class="v-f" d="M262 86 q34 16 34 60 l-12 -6 q-4 -34 -30 -44 z"
-      fill="#FFD400"/>
-      <path class="v-m"
-      d="M106 186 q2 -114 94 -114 q92 0 94 114 q-12 -32 -34 -48
-      q-32 30 -84 18 q-40 -12 -62 30 z"
-      fill="#241d18"/>
-      </g>
-      </g>
-      </svg>
+              <svg id="avatar" viewBox="0 0 400 460" aria-label="avatar" data-variant="f">
+                <defs>
+                  <radialGradient id="cheek" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#ff8f9c" stop-opacity=".55"/>
+                    <stop offset="100%" stop-color="#ff8f9c" stop-opacity="0"/>
+                  </radialGradient>
+                </defs>
+                <g id="root">
+                  <g id="body">
+                    <path class="v-f" d="M174 286 l52 0 l0 82 q-26 14 -52 0 z" fill="#e8bf9c"/>
+                    <path class="v-m" d="M170 286 l60 0 l0 86 q-30 14 -60 0 z" fill="#e3b795"/>
+                    <path class="v-f" d="M80 520 q14 -184 120 -184 q106 0 120 184 z" fill="#4A7DFF"/>
+                    <path class="v-m" d="M72 520 q16 -180 128 -180 q112 0 128 180 z" fill="#2f6f5e"/>
+                  </g>
+                  <g id="hairBack">
+                    <path class="v-f" d="M200 44 q104 0 108 122 q4 92 -14 150 q-30 -104 -94 -104 q-64 0 -94 104 q-18 -58 -14 -150 q4 -122 108 -122 z" fill="#241d33"/>
+                    <path class="v-m" d="M200 52 q92 0 94 112 q2 34 -6 58 q-16 -40 -88 -40 q-72 0 -88 40 q-8 -24 -6 -58 q2 -112 94 -112 z" fill="#1f1a14"/>
+                  </g>
+                  <g id="head">
+                    <ellipse cx="112" cy="214" rx="13" ry="20" fill="#f0c9a8"/>
+                    <ellipse cx="288" cy="214" rx="13" ry="20" fill="#f0c9a8"/>
+                    <path class="v-f" d="M200 96 q84 0 84 100 q0 58 -25 94 q-24 34 -59 34 q-35 0 -59 -34 q-25 -36 -25 -94 q0 -100 84 -100 z" fill="#f7d9bd"/>
+                    <path class="v-m" d="M200 96 q86 0 86 102 q0 60 -18 94 q-20 36 -68 36 q-48 0 -68 -36 q-18 -34 -18 -94 q0 -102 86 -102 z" fill="#efc9a4"/>
+                    <g id="features">
+                      <g id="blush" opacity="0">
+                        <ellipse cx="146" cy="248" rx="26" ry="15" fill="url(#cheek)"/>
+                        <ellipse cx="254" cy="248" rx="26" ry="15" fill="url(#cheek)"/>
+                      </g>
+                      <g id="brows">
+                        <path class="v-f" d="M136 190 q22 -11 44 -2" stroke="#241d33" stroke-width="7" fill="none" stroke-linecap="round"/>
+                        <path class="v-f" d="M220 188 q22 -9 44 2" stroke="#241d33" stroke-width="7" fill="none" stroke-linecap="round"/>
+                        <path class="v-m" d="M134 199 q23 -7 45 -1" stroke="#1f1a14" stroke-width="8" fill="none" stroke-linecap="round"/>
+                        <path class="v-m" d="M221 198 q23 -6 45 1" stroke="#1f1a14" stroke-width="8" fill="none" stroke-linecap="round"/>
+                      </g>
+                      <g id="eyeL" class="eye">
+                        <ellipse cx="158" cy="222" rx="25" ry="21" fill="#fff"/>
+                        <g id="irisL"><circle cx="158" cy="223" r="14" fill="#3a7bd5"/><circle cx="158" cy="223" r="7" fill="#151226"/><circle cx="153" cy="217" r="4.5" fill="#fff" opacity=".9"/></g>
+                        <path class="lash" d="M133 214 q25 -20 50 -2" stroke="#241d33" stroke-width="5" fill="none" stroke-linecap="round"/>
+                      </g>
+                      <g id="eyeR" class="eye">
+                        <ellipse cx="242" cy="222" rx="25" ry="21" fill="#fff"/>
+                        <g id="irisR"><circle cx="242" cy="223" r="14" fill="#3a7bd5"/><circle cx="242" cy="223" r="7" fill="#151226"/><circle cx="237" cy="217" r="4.5" fill="#fff" opacity=".9"/></g>
+                        <path class="lash" d="M217 212 q25 -18 50 2" stroke="#241d33" stroke-width="5" fill="none" stroke-linecap="round"/>
+                      </g>
+                      <path d="M200 246 q6 10 -2 14" stroke="#d9a882" stroke-width="4" fill="none" stroke-linecap="round"/>
+                      <g id="mouth">
+                        <ellipse id="mouthCavity" cx="200" cy="292" rx="22" ry="3" fill="#7d2740"/>
+                        <ellipse id="mouthTongue" cx="200" cy="299" rx="14" ry="0" fill="#e3697f"/>
+                        <path id="mouthLine" d="M178 291 q22 6 44 0" stroke="#c98d76" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>
+                      </g>
+                    </g>
+                  </g>
+                  <g id="hairFront">
+                    <path class="v-f" d="M104 178 q6 -110 96 -110 q90 0 96 110 q-24 -58 -50 -62 q10 34 -12 48 q-16 -46 -60 -44 q-46 2 -70 58 z" fill="#2e2542"/>
+                    <path class="v-f" d="M262 86 q34 16 34 60 l-12 -6 q-4 -34 -30 -44 z" fill="#FFD400"/>
+                    <path class="v-m" d="M106 186 q2 -114 94 -114 q92 0 94 114 q-12 -32 -34 -48 q-32 30 -84 18 q-40 -12 -62 30 z" fill="#241d18"/>
+                  </g>
+                </g>
+              </svg>
+              <div id="audioVis" class="idle"></div>
               <div id="state">Ready</div>
             </div>
           </div>
@@ -193,13 +179,11 @@
           <div class="panel" style="margin-top:1.25rem;">
             <div class="label">Teacher</div>
             <select id="teacher" style="width:100%;margin:0.4rem 0 0.9rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
-
             <div class="label">Language</div>
             <select id="lang" style="width:100%;margin:0.4rem 0 0.9rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
-
             <div class="label">Voice</div>
             <select id="voice" style="width:100%;margin:0.4rem 0 0.25rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
-            <div class="row" style="margin-bottom:1rem;">
+            <div class="row" style="margin-top:0.4rem;">
               <button class="btn" id="preview" style="flex:1;font-size:0.72rem;">Hear this voice</button>
             </div>
           </div>
@@ -215,28 +199,43 @@
                 <span class="label" id="workLabel">Thinking</span>
                 <span class="label" id="elapsed" style="color:var(--ink);">0.0s</span>
               </div>
+              <div style="margin-top:0.5rem;height:6px;background:rgba(0,0,0,0.1);border:2px solid var(--ink);overflow:hidden;">
+                <div id="workBar" style="height:100%;width:0%;background:var(--acid);transition:width 0.3s;"></div>
+              </div>
               <button class="btn" id="cancel" style="width:100%;margin-top:0.6rem;font-size:0.72rem;">Cancel</button>
             </div>
-            <p class="hint" style="margin-top:0.9rem;" id="hint">
-              Press Start, ask out loud, then pause. She answers aloud and
-              everything is written down beside her.
-            </p>
-          </div>
 
-          <div class="panel" id="board" style="margin-top:1.25rem;display:none;">
-            <div class="label" id="boardCap">On the board</div>
-            <div style="margin-top:0.6rem;" id="boardImg"></div>
+            <!-- Quick prompt suggestions -->
+            <div class="label" style="margin-top:0.9rem;">Quick Questions</div>
+            <div class="quick-prompts" id="quickPrompts">
+              <button class="quick-btn" data-q="Explain this concept step by step">Explain step by step</button>
+              <button class="quick-btn" data-q="Give me a real-world example">Real-world example</button>
+              <button class="quick-btn" data-q="Show me a diagram of this">Show diagram</button>
+              <button class="quick-btn" data-q="What are the key formulas?">Key formulas</button>
+              <button class="quick-btn" data-q="Quiz me on this topic">Quiz me</button>
+              <button class="quick-btn" data-q="What am I missing?">What am I missing?</button>
+            </div>
+
+            <p class="hint" style="margin-top:0.9rem;" id="hint">
+              Press Start, ask out loud, then pause. She answers aloud with
+              live diagrams, equations, and step-by-step breakdowns.
+            </p>
           </div>
         </div>
 
+        <!-- CENTER COLUMN: Transcript + Live Board -->
         <div>
           <div class="panel">
-            <div class="label">Transcript</div>
-            <div id="log" style="margin-top:0.8rem;">
-              <p class="hint" id="empty">Nothing said yet.</p>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="label">Transcript</div>
+              <span class="label" id="turnCount" style="color:var(--ink);">0 turns</span>
             </div>
-            <div class="row" style="margin-top:1rem;">
-              <input type="text" id="typed" placeholder="&#8230;or type instead"
+            <div id="log" style="margin-top:0.8rem;">
+              <p class="hint" id="empty">Nothing said yet. Press Start talking or type below.</p>
+            </div>
+            <hr class="section-divider">
+            <div class="row" style="margin-top:0.6rem;">
+              <input type="text" id="typed" placeholder="...or type a question"
                      style="flex:1;min-width:180px;border:3px solid var(--ink);padding:0.75rem 0.9rem;font-family:inherit;font-size:0.95rem;">
               <button class="btn" id="send">Send</button>
             </div>
@@ -245,11 +244,69 @@
               <a class="btn" href="/discuss" style="font-size:0.72rem;">Open chat</a>
             </div>
           </div>
+
+          <!-- Live Board: Mermaid diagrams, equations, concept maps -->
+          <div class="panel" id="board" style="margin-top:1.25rem;display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="label" id="boardCap">On the board</div>
+              <button class="btn" id="boardFullscreen" style="font-size:0.65rem;padding:0.3rem 0.6rem;">Expand</button>
+            </div>
+            <div style="margin-top:0.6rem;" id="boardContent"></div>
+          </div>
+
+          <!-- Steps breakdown -->
+          <div class="panel" id="stepsPanel" style="margin-top:1.25rem;display:none;">
+            <div class="label">Step-by-Step Breakdown</div>
+            <div id="stepsList" style="margin-top:0.6rem;"></div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Diagram Gallery + Key Concepts -->
+        <div class="sidebar-col">
+          <div class="panel" id="galleryPanel" style="display:none;">
+            <div class="label">Diagram Gallery</div>
+            <div id="gallery" style="margin-top:0.6rem;"></div>
+          </div>
+
+          <div class="panel" id="conceptsPanel" style="margin-top:1.25rem;display:none;">
+            <div class="label">Key Concepts</div>
+            <div id="conceptsList" style="margin-top:0.6rem;"></div>
+          </div>
+
+          <div class="panel" style="margin-top:1.25rem;">
+            <div class="label">Session Stats</div>
+            <div style="margin-top:0.6rem;font-size:0.8rem;">
+              <div style="display:flex;justify-content:space-between;padding:0.3rem 0;border-bottom:1px dashed rgba(0,0,0,0.15);">
+                <span>Questions asked</span><strong id="statQuestions">0</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:0.3rem 0;border-bottom:1px dashed rgba(0,0,0,0.15);">
+                <span>Diagrams shown</span><strong id="statDiagrams">0</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:0.3rem 0;border-bottom:1px dashed rgba(0,0,0,0.15);">
+                <span>Equations covered</span><strong id="statEquations">0</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:0.3rem 0;">
+                <span>Session time</span><strong id="statTime">0m</strong>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </main>
 
+  <!-- Fullscreen board modal -->
+  <div id="boardModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;padding:2rem;overflow:auto;" onclick="if(event.target===this)closeModal()">
+    <div style="max-width:900px;margin:0 auto;background:#fff;border:3px solid var(--ink);box-shadow:14px 14px 0 0 #000;padding:1.5rem;position:relative;">
+      <button onclick="closeModal()" style="position:absolute;top:0.8rem;right:0.8rem;background:var(--ink);color:var(--acid);border:none;padding:0.4rem 0.8rem;font-family:'Archivo Black',sans-serif;cursor:pointer;text-transform:uppercase;font-size:0.75rem;">Close</button>
+      <div class="label" id="modalCap" style="margin-bottom:1rem;">Diagram</div>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <script>
+    function closeModal() { document.getElementById('boardModal').style.display = 'none'; }
+  </script>
   <script src="/static/ask-rail.js"></script>
   <script src="/static/teachers.js"></script>
   <script src="/static/voice.js"></script>
