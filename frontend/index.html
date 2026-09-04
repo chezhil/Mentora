@@ -74,16 +74,16 @@ tailwind.config = {
   </script>
 <style>sd-component { display: block; }</style>
 <script defer="" init="" src="https://cdn.jsdelivr.net/npm/petite-vue@0.4.1/dist/petite-vue.iife.js"></script>
-<title>Mentora Session Review</title>
-<meta content="Mentora Session Review" property="og:title"/>
+<title>Mentora Interactive Discussion</title>
+<meta content="Mentora Interactive Discussion" property="og:title"/>
 <meta content="website" property="og:type"/>
 <meta content="Mentora Student Dashboard" property="og:site_name"/>
-<meta content="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/screenshots/drafts/f49b8c38-38c2-4f58-8a2d-4accc46d39e6/1788527472439.png" property="og:image"/>
+<meta content="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/screenshots/drafts/8a44fded-e201-4654-99fc-ae6470f4e72b/1788527446979.png" property="og:image"/>
 <meta content="summary_large_image" name="twitter:card"/>
 <meta content="carousel-design-brut" name="deploy-id"/>
-<meta content="2026-09-04T13:25:00.421Z" name="deploy-timestamp"/>
-<link href="https://carousel-design-brut.superdesign.cloud/mentora-session-review" rel="canonical"/>
-<meta content="https://carousel-design-brut.superdesign.cloud/mentora-session-review" property="og:url"/>
+<meta content="2026-09-04T13:52:03.468Z" name="deploy-timestamp"/>
+<link href="https://carousel-design-brut.superdesign.cloud/mentora-interactive-discussion" rel="canonical"/>
+<meta content="https://carousel-design-brut.superdesign.cloud/mentora-interactive-discussion" property="og:url"/>
 <style>
   html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar {
     display: none !important; width: 0 !important; height: 0 !important;
@@ -1327,7 +1327,7 @@ tailwind.config = {
 </head>
 <body class="selection:bg-acid selection:text-ink">
 <div class="min-h-screen bg-paper text-ink flex flex-col overflow-hidden" data-sd-id="1">
-<!-- Header Component -->
+<!-- Navigation via Reusable Header -->
 <!-- component: HeaderNav (e186f640-4cf0-4369-8268-daf0d95ba8c5) -->
 <div v-scope='{ ...{"homeHref":"#","endSessionHref":"#end-session","lessonTitle":"Quantum Mechanics Overview"}, $emit() {} }'>
 <header class="sticky top-0 z-50 bg-[#f4f1ea] border-b-[3px] border-black">
@@ -1357,7 +1357,7 @@ tailwind.config = {
 </div>
 <!-- /component: HeaderNav (e186f640-4cf0-4369-8268-daf0d95ba8c5) -->
 <main class="flex-1 flex overflow-hidden grid-bg" data-sd-id="2">
-<!-- Left Sidebar Component -->
+<!-- Left Sidebar: Session Configuration -->
 <!-- component: SidebarControls (ff31add6-a2ea-4628-80d8-17adcc1789d2) -->
 <div v-scope='{ ...{"selectedDifficulty":"Intermediate (Standard)","activePersona":"socratic","showProBadge":true}, $emit() {} }'>
 <aside class="w-80 hidden lg:flex flex-col bg-[#f4f1ea] border-r-[3px] border-black overflow-y-auto z-20">
@@ -1412,72 +1412,159 @@ tailwind.config = {
 </aside>
 </div>
 <!-- /component: SidebarControls (ff31add6-a2ea-4628-80d8-17adcc1789d2) -->
-<!-- Center Content: Review Summary -->
-
-<section class="flex-1 flex flex-col md:flex-row p-5 md:p-8 gap-8 overflow-hidden h-full">
-<!-- Avatar Canvas Area -->
-<div class="flex-[2] border-[3px] border-black bg-white shadow-[14px_14px_0_0_#000000] relative flex flex-col overflow-hidden min-h-[400px]">
-<div class="absolute top-0 left-0 w-full p-4 flex justify-between z-10 pointer-events-none">
-<span class="bg-[#e8ff00] text-black font-black uppercase text-xs tracking-widest px-4 py-1 border-[3px] border-black shadow-[4px_4px_0_0_#000000]">AI Avatar Live</span>
+<!-- Center Content: Interactive Tutor & Visuals -->
+<section class="flex-1 flex flex-col p-5 md:p-8 overflow-y-auto space-y-8" data-sd-id="3">
+<!-- Large Interactive Avatar Feed -->
+<div class="relative flex-none" data-sd-id="4">
+<div class="absolute -top-3 left-6 z-10" data-sd-id="5">
+<span class="bg-ink text-acid font-mono text-[10px] font-bold uppercase tracking-widest px-2 py-1 border-[3px] border-ink shadow-brutal-sm" data-sd-id="6">Live Feed / Neural Synthesis</span>
 </div>
-<div class="flex-1 bg-[#09090b] relative w-full h-full" id="avatar-canvas-container">
-<canvas class="w-full h-full block" id="avatar-canvas"></canvas>
+<div class="aspect-video w-full bg-ink border-[3px] border-ink shadow-panel relative overflow-hidden group" data-sd-id="7">
+<!-- Interactive 3D Mock -->
+<div class="absolute inset-0 flex items-center justify-center" data-sd-id="8"><canvas class="w-full h-full block absolute inset-0 z-10 opacity-90" id="avatar-canvas"></canvas>
+<div class="w-64 h-64 bg-acid/10 rounded-full blur-[120px] animate-pulse" data-sd-id="9"></div>
+<iconify-icon class="text-[160px] text-acid z-10 transition-transform duration-500 group-hover:scale-110" icon="ph:student-bold"></iconify-icon>
+</div>
+<!-- Live Indicator Overlays -->
+<div class="absolute top-5 right-5 flex items-center gap-2 bg-ink/50 backdrop-blur-md px-3 py-1.5 border-[2px] border-acid" data-sd-id="10">
+<div class="w-2 h-2 bg-red-500 rounded-full animate-pulse" data-sd-id="11"></div>
+<span class="font-mono text-[10px] text-acid font-bold uppercase tracking-widest" data-sd-id="12">Recording</span>
+</div>
+<div class="absolute bottom-8 left-8 right-8 flex items-end justify-between" data-sd-id="13">
+<div class="flex flex-col gap-1" data-sd-id="14">
+<div class="flex items-center gap-2" data-sd-id="15">
+<div class="h-3 w-3 bg-acid rounded-full animate-ping" data-sd-id="16"></div>
+<span class="font-black text-acid uppercase tracking-tighter text-lg" data-sd-id="17">Mentora is Listening</span>
+</div>
+<span class="font-mono text-xs text-acid/60 uppercase" data-sd-id="18">Socratic Persona v2.4</span>
+</div>
+<!-- Audio Waveform Visualization -->
+<div class="flex items-end gap-1.5 h-12" data-sd-id="19">
+<div class="w-2 bg-acid h-4 animate-[bounce_1.2s_infinite]" data-sd-id="20"></div>
+<div class="w-2 bg-acid h-8 animate-[bounce_0.8s_infinite]" data-sd-id="21"></div>
+<div class="w-2 bg-acid h-6 animate-[bounce_1.5s_infinite]" data-sd-id="22"></div>
+<div class="w-2 bg-paper h-3 animate-[bounce_1s_infinite]" data-sd-id="23"></div>
+<div class="w-2 bg-acid h-10 animate-[bounce_0.6s_infinite]" data-sd-id="24"></div>
+<div class="w-2 bg-acid h-5 animate-[bounce_1.3s_infinite]" data-sd-id="25"></div>
 </div>
 </div>
-<!-- Chat Transcript & Input Area -->
-<div class="flex-1 flex flex-col gap-6 min-w-[320px] max-w-[500px]">
-<!-- Transcript -->
-<div class="flex-1 border-[3px] border-black bg-white shadow-[8px_8px_0_0_#000000] p-5 overflow-y-auto font-mono text-sm space-y-4 flex flex-col" id="chat-history">
-<div class="text-black/50 uppercase tracking-widest text-xs font-bold mb-2">Session Transcript</div>
 </div>
-<!-- Input -->
-<div class="border-[3px] border-black bg-white shadow-[8px_8px_0_0_#000000] p-4 flex flex-col gap-2 relative">
-<textarea class="w-full resize-none outline-none font-mono text-sm bg-transparent placeholder-black/30" id="prompt-input" placeholder="Type or hold mic to ask..." rows="3"></textarea>
-<div class="flex justify-between items-center mt-2">
-<button class="w-12 h-12 grid place-items-center bg-black text-[#e8ff00] border-[3px] border-black shadow-[4px_4px_0_0_#000000] hover:translate-x-[2px] hover:translate-y-[2px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer" id="ptt-btn">
-<iconify-icon class="text-2xl pointer-events-none" icon="ph:microphone-bold"></iconify-icon>
+</div>
+<!-- Visual Aid Workspace -->
+<div class="flex-1 min-h-[400px]" data-sd-id="26">
+<div class="h-full border-[3px] border-ink shadow-brutal bg-white p-6 md:p-10 flex flex-col" data-sd-id="27">
+<div class="flex items-center justify-between mb-8 border-b-[3px] border-ink pb-6" data-sd-id="28">
+<div class="flex flex-col" data-sd-id="29">
+<span class="font-mono text-xs font-bold uppercase tracking-widest text-ink/65" data-sd-id="30">Current Concept / Aid 04</span>
+<h2 class="font-black uppercase text-3xl md:text-4xl tracking-tight leading-none mt-2 text-ink" data-sd-id="31">Probability Field Collapse</h2>
+</div>
+<div class="flex gap-3" data-sd-id="32">
+<button class="w-12 h-12 border-[3px] border-ink bg-paper grid place-items-center btn-brutal shadow-brutal-sm" data-sd-id="33" id="btn-refresh-visual">
+<iconify-icon class="text-xl" icon="ph:arrows-clockwise-bold"></iconify-icon>
 </button>
-<button class="bg-[#e8ff00] text-black font-black uppercase text-sm tracking-widest px-8 py-3 border-[3px] border-black shadow-[4px_4px_0_0_#000000] hover:translate-x-[2px] hover:translate-y-[2px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer" id="send-btn">
-               SEND -&gt;
-             </button>
+<button class="w-12 h-12 border-[3px] border-ink bg-acid grid place-items-center btn-brutal shadow-brutal-sm" data-sd-id="34" id="btn-fullscreen-visual">
+<iconify-icon class="text-xl" icon="ph:corners-out-bold"></iconify-icon>
+</button>
+</div>
+</div>
+<div class="flex-1 grid grid-cols-1 lg:grid-cols-5 gap-10 items-start" data-sd-id="35">
+<div class="lg:col-span-2 space-y-6" data-sd-id="36">
+<div class="bg-paper border-l-[10px] border-ink p-6 shadow-brutal-sm" data-sd-id="37">
+<span class="font-mono text-[10px] font-bold text-ink/40 uppercase mb-2 block" data-sd-id="38">Mathematical Proof</span>
+<code class="font-mono text-lg leading-relaxed text-ink">
+                     Ψ(x,t) = Σ c_n φ_n(x) e^{-iE_nt/ħ}
+                   </code>
+<div class="mt-4 pt-4 border-t border-ink/10" data-sd-id="39">
+<p class="text-xs font-bold uppercase tracking-wider text-ink/60" data-sd-id="40">Linear Combination of Eigenstates</p>
+</div>
+</div>
+<div class="space-y-4" data-sd-id="41">
+<p class="text-sm font-medium leading-relaxed text-ink/80" data-sd-id="42">
+                      When an observer interacts with the system, the wave function Ψ "collapses" into a single definite state. Mentora is focusing on the <strong>Decoherence</strong> aspect for this part of your lesson.
+                    </p>
+<div class="flex flex-wrap gap-3" data-sd-id="43">
+<a class="bg-ink text-acid border-[2px] border-ink px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider shadow-brutal-sm" data-sd-id="44" href="#">View Derivation</a>
+<a class="bg-paper border-[2px] border-ink px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider shadow-brutal-sm" data-sd-id="45" href="#">References</a>
+</div>
+</div>
+</div>
+<div class="lg:col-span-3 h-full border-[3px] border-ink bg-paper p-6 relative flex items-center justify-center" data-sd-id="46">
+<div class="absolute top-4 left-4 font-mono text-[10px] uppercase font-bold text-ink/30" data-sd-id="47">Real-time Render Pipeline</div>
+<!-- Placeholder for dynamic SVG diagram -->
+<div class="w-full max-w-md aspect-square bg-white border-[2px] border-ink shadow-brutal flex items-center justify-center p-8" data-sd-id="48">
+<iconify-icon class="text-[140px] text-ink opacity-10 animate-[spin_20s_linear_infinite]" icon="ph:atom-bold"></iconify-icon>
+<div class="absolute inset-0 grid grid-cols-6 grid-rows-6 opacity-20 pointer-events-none" data-sd-id="49">
+<div class="border-r border-b border-ink/40" data-sd-id="50"></div><div class="border-r border-b border-ink/40" data-sd-id="51"></div><div class="border-r border-b border-ink/40" data-sd-id="52"></div><div class="border-r border-b border-ink/40" data-sd-id="53"></div><div class="border-r border-b border-ink/40" data-sd-id="54"></div><div class="border-r border-b border-ink/40" data-sd-id="55"></div>
+</div>
+</div>
+</div>
 </div>
 </div>
 </div>
 </section>
-
+<!-- Right Sidebar: Interactive Chat Transcript -->
+<aside class="w-[400px] hidden xl:flex flex-col bg-paper border-l-[3px] border-ink z-20 overflow-hidden" data-sd-id="56">
+<div class="p-6 border-b-[3px] border-ink bg-white flex items-center justify-between shadow-brutal-sm relative z-10" data-sd-id="57">
+<div class="flex flex-col" data-sd-id="58">
+<span class="font-black uppercase text-xl tracking-tighter text-ink" data-sd-id="59">Discussion</span>
+<span class="font-mono text-[10px] font-bold text-ink/40 uppercase" data-sd-id="60">Session ID: #QM-8821</span>
+</div>
+<button class="w-8 h-8 border-[2px] border-ink grid place-items-center hover:bg-ink hover:text-acid transition-colors" data-sd-id="61">
+<iconify-icon icon="ph:download-bold"></iconify-icon>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-6 space-y-8 scroll-smooth" data-sd-id="62" id="chat-history"></div>
+</aside>
 </main>
-<!-- Action Footer (Custom action buttons replaces standard BottomInputBar) -->
-<footer class="sticky bottom-0 z-50 bg-paper border-t-[3px] border-ink p-6 md:p-8" data-sd-id="62">
-<div class="mx-auto max-w-6xl flex flex-col md:flex-row gap-4 md:gap-6" data-sd-id="63">
-<a class="flex-1 bg-acid text-ink border-[3px] border-ink p-6 font-black uppercase text-xl shadow-brutal btn-brutal text-center" data-sd-id="64" href="/" id="btn-start-next">
-          Start Next Lesson
-        </a>
-<a class="flex-1 bg-white text-ink border-[3px] border-ink p-6 font-black uppercase text-xl shadow-brutal-sm btn-brutal text-center" data-sd-id="65" href="/mentora-interactive-discussion" id="btn-review-transcript">
-          Review Transcript
-        </a>
-<a class="w-full md:w-20 bg-ink text-paper border-[3px] border-ink p-6 grid place-items-center shadow-brutal-sm btn-brutal" data-sd-id="66" href="#download-summary" id="btn-download-pdf">
-<iconify-icon class="text-2xl" icon="ph:download-bold"></iconify-icon>
-</a>
+<!-- Reusable Bottom Input -->
+<!-- component: BottomInputBar (ecae0f41-7a0a-4318-9897-1ce18e1febaf) -->
+<div v-scope='{ ...{"isMicActive":false}, $emit() {} }'>
+<footer class="sticky bottom-0 z-50 bg-[#f4f1ea] border-t-[3px] border-[#000000] p-4">
+<div class="mx-auto max-w-[1240px] flex items-center gap-4">
+<button :class="isMicActive ? 'bg-[#d4e600]' : 'bg-[#e8ff00]'" @click="$emit('micClick')" class="w-16 h-16 sm:w-20 sm:h-20 flex-none border-[3px] border-[#000000] shadow-[8px_8px_0_0_#000000] hover:shadow-[4px_4px_0_0_#000000] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[8px] active:translate-y-[8px] transition-all duration-[80ms] grid place-items-center" id="ptt-btn">
+<iconify-icon class="text-3xl sm:text-4xl text-[#000000]" icon="ph:microphone-bold"></iconify-icon>
+<span class="sr-only">Push to Talk</span>
+</button>
+<div class="flex-1 relative">
+<input @input="$emit('input', { value: $event.target.value })" @keyup.enter="$emit('send', { value: $event.target.value })" class="w-full h-16 sm:h-20 bg-white border-[3px] border-[#000000] px-6 font-medium text-lg shadow-[5px_5px_0_0_#000000] focus:shadow-[8px_8px_0_0_#000000] transition-shadow text-[#000000] placeholder:text-[#000000]/40 outline-none" id="prompt-input" placeholder="Ask Mentora a follow-up question..." type="text"/>
+<div class="absolute right-6 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-3">
+<span class="font-mono text-[10px] font-bold uppercase tracking-widest text-[#000000]/40">Press Enter to send</span>
+<button @click="$emit('sendClick')" class="w-10 h-10 bg-[#000000] text-[#e8ff00] grid place-items-center border-[3px] border-[#000000] transition-all duration-[80ms] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none" id="send-btn">
+<iconify-icon class="text-xl" icon="ph:paper-plane-right-bold"></iconify-icon>
+</button>
+</div>
+</div>
 </div>
 </footer>
-<!-- Marquee -->
-<div class="bg-ink border-b-[3px] border-ink overflow-hidden py-2.5" data-sd-id="67">
-<div class="marquee-track flex whitespace-nowrap font-black uppercase text-acid text-sm tracking-tight" data-sd-id="68">
-<div class="flex shrink-0 items-center" data-sd-id="69">
-<span class="px-6" data-sd-id="70">Session Complete</span> <span class="text-paper/30" data-sd-id="71">/</span>
-<span class="px-6" data-sd-id="72">Data Synced to Cloud</span> <span class="text-paper/30" data-sd-id="73">/</span>
-<span class="px-6" data-sd-id="74">Curriculum Adjusted</span> <span class="text-paper/30" data-sd-id="75">/</span>
-<span class="px-6" data-sd-id="76">AI Persona Refined</span> <span class="text-paper/30" data-sd-id="77">/</span>
 </div>
-<div aria-hidden="true" class="flex shrink-0 items-center" data-sd-id="78">
-<span class="px-6" data-sd-id="79">Session Complete</span> <span class="text-paper/30" data-sd-id="80">/</span>
-<span class="px-6" data-sd-id="81">Data Synced to Cloud</span> <span class="text-paper/30" data-sd-id="82">/</span>
-<span class="px-6" data-sd-id="83">Curriculum Adjusted</span> <span class="text-paper/30" data-sd-id="84">/</span>
-<span class="px-6" data-sd-id="85">AI Persona Refined</span> <span class="text-paper/30" data-sd-id="86">/</span>
+<!-- /component: BottomInputBar (ecae0f41-7a0a-4318-9897-1ce18e1febaf) -->
+<!-- Bottom Ticker -->
+<div class="bg-ink border-b-[3px] border-ink overflow-hidden py-2.5 z-20 relative" data-sd-id="91">
+<div class="marquee-track flex whitespace-nowrap font-black uppercase text-acid text-sm tracking-tight" data-sd-id="92">
+<div class="flex shrink-0 items-center" data-sd-id="93">
+<span class="px-6" data-sd-id="94">Active Discussion Session</span> <span class="text-paper/30" data-sd-id="95">/</span>
+<span class="px-6" data-sd-id="96">High-Fidelity Audio Stream</span> <span class="text-paper/30" data-sd-id="97">/</span>
+<span class="px-6" data-sd-id="98">Neural Context Matrix: OK</span> <span class="text-paper/30" data-sd-id="99">/</span>
+<span class="px-6" data-sd-id="100">Real-time Feedback Loop</span> <span class="text-paper/30" data-sd-id="101">/</span>
+<span class="px-6" data-sd-id="102">Socratic Method Engaged</span> <span class="text-paper/30" data-sd-id="103">/</span>
+</div>
+<div aria-hidden="true" class="flex shrink-0 items-center" data-sd-id="104">
+<span class="px-6" data-sd-id="105">Active Discussion Session</span> <span class="text-paper/30" data-sd-id="106">/</span>
+<span class="px-6" data-sd-id="107">High-Fidelity Audio Stream</span> <span class="text-paper/30" data-sd-id="108">/</span>
+<span class="px-6" data-sd-id="109">Neural Context Matrix: OK</span> <span class="text-paper/30" data-sd-id="110">/</span>
+<span class="px-6" data-sd-id="111">Real-time Feedback Loop</span> <span class="text-paper/30" data-sd-id="112">/</span>
+<span class="px-6" data-sd-id="113">Socratic Method Engaged</span> <span class="text-paper/30" data-sd-id="114">/</span>
 </div>
 </div>
 </div>
 </div>
+<script>
+    // Simple scroll to bottom on chat
+    window.onload = () => {
+      const chatContainer = document.querySelector('aside.xl\\:flex .overflow-y-auto');
+      if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+    };
+  </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="/AITutorAvatar.js"></script>

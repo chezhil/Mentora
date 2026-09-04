@@ -162,16 +162,61 @@ class AITutorAvatar {
     appendTranscript(role, text) {
         if (!this.chatHistory) return;
         const msg = document.createElement('div');
+        msg.className = "space-y-3";
+        
+        const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         
         if (role === 'user') {
-            msg.className = "bg-black text-[#e8ff00] p-3 border-[3px] border-black shadow-[4px_4px_0_0_#000000] ml-8 mb-2 leading-relaxed";
-            msg.innerHTML = `<div class="text-[10px] opacity-70 mb-1 tracking-widest uppercase font-bold">USR</div><div>${text}</div>`;
+            msg.innerHTML = `
+ <div class="flex items-center justify-between flex-row-reverse">
+  <div class="flex items-center gap-2">
+   <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-[#000000]/80">
+    Student
+   </span>
+   <div class="w-7 h-7 bg-[#f4f1ea] text-[#000000] grid place-items-center font-black text-[12px] border-[2px] border-[#000000]">
+    S
+   </div>
+  </div>
+  <span class="font-mono text-[9px] text-[#000000]/40">
+   ${timeStr}
+  </span>
+ </div>
+ <div class="bg-white border-[3px] border-[#000000] p-5 shadow-[5px_5px_0_0_#000000] text-sm leading-relaxed font-semibold text-[#000000]">
+  ${text}
+ </div>`;
         } else if (role === 'ai') {
-            msg.className = "bg-white text-black p-3 border-[3px] border-black shadow-[4px_4px_0_0_#000000] mr-8 mb-2 leading-relaxed";
-            msg.innerHTML = `<div class="text-[10px] text-black/50 mb-1 tracking-widest uppercase font-bold">MENTORA</div><div>${text}</div>`;
+            msg.innerHTML = `
+ <div class="flex items-center justify-between">
+  <div class="flex items-center gap-2">
+   <div class="w-7 h-7 bg-[#000000] text-[#e8ff00] grid place-items-center font-black text-[12px] border-[2px] border-[#000000]">
+    M
+   </div>
+   <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-[#000000]/80">
+    Mentora
+   </span>
+  </div>
+  <span class="font-mono text-[9px] text-[#000000]/40">
+   ${timeStr}
+  </span>
+ </div>
+ <div class="bg-[#e8ff00] border-[3px] border-[#000000] p-5 shadow-[5px_5px_0_0_#000000] text-sm leading-relaxed font-semibold text-[#000000]">
+  ${text}
+ </div>`;
         } else {
-            msg.className = "bg-red-500 text-white p-3 border-[3px] border-black shadow-[4px_4px_0_0_#000000] mb-2 leading-relaxed";
-            msg.innerHTML = `<div class="text-[10px] mb-1 tracking-widest uppercase font-bold">SYS</div><div>${text}</div>`;
+            msg.innerHTML = `
+ <div class="flex items-center justify-between">
+  <div class="flex items-center gap-2">
+   <div class="w-7 h-7 bg-red-500 text-white grid place-items-center font-black text-[12px] border-[2px] border-[#000000]">
+    !
+   </div>
+   <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-red-500/80">
+    System
+   </span>
+  </div>
+ </div>
+ <div class="bg-red-500 text-white border-[3px] border-[#000000] p-5 shadow-[5px_5px_0_0_#000000] text-sm leading-relaxed font-semibold">
+  ${text}
+ </div>`;
         }
         
         this.chatHistory.appendChild(msg);
