@@ -714,6 +714,26 @@ def _followup_box(session) -> None:
             st.info(a)
 
 
+def _board(path: str) -> None:
+    """The board video with the 2D teacher overlaid, or a plain video.
+
+    stage_html returns "" when the clip is too big to inline or the avatar
+    assets are missing, and any failure here has to degrade to the video
+    rather than lose the lesson.
+    """
+    try:
+        import streamlit.components.v1 as components
+
+        import lesson_stage
+        stage = lesson_stage.stage_html(path)
+        if stage:
+            components.html(stage, height=440, scrolling=False)
+            return
+    except Exception:
+        pass
+    st.video(path)
+
+
 def screen_lesson() -> None:
     session = st.session_state.session
     segment = st.session_state.segment
@@ -760,7 +780,10 @@ def screen_lesson() -> None:
 
     with video:
         if media.video_mp4 and os.path.exists(media.video_mp4):
-            st.video(media.video_mp4)
+            # The live teacher stands in the corner of the board video. This
+            # was only wired into pages/2_Lesson.py, so app.py — the demo —
+            # showed a bare st.video with no avatar over it at all.
+            _board(media.video_mp4)
         else:
             st.info(_t("lesson.no_video"))
         st.write(segment.script)

@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import re
 import subprocess
 import sys
@@ -369,6 +370,68 @@ def grid(n: int) -> list[tuple[float, float, float, float]]:
     return out
 
 
+def _depth_of(elements) -> list[int]:
+    """How far each node sits from a root, following edge_from."""
+    out = []
+    for i in range(len(elements)):
+        d, seen, cur = 0, {i}, elements[i].edge_from
+        while cur is not None and cur not in seen and d < len(elements):
+            seen.add(cur)
+            cur = elements[cur].edge_from
+            d += 1
+        out.append(d)
+    return out
+
+
+def layered(elements) -> list[tuple[float, float, float, float]]:
+    """Rank a branching graph by depth: parents above, children below.
+
+    A grid is right for a chain and wrong for a tree. Laying a tree out in
+    reading order put a parent in the top-right and its child in the
+    bottom-left, so the edges ran the full diagonal of the frame and crossed
+    each other. Ranking by depth makes every edge short and downward.
+    """
+    depths = _depth_of(elements)
+    rows: dict[int, list[int]] = {}
+    for i, d in enumerate(depths):
+        rows.setdefault(d, []).append(i)
+
+    x0, x1, y0, y1 = 0.9, 12.95, 1.9, 6.9
+    n_rows = max(rows) + 1
+    rh = (y1 - y0) / n_rows
+    bh = min(rh * 0.78, 1.9)
+    boxes = [(0.0, 0.0, 0.0, 0.0)] * len(elements)
+    for d, idxs in rows.items():
+        cw = (x1 - x0) / len(idxs)
+        bw = min(cw * 0.86, 4.2)
+        for j, i in enumerate(idxs):
+            bx = x0 + cw * j + (cw - bw) / 2
+            by = y1 - (d + 1) * rh + (rh - bh) / 2
+            boxes[i] = (bx, by, bw, bh)
+    return boxes
+
+
+def fit_label(ax, text: str, bw: float, bh: float, max_fs: float):
+    """Wrap and size a node label so it fits inside its card.
+
+    The label used to be wrapped at `int(bw * 5.0)` characters at a fixed
+    font size, both guesses. Long labels overflowed the card, and wrap()
+    silently dropped anything past its third line. Measure instead, and shrink
+    the type until the text is genuinely inside the box.
+    """
+    inner_w, inner_h = bw - 0.42, bh - 0.34
+    fs = max_fs
+    while fs >= 8.0:
+        per_line = max(8, int(inner_w / (fs * 0.62 * UNITS_PER_PX)))
+        lines = _wrap_lines(text, per_line)
+        body = "\n".join(lines)
+        w, h = _text_size(ax, body, fs)
+        if w <= inner_w and h <= inner_h:
+            return body, fs
+        fs -= 1.0
+    return "\n".join(_wrap_lines(text, 14)), 8.0
+
+
 def mathtext(term: str) -> str:
     return f"${term}$" if term not in ("=", "+", "-") else term
 
@@ -421,18 +484,83 @@ def subtitle(ax, t, sentences) -> None:
     a = rise * settle
     if a <= 0.0:
         return
-    lines = wrap(live.text.strip(), 66).split("\n")[:2]
-    fs = 15.5
-    glyph = fs * 0.60 / 80.0          # rough advance per char, in 16x9 units
-    w = min(max(max(len(l) for l in lines) * glyph + 1.4, 3.2), 11.6)
-    h = 0.92 if len(lines) == 1 else 1.30
+    body, fs, w, h = subtitle_layout(ax, live.text.strip())
     cx = 6.6
     x, y = cx - w / 2, 0.24
     rrect(ax, x + 0.08, y - 0.10, w, h, 0.26, face=INK, z=10, alpha=0.07 * a)
     rrect(ax, x, y, w, h, 0.26, face="#FFFFFF", z=11, alpha=a)
     rrect(ax, x, y, w, h, 0.26, edge=INK, lw=1.2, z=12, alpha=0.20 * a)
-    ax.text(cx, y + h / 2, "\n".join(lines), fontsize=fs, color=INK,
+    ax.text(cx, y + h / 2, body, fontsize=fs, color=INK,
             va="center", ha="center", linespacing=1.28, zorder=13, alpha=a)
+
+
+# Measuring text beats estimating it. The box used to be sized from
+# `len(line) * fontsize * 0.60`, a guess at the average glyph advance, and then
+# clamped to two lines — so a long sentence had its tail silently dropped, and
+# Devanagari (whose glyphs are wider than the guess) overflowed the capsule it
+# was supposed to sit inside. Now the real extent is measured.
+#
+# A sentence is on screen for a few seconds, which is roughly a hundred frames
+# at 25fps, so the measurement is cached and costs one layout per sentence.
+_TEXT_CACHE: dict[tuple[str, float], tuple[float, float]] = {}
+UNITS_PER_PX = 1.0 / 80.0          # the axes is 16x9 across 1280x720
+SUB_MAX_W, SUB_MAX_LINES = 11.6, 3
+
+
+def _wrap_lines(text: str, per_line: int) -> list[str]:
+    """Like wrap(), but it never throws away the lines that do not fit."""
+    words, lines, cur = text.split(), [], ""
+    for word in words:
+        trial = f"{cur} {word}".strip()
+        if len(trial) > per_line and cur:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = trial
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def _text_size(ax, text: str, fs: float) -> tuple[float, float]:
+    key = (text, fs)
+    hit = _TEXT_CACHE.get(key)
+    if hit is not None:
+        return hit
+    try:
+        artist = ax.text(0, 0, text, fontsize=fs, linespacing=1.28)
+        box = artist.get_window_extent(ax.figure.canvas.get_renderer())
+        artist.remove()
+        size = (box.width * UNITS_PER_PX, box.height * UNITS_PER_PX)
+    except Exception:
+        # No renderer yet: fall back to the old estimate rather than fail.
+        widest = max((len(l) for l in text.split("\n")), default=1)
+        size = (widest * fs * 0.62 * UNITS_PER_PX,
+                (text.count("\n") + 1) * fs * 1.5 * UNITS_PER_PX)
+    _TEXT_CACHE[key] = size
+    return size
+
+
+def subtitle_layout(ax, text: str):
+    """Body text, font size and capsule size that actually fits it.
+
+    Tries progressively smaller type and wider wraps until the whole sentence
+    fits the capsule in at most three lines. Shrinking the type is always
+    preferable to dropping words: the subtitle exists to be read.
+    """
+    for fs in (15.5, 14.0, 12.5, 11.0):
+        for per_line in (66, 78, 92):
+            lines = _wrap_lines(text, per_line)
+            if len(lines) > SUB_MAX_LINES:
+                continue
+            body = "\n".join(lines)
+            w, h = _text_size(ax, body, fs)
+            if w + 1.4 <= SUB_MAX_W:
+                return body, fs, max(w + 1.4, 3.2), h + 0.58
+    # A single unbreakable run longer than the frame. Clamp rather than spill.
+    body = "\n".join(_wrap_lines(text, 92)[:SUB_MAX_LINES])
+    w, h = _text_size(ax, body, 11.0)
+    return body, 11.0, min(max(w + 1.4, 3.2), SUB_MAX_W), h + 0.58
 
 
 def progress_bar(ax, t, total) -> None:
@@ -468,8 +596,10 @@ def _is_chain(elements) -> bool:
 
 
 def draw_flow(ax, t, elements) -> None:
-    boxes = grid(len(elements))
     chain = _is_chain(elements)
+    # A chain reads as a row; anything that branches needs ranking, or its
+    # edges cross the frame.
+    boxes = grid(len(elements)) if chain else layered(elements)
     deva = any(_DEVA.search(el.label or "") for el in elements)
 
     # Arrows first, beneath the cards, so each connection appears exactly as
@@ -512,11 +642,15 @@ def draw_flow(ax, t, elements) -> None:
             ax.text(bcx, bcy, glyph, fontsize=12.5, fontweight="bold",
                     color="#FFFFFF", ha="center", va="center", zorder=8)
 
-        fs = 15 if len(boxes) <= 4 else 13
-        ax.text(bx + bw / 2, by + bh / 2 - 0.16,
-                wrap(el.label, max(9, int(bw * 5.0))),
-                fontsize=fs, fontweight="bold", color=INK, ha="center",
-                va="center", linespacing=1.3, zorder=8, alpha=e)
+        # The badge occupies the top of the card, so only a badged card owes
+        # the text any offset. A fixed -0.16 pushed every label off centre,
+        # including on the branching diagrams that have no badge at all.
+        head_room = 0.62 if chain else 0.0
+        body, fs = fit_label(ax, el.label, bw, bh - head_room,
+                             15.0 if len(boxes) <= 4 else 13.0)
+        ax.text(bx + bw / 2, by + (bh - head_room) / 2,
+                body, fontsize=fs, fontweight="bold", color=INK,
+                ha="center", va="center", linespacing=1.3, zorder=8, alpha=e)
 
 
 def draw_equation(ax, t, elements) -> None:
@@ -622,7 +756,25 @@ def build(segment: dict, out: Path, voice: str) -> int:
         for el in elements:
             print(f"    {el.at:6.2f}s  {el.label[:52]}")
 
-    return encode(out, elements, kind, caption, narration)
+        # Inside the temp directory, not after it. Splitting build() from
+        # encode() left this dedented, so the narration was deleted before the
+        # mux could read it and the CLI could not render anything at all.
+        return encode(out, elements, kind, caption, narration)
+
+
+# The teacher stands here, in the corner make_visual reserves for her.
+AVATAR_X, AVATAR_Y, AVATAR_W = 12.9, 0.0, 2.95
+
+
+def _wav_for(audio: Path, ffmpeg: str, work: Path) -> Path:
+    """A WAV to analyse. build() narrates to MP3; the pipeline hands us WAV."""
+    if str(audio).lower().endswith(".wav"):
+        return Path(audio)
+    out = work / "for_analysis.wav"
+    subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-i", str(audio),
+                    "-ac", "1", "-ar", "22050", str(out)],
+                   check=True, timeout=120)
+    return out
 
 
 def encode(out: Path, elements: list[Element], kind: str, caption: str,
@@ -643,6 +795,23 @@ def encode(out: Path, elements: list[Element], kind: str, caption: str,
     except Exception:
         ffmpeg = "ffmpeg"
 
+    # The teacher is drawn INTO the frames, not layered over the <video> in
+    # HTML. An overlay vanishes the moment anyone fullscreens the video, and
+    # it cannot survive download or upload either. Burnt in, she is simply
+    # part of the picture. Failing to build her must not cost us the board,
+    # so anything here degrades to the board alone.
+    poses = shapes_ = None
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import avatar_render
+
+        shapes_ = avatar_render.shapes()
+        wav = _wav_for(Path(narration.audio), ffmpeg, out.parent)
+        poses = avatar_render.analyse(wav, FPS, int(total * FPS))
+    except Exception as exc:
+        print(f"[avatar] not embedded ({type(exc).__name__}: {exc})")
+    variant = os.environ.get("MENTORA_AVATAR_VARIANT", "f")
+
     silent = out.parent / f".{out.stem}_silent.mp4"
     fig = plt.figure(figsize=(W / DPI, H / DPI), dpi=DPI, facecolor=PAPER)
     ax = fig.add_axes([0, 0, 1, 1])
@@ -654,6 +823,10 @@ def encode(out: Path, elements: list[Element], kind: str, caption: str,
             for f in range(int(total * FPS)):
                 draw(ax, f / FPS, elements, kind, caption,
                      narration.sentences, total)
+                if poses:
+                    avatar_render.draw_avatar(
+                        ax, shapes_, poses[min(f, len(poses) - 1)],
+                        AVATAR_X, AVATAR_Y, AVATAR_W, variant)
                 writer.grab_frame(facecolor=PAPER)
     finally:
         plt.close(fig)
