@@ -2,8 +2,15 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
+import llm
 import orchestrator as orch
 from shared.models import LearnerProfile, StudentResponse
 from utils_gesture import parse_gestures
@@ -20,10 +27,13 @@ async def serve_index():
 
 @app.get("/{filename}")
 async def serve_file(filename: str):
-    file_path = frontend_dir / filename
-    if file_path.exists() and file_path.is_file():
-        return FileResponse(file_path)
-    return HTMLResponse("Not Found", status_code=404)
+    try:
+        target = (frontend_dir / filename).resolve()
+    except (OSError, ValueError):
+        return HTMLResponse("Not Found", status_code=404)
+    if not target.is_relative_to(frontend_dir.resolve()) or not target.is_file():
+        return HTMLResponse("Not Found", status_code=404)
+    return FileResponse(target)
 
 @app.get("/api/media")
 async def get_media(path: str):
@@ -38,9 +48,8 @@ async def start_lesson(request: Request):
     api_key = data.get("api_key")
     
     if api_key:
-        os.environ["GEMINI_API_KEY"] = api_key
+        llm.configure(api_key=api_key)
     
-    # Initialize session
     profile = LearnerProfile(
         level="beginner",
         language="en",
@@ -50,23 +59,27 @@ async def start_lesson(request: Request):
     session = orch.start_session(topic=topic, profile=profile)
     session_store["current"] = session
     
-    # Start the lesson
     segment = orch.step(session)
     media = orch.media_for(session, segment)
     
     clean_text, gestures = parse_gestures(segment.script)
-    
+
     return JSONResponse({
         "status": "started",
         "topic": topic,
         "segment_text": clean_text,
         "gestures": gestures,
         "audio_url": f"/api/media?path={media.audio_wav}" if media and media.audio_wav else None,
-        "visual_url": f"/api/media?path={media.visual_png}" if media and media.visual_png else None
+        "visual_url": f"/api/media?path={media.visual_png}" if media and media.visual_png else None,
+        "media": {
+            "video_mp4": media.video_mp4,
+            "audio_wav": media.audio_wav,
+            "visual_png": media.visual_png,
+            "notes": media.notes,
+        },
     })
 
 import wiring
-
 
 @app.post("/api/ask")
 async def ask_question(request: Request):

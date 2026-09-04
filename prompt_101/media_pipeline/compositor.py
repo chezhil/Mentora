@@ -96,8 +96,8 @@ def _compose_with_avatar(
         "-i", audio_path,                  # Input 2: audio
         "-filter_complex",
         "[1:v]scale=320:-1[av];"
-        "[0:v][av]overlay=W-w-40:H-h-40[vout]",
-        "-map", "[vout]", "-map", "2:a",
+        "[0:v][av]overlay=W-w-40:H-h-40:shortest=1[vout]",
+        "-map", "[vout]", "-map", "1:a?", "-map", "2:a?",
         "-c:v", "libx264", "-shortest",
         "-pix_fmt", "yuv420p", "-movflags", "+faststart",
         output_path,
@@ -155,9 +155,7 @@ def build_lesson_video(
         # Title card
         if title:
             title_card = _make_text_card(
-                title, "AI Teacher", duration=4.0,
-                bg_color="#1a1a2e", text_color="#ffffff",
-            )
+                title, "Mentora · AI Teacher", duration=4.0)
             all_parts.append(title_card)
             temp_files.append(Path(title_card))
         
@@ -166,9 +164,8 @@ def build_lesson_video(
         
         # Closing card
         closing_card = _make_text_card(
-            "Thank You", "End of Lesson",
-            duration=3.0, bg_color="#1a1a2e", text_color="#ffffff",
-        )
+            "End of lesson", "Open the Report tab for your feedback",
+            duration=3.0, bg_color="#4A7DFF", text_color="#FFFFFF")
         all_parts.append(closing_card)
         temp_files.append(Path(closing_card))
         
@@ -184,122 +181,167 @@ def build_lesson_video(
 def _make_text_card(
     heading: str, subtext: str = "",
     duration: float = 3.0,
-    bg_color: str = "#1a1a2e",
-    text_color: str = "#ffffff",
+    bg_color: str = "#FFD400",
+    text_color: str = "#12100E",
 ) -> str:
-    """Create a title/closing card as a short MP4.
-    
-    Renders a PNG with matplotlib, then wraps it in a silent video.
-    
-    Returns:
-        Path to the temporary MP4 card file.
+    """Create a title/closing card as a short MP4, exactly 1280x720.
+
+    The size matters more than it looks. This used to save the PNG with
+    bbox_inches="tight", which crops to the ink and gave a 1012x574 card. The
+    concat demuxer then took its parameters from the FIRST input, so the whole
+    lesson video came out 1012x574 and the 1280x720 segments after it were
+    dropped — a 16-second "lesson" of a title card, a fragment, and a thank
+    you. Nothing warned; the file played.
+
+    So: no tight bounding box, an explicit figure size, and stitch() normalises
+    every part anyway. Belt and braces, because this is the deliverable.
     """
     import uuid
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    
-    # Render card as PNG
+    from matplotlib.patches import Rectangle
+
     png_path = COMPOSE_OUTPUT_DIR / f"card_{uuid.uuid4().hex[:8]}.png"
     fig, ax = plt.subplots(1, 1, figsize=(12.8, 7.2), dpi=100)
-    ax.set_facecolor(bg_color)
-    fig.patch.set_facecolor(bg_color)
+    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    ax.set_facecolor("#F5F1E8")
+    fig.patch.set_facecolor("#F5F1E8")
     ax.axis("off")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    
-    # Heading
-    ax.text(0.5, 0.58, heading, fontsize=48, fontweight="bold",
-            ha="center", va="center", color=text_color,
-            fontfamily="sans-serif")
-    
-    # Subtext
+
+    # Same language as the visuals: flat colour, black keyline, hard shadow.
+    ax.add_patch(Rectangle((0.09, 0.335), 0.82, 0.33, facecolor="#12100E",
+                           edgecolor="none", transform=ax.transAxes, zorder=1))
+    ax.add_patch(Rectangle((0.08, 0.35), 0.82, 0.33, facecolor=bg_color,
+                           edgecolor="#12100E", linewidth=4,
+                           transform=ax.transAxes, zorder=2))
+
+    ax.text(0.49, 0.545, heading[:44], fontsize=52, fontweight="bold",
+            ha="center", va="center", color=text_color, zorder=3)
     if subtext:
-        ax.text(0.5, 0.38, subtext, fontsize=24,
-                ha="center", va="center", color="#aaaaaa",
-                fontfamily="sans-serif")
-    
-    # Accent line
-    ax.plot([0.3, 0.7], [0.48, 0.48], color="#667eea",
-            linewidth=3, alpha=0.8, transform=ax.transAxes)
-    
+        ax.text(0.49, 0.44, subtext[:60], fontsize=22, fontweight="bold",
+                ha="center", va="center", color=text_color, alpha=0.75,
+                zorder=3)
+
     fig.savefig(str(png_path), dpi=100, facecolor=fig.get_facecolor(),
-                edgecolor="none", bbox_inches="tight")
+                edgecolor="none")
     plt.close(fig)
-    
-    # Wrap PNG into a silent MP4 of specified duration
+
     mp4_path = str(COMPOSE_OUTPUT_DIR / f"card_{uuid.uuid4().hex[:8]}.mp4")
     silent = create_silent_audio(duration, COMPOSE_OUTPUT_DIR)
-    
-    ffmpeg_exe = get_ffmpeg_exe()
+
     cmd = [
-        ffmpeg_exe, "-y",
+        get_ffmpeg_exe(), "-y",
         "-loop", "1", "-i", str(png_path),
         "-i", silent,
         "-c:v", "libx264", "-t", str(duration),
+        "-vf", f"scale={TARGET_W}:{TARGET_H}",
         "-pix_fmt", "yuv420p", "-movflags", "+faststart",
         "-shortest",
         mp4_path,
     ]
     _run_ffmpeg(cmd)
-    
-    # Clean up intermediate files
+
     png_path.unlink(missing_ok=True)
     Path(silent).unlink(missing_ok=True)
-    
     return mp4_path
 
 
+TARGET_W, TARGET_H, TARGET_FPS = 1280, 720, 25
+TARGET_RATE, TARGET_CH = 44100, 1
+
+
+def _has_audio(path: str) -> bool:
+    """True when the file carries an audio stream.
+
+    ffprobe is not shipped by imageio-ffmpeg, so this reads ffmpeg's own report
+    of the input rather than adding a dependency for one boolean.
+    """
+    result = subprocess.run([get_ffmpeg_exe(), "-i", str(path)],
+                            capture_output=True, text=True)
+    return "Audio:" in result.stderr
+
+
+def _normalise(path: str, index: int) -> str:
+    """Re-encode one part to the exact stream parameters concat requires.
+
+    The concat demuxer copies streams, which means every input must already
+    agree on resolution, pixel format, frame rate, sample rate and channel
+    count. Ours did not: the title card was a different size from the
+    segments, and a segment built from a silent placeholder could arrive with
+    no audio stream at all. Concat does not fail on that — it produces a file
+    that plays and is missing most of the lesson.
+
+    Anything that does not fit is letterboxed rather than stretched, so a
+    16:9 lesson never comes out with the teacher squashed.
+    """
+    out = COMPOSE_OUTPUT_DIR / f"norm_{index:03d}_{Path(path).stem[:8]}.mp4"
+    video = (f"scale={TARGET_W}:{TARGET_H}:force_original_aspect_ratio=decrease,"
+             f"pad={TARGET_W}:{TARGET_H}:(ow-iw)/2:(oh-ih)/2:color=0x12100E,"
+             f"setsar=1,fps={TARGET_FPS},format=yuv420p")
+
+    cmd = [get_ffmpeg_exe(), "-y", "-i", str(path)]
+    if _has_audio(path):
+        cmd += ["-map", "0:v:0", "-map", "0:a:0"]
+    else:
+        # Give it silence, so every part has the audio stream concat expects.
+        cmd += ["-f", "lavfi", "-i",
+                f"anullsrc=r={TARGET_RATE}:cl=mono",
+                "-map", "0:v:0", "-map", "1:a:0", "-shortest"]
+    cmd += [
+        "-vf", video,
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+        "-c:a", "aac", "-ar", str(TARGET_RATE), "-ac", str(TARGET_CH),
+        "-movflags", "+faststart", str(out),
+    ]
+    _run_ffmpeg(cmd)
+    return str(out)
+
+
 def stitch(segments: List[str], output_path: Optional[str] = None) -> str:
-    """Concatenate multiple segment MP4s into final video.
-    
-    All segments must be encoded the same way for lossless stream copy.
-    
+    """Concatenate segment MP4s into the final lesson video.
+
+    Every part is normalised first — see _normalise. That costs one re-encode
+    per segment and buys a video that is actually the whole lesson.
+
     Args:
         segments: List of paths to segment MP4s (in order)
         output_path: Optional custom output path
-    
+
     Returns:
         Path to the final stitched MP4
     """
     if not segments:
         raise ValueError("No segments to stitch")
-    
-    if len(segments) == 1:
-        if output_path is None:
-            output_path = str(COMPOSE_OUTPUT_DIR / "final_lesson.mp4")
-        import shutil
-        shutil.copy2(segments[0], output_path)
-        return output_path
-    
+
+    if output_path is None:
+        output_path = str(COMPOSE_OUTPUT_DIR / "final_lesson.mp4")
+
     import tempfile
+
+    normalised = [_normalise(seg, i) for i, seg in enumerate(segments)]
     concat_list = Path(tempfile.mktemp(suffix=".txt"))
-    
+
     try:
         with open(concat_list, "w") as f:
-            for seg in segments:
-                seg_path = Path(seg).resolve().as_posix()
-                f.write(f"file '{seg_path}'\n")
-        
-        ffmpeg_exe = get_ffmpeg_exe()
-        
-        if output_path is None:
-            output_path = str(COMPOSE_OUTPUT_DIR / "final_lesson.mp4")
-        
-        cmd = [
-            ffmpeg_exe, "-y",
+            for seg in normalised:
+                f.write(f"file '{Path(seg).resolve().as_posix()}'\n")
+
+        _run_ffmpeg([
+            get_ffmpeg_exe(), "-y",
             "-f", "concat", "-safe", "0",
             "-i", str(concat_list),
             "-c", "copy",
             "-movflags", "+faststart",
             output_path,
-        ]
-        _run_ffmpeg(cmd)
+        ])
         return output_path
-        
     finally:
-        if concat_list.exists():
-            concat_list.unlink()
+        concat_list.unlink(missing_ok=True)
+        for seg in normalised:
+            Path(seg).unlink(missing_ok=True)
 
 
 def _run_ffmpeg(cmd: List[str]) -> None:

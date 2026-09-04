@@ -1,99 +1,85 @@
-"""Timeline renderer using matplotlib.
+"""Timeline renderer — dated events along a spine, in the house style.
 
-Renders horizontal timelines filling the full canvas.
-Designed for phone viewing: large text, clear markers.
+Events alternate above and below the spine. That is not decoration: at four
+or more events on a 1280-wide frame, labels all on one side collide, and the
+old renderer's answer was to split a long label across two lines at the
+halfway word, which put "Faraday discovers" above "induction" with a gap
+between them and no way to tell which event either belonged to.
+
+Like every other renderer, this one draws nothing rather than inventing
+content: the placeholder "Start / Middle / End" timeline is gone.
 """
+
+from __future__ import annotations
+
 import matplotlib
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import numpy as np
 
+from . import register, save_figure
+from . import design
 from .payload import enrich
-from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, TEXT_COLOR, ACCENT_COLORS
+
+MAX_EVENTS = 7
 
 
 @register("timeline")
 def render_timeline(content: str, subject: str, data: dict) -> str:
-    """Render a horizontal timeline filling the full 1280x720 canvas.
-    
+    """Render a horizontal timeline.
+
     Data options:
-    - data["events"]: list of {"year": str, "label": str}
+      data["events"]: list of {"year": str, "label": str}
     """
     data = enrich("timeline", content, data)
-    fig, ax = plt.subplots(1, 1, figsize=(IMAGE_WIDTH/DPI, IMAGE_HEIGHT/DPI), dpi=DPI)
-    fig.patch.set_facecolor(BG_COLOR)
-    ax.set_facecolor(BG_COLOR)
-    ax.axis("off")
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
+    title = str(data.get("title") or content)
 
-    # Title at top - large
-    ax.text(0.5, 0.92, (data.get("title") or content)[:50], fontsize=32, fontweight="bold",
-            ha="center", va="center", color=TITLE_COLOR)
+    events = [e for e in (data.get("events") or []) if isinstance(e, dict)]
+    events = events[:MAX_EVENTS]
 
-    # Divider
-    ax.plot([0.05, 0.95], [0.87, 0.87], color=ACCENT_COLORS[0],
-            linewidth=2, alpha=0.3, transform=ax.transAxes, clip_on=False)
+    fig, ax, area = design.canvas(title, subject, accent_index=2)
+    left, bottom, right, top = area
 
-    # Get events
-    events = data.get("events", [
-        {"year": "Start", "label": "Beginning"},
-        {"year": "Middle", "label": "Key Event"},
-        {"year": "End", "label": "Conclusion"},
-    ])
+    if not events:
+        design.empty(ax, area, "No timeline for this",
+                     "the teacher's payload listed no dated events")
+        return save_figure(fig, "timeline")
+
+    spine_y = (top + bottom) / 2
+    x0, x1 = left + 6, right - 6
+
+    # The spine, with a black keyline so it holds up at video bitrates.
+    ax.plot([x0, x1], [spine_y, spine_y], color=design.INK, linewidth=5,
+            solid_capstyle="butt", zorder=2)
 
     n = len(events)
-    if n == 0:
-        events = [{"year": "N/A", "label": "No events"}]
-        n = 1
+    card_w = min(30.0, (x1 - x0) / max(n - 0.4, 1))
+    card_h = 12.0
 
-    # Timeline axis - thick line in the middle third
-    y_line = 0.50
-    ax.plot([0.06, 0.94], [y_line, y_line], color="#cccccc", linewidth=5,
-            transform=ax.transAxes, zorder=1, solid_capstyle="round")
-
-    # Place events along the timeline
     for i, event in enumerate(events):
-        x = 0.06 + (0.88 * i / max(n - 1, 1))
-        color = ACCENT_COLORS[i % len(ACCENT_COLORS)]
+        x = x0 if n == 1 else x0 + (x1 - x0) * i / (n - 1)
+        above = i % 2 == 0
+        fill, _ = design.accent(i)
 
-        # Large marker circle
-        ax.plot(x, y_line, "o", color=color, markersize=24,
-                transform=ax.transAxes, zorder=3,
-                markeredgecolor="white", markeredgewidth=3)
+        # Marker on the spine.
+        ax.plot(x, spine_y, "o", markersize=17, color=fill,
+                markeredgecolor=design.INK, markeredgewidth=2.6, zorder=6)
 
-        # Year label below - large font
-        year_text = event.get("year", str(i + 1))
-        ax.text(x, y_line - 0.10, year_text, fontsize=22,
-                ha="center", va="top", color=color, fontweight="bold",
-                transform=ax.transAxes)
+        # Year, hard against the spine on the side the card is not.
+        ax.text(x, spine_y + (-4.5 if above else 4.5),
+                str(event.get("year", i + 1)),
+                fontsize=19, fontweight="bold", color=design.INK,
+                ha="center", va="center", zorder=6)
 
-        # Event label above - large font, alternating above/below for readability
-        label_text = event.get("label", f"Event {i + 1}")
-        y_label = y_line + 0.12
-
-        # Wrap long labels
-        if len(label_text) > 25:
-            words = label_text.split()
-            mid = len(words) // 2
-            line1 = " ".join(words[:mid])
-            line2 = " ".join(words[mid:])
-            ax.text(x, y_label + 0.04, line1, fontsize=18,
-                    ha="center", va="bottom", color=TEXT_COLOR,
-                    transform=ax.transAxes)
-            ax.text(x, y_label - 0.02, line2, fontsize=18,
-                    ha="center", va="bottom", color=TEXT_COLOR,
-                    transform=ax.transAxes)
-        else:
-            ax.text(x, y_label, label_text, fontsize=20,
-                    ha="center", va="bottom", color=TEXT_COLOR,
-                    transform=ax.transAxes,
-                    fontweight="bold")
-
-    # Subject tag at bottom
-    if subject:
-        ax.text(0.5, 0.04, subject.title(), fontsize=18,
-                ha="center", va="center", color="#888888",
-                transform=ax.transAxes, fontstyle="italic")
+        # Label card, on a leader line so it is unambiguous which mark it
+        # belongs to.
+        card_y = spine_y + (14.0 if above else -14.0)
+        # Keep the card inside the frame even when its mark sits at the very
+        # first or very last position — otherwise the opening and closing
+        # events, the two a viewer looks at first, are the two that clip.
+        card_x = min(max(x, left + card_w / 2), right - card_w / 2)
+        ax.plot([x, card_x], [spine_y, card_y + (-card_h / 2 if above else card_h / 2)],
+                color=design.INK, linewidth=2.0, zorder=3)
+        design.hard_box(ax, card_x, card_y, card_w, card_h,
+                        design.wrap(str(event.get("label", "")), card_w, 14),
+                        index=i, fontsize=14)
 
     return save_figure(fig, "timeline")

@@ -5,7 +5,6 @@ Exposes ingest(path: str) -> str and retrieve(doc_id: str, query: str, k: int) -
 import sys
 import os
 import uuid
-import json
 from pathlib import Path
 from typing import List
 

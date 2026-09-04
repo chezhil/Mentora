@@ -9,16 +9,14 @@
 [theme]
 base = "dark"
 
-# The accent used for buttons, sliders, progress bars, active tabs.
-primaryColor = "#e34a3a"
+# Neo-brutalist electric accent for buttons, sliders, tabs
+primaryColor = "#FFE600"
 
-# Page and panel backgrounds. secondary is the sidebar and input fields.
-backgroundColor = "#12141a"
-secondaryBackgroundColor = "#1c1f27"
+# Stark dark contrast
+backgroundColor = "#0d1015"
+secondaryBackgroundColor = "#161a22"
 
-textColor = "#e8eaed"
-
-# Any font installed on the machine, or a Google Font name Streamlit knows.
+textColor = "#ffffff"
 font = "sans serif"
 
 [server]

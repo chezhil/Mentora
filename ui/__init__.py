@@ -5,6 +5,7 @@ top, and that is the only line connecting this package to the rest of the app.
 Restyle freely without touching a single line of application logic.
 """
 
+from .i18n import t
 from .theme import apply_theme
 
-__all__ = ["apply_theme"]
+__all__ = ["apply_theme", "t"]

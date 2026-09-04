@@ -5,7 +5,7 @@ Nobody edits this file alone. Propose changes to Chezhil.
 
 from pydantic import BaseModel
 from typing import Literal
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class LearnerProfile(BaseModel):
@@ -55,9 +55,9 @@ class Question(BaseModel):
     """A question asked during or after the lesson."""
     id: str                            # "q1", "q2", ...
     concept_id: str
-    kind: Literal["mcq", "short", "explain", "problem"]
+    kind: Literal["mcq", "mmcq", "msq", "short", "explain", "problem"]
     prompt: str
-    options: list[str] | None = None   # only for mcq
+    options: list[str] | None = None   # for mcq and mmcq
     expected: str                      # the correct answer
 
 
@@ -113,3 +113,4 @@ class SessionState(BaseModel):
     current_concept: int = 0
     attempts: dict[str, int] = {}      # concept_id -> times re-explained
     evaluations: list[Evaluation] = []
+    started_at: datetime | None = None  # set when the lesson begins, for elapsed timer

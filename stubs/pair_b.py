@@ -4,7 +4,6 @@ Real signatures, fake thinking. Jyothi and Naman: your functions must return
 these shapes. The values are nonsense; the structure is the contract.
 """
 
-from datetime import datetime, timezone
 
 from shared.models import (
     Concept, Evaluation, LearnerProfile, LessonPlan, LessonReport, Question,

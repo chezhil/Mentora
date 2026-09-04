@@ -33,12 +33,28 @@ def _clean_depth(value: str, level: str) -> str:
     return _DEPTH_BY_LEVEL.get(level, "standard")
 
 
+def _as_minutes(value) -> float:
+    """A concept's minutes, however the model wrote them.
+
+    float() raised ValueError on "lots" and TypeError on null, both straight
+    out of plan() — which is the call that starts the lesson, so the lesson
+    never began at all. _fit_budget rescales everything to the real budget
+    afterwards, so a placeholder here costs nothing but the relative weight.
+    """
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return 1.0
+    return out if out == out and out not in (float("inf"), float("-inf")) else 1.0
+
+
 def _resequence(raw_concepts: list[dict], level: str) -> list[Concept]:
     """Renumber ids, drop bad prerequisites, and topologically sort so every
     concept comes after its prerequisites. Gemini is asked to write
     prerequisites as ids of ITS OWN listing order (its 'c1' = its first
     concept), which we map onto listing positions before renumbering."""
-    names = [str(c.get("name", "")).strip() for c in raw_concepts]
+    raw_concepts = [c for c in raw_concepts if isinstance(c, dict)]
+    names = [str(c.get("name") or "").strip() for c in raw_concepts]
     idx_by_name = {name: i for i, name in enumerate(names) if name}
     id_to_pos = {f"c{i + 1}": i for i in range(len(raw_concepts))}
 
@@ -85,7 +101,7 @@ def _resequence(raw_concepts: list[dict], level: str) -> list[Concept]:
                 id=f"c{new_pos + 1}",
                 name=names[old] or f"Concept {new_pos + 1}",
                 depth=_clean_depth(str(raw.get("depth", "")), level),
-                minutes=float(raw.get("minutes", 0.0)),
+                minutes=_as_minutes(raw.get("minutes")),
                 prerequisites=prereqs,
             )
         )
@@ -133,15 +149,22 @@ def plan(
         DOC_SNIPPET="",
     )
     data = llm.generate_json(prompt)
+    if not isinstance(data, dict):
+        data = {}
 
     sessions_data = data.get("sessions")
+    if not isinstance(sessions_data, list):
+        sessions_data = None
     if not sessions_data:
         # fallback if model ignores sessions format
         sessions_data = [data]
 
     plans = []
     for s_data in sessions_data:
-        raw_concepts = s_data.get("concepts") or []
+        if not isinstance(s_data, dict):
+            s_data = {}
+        raw_concepts = s_data.get("concepts")
+        raw_concepts = raw_concepts if isinstance(raw_concepts, list) else []
         if not raw_concepts:
             raise llm.LLMError("Lesson planner returned no concepts in a session.")
 

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mentora — Configuration</title>
+  <link rel="stylesheet" href="/static/brutalist.css">
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <style>
+    .config-card {
+      border: 3px solid var(--ink);
+      background: white;
+      padding: 2rem;
+      box-shadow: 8px 8px 0 0 #000;
+      margin-bottom: 1.5rem;
+    }
+    .persona-btn {
+      border: 3px solid var(--ink);
+      padding: 1rem;
+      font-family: 'Archivo Black', sans-serif;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      box-shadow: 5px 5px 0 0 #000;
+      cursor: pointer;
+      transition: all 0.08s;
+      flex: 1;
+      text-align: center;
+    }
+    .persona-btn:hover { transform: translate(2px, 2px); box-shadow: 4px 4px 0 0 #000; }
+    .persona-btn.active { background: var(--acid); }
+    .persona-btn:not(.active) { background: var(--paper); }
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      border: 3px solid var(--ink);
+      padding: 1rem 1.5rem;
+      background: white;
+      margin-bottom: 0.75rem;
+    }
+    .toggle {
+      width: 48px; height: 28px;
+      border: 3px solid var(--ink);
+      background: var(--paper);
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle.on { background: var(--acid); }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 18px; height: 18px;
+      background: var(--ink);
+      top: 2px; left: 2px;
+      transition: transform 0.2s;
+    }
+    .toggle.on::after { transform: translateX(20px); }
+    .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--acid); padding: 1rem 2rem; font-family: 'Archivo Black', sans-serif; font-size: 0.85rem; text-transform: uppercase; border: 3px solid var(--ink); box-shadow: 8px 8px 0 0 #000; z-index: 999; transition: opacity 0.3s, transform 0.3s; }
+    .toast.hide { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <a href="/dashboard" style="width:36px;height:36px;display:grid;place-items:center;background:var(--ink);color:var(--acid);font-family:'Archivo Black',sans-serif;font-size:1.1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;text-decoration:none;">M</a>
+        <div style="font-family:'Archivo Black',sans-serif;font-size:1rem;text-transform:uppercase;letter-spacing:-0.025em;">
+          Mentora <span style="color:rgba(0,0,0,0.3);margin:0 0.5rem;">/</span> <span style="color:rgba(0,0,0,0.6);">Settings</span>
+        </div>
+      </div>
+      <a href="/dashboard" style="background:var(--ink);color:var(--paper);font-family:'Archivo Black',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:0.02em;padding:0.625rem 1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;text-decoration:none;" class="btn-brutal">
+        Back <span style="color:var(--acid);">→</span>
+      </a>
+    </nav>
+  </header>
+
+  <main class="grid-bg" style="flex:1;padding:2rem;overflow-y:auto;">
+    <div style="max-width:700px;margin:0 auto;">
+
+      <div style="margin-bottom:2rem;">
+        <span class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.5);">Settings & Preferences</span>
+        <h1 class="font-black" style="font-size:2.5rem;text-transform:uppercase;letter-spacing:-0.05em;margin-top:0.5rem;">Configure Mentora</h1>
+      </div>
+
+      <!-- Avatar Persona -->
+      <div class="config-card">
+        <h2 class="font-black" style="font-size:1.25rem;text-transform:uppercase;margin-bottom:1rem;">Avatar Persona</h2>
+        <p style="font-size:0.85rem;color:rgba(0,0,0,0.6);margin-bottom:1rem;">Choose how Mentora teaches you.</p>
+        <div style="display:flex;gap:0.75rem;">
+          <button class="persona-btn active" onclick="selectPersona(this, 'socratic')">
+            <iconify-icon icon="ph:chat-circle-bold" style="font-size:1.5rem;display:block;margin-bottom:0.5rem;"></iconify-icon>
+            Socratic<br><span style="font-family:'Space Mono',monospace;font-size:10px;font-weight:400;text-transform:none;">Asks questions to guide discovery</span>
+          </button>
+          <button class="persona-btn" onclick="selectPersona(this, 'strict')">
+            <iconify-icon icon="ph:shield-check-bold" style="font-size:1.5rem;display:block;margin-bottom:0.5rem;"></iconify-icon>
+            Strict<br><span style="font-family:'Space Mono',monospace;font-size:10px;font-weight:400;text-transform:none;">Direct instruction, no shortcuts</span>
+          </button>
+          <button class="persona-btn" onclick="selectPersona(this, 'friendly')">
+            <iconify-icon icon="ph:smiley-bold" style="font-size:1.5rem;display:block;margin-bottom:0.5rem;"></iconify-icon>
+            Friendly<br><span style="font-family:'Space Mono',monospace;font-size:10px;font-weight:400;text-transform:none;">Encouraging, casual tone</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Difficulty -->
+      <div class="config-card">
+        <h2 class="font-black" style="font-size:1.25rem;text-transform:uppercase;margin-bottom:1rem;">Default Difficulty</h2>
+        <div style="display:flex;gap:0.75rem;">
+          <button class="persona-btn" onclick="selectLevel(this, 'beginner')" style="flex:1;">
+            Beginner<br><span style="font-family:'Space Mono',monospace;font-size:10px;">Fundamentals</span>
+          </button>
+          <button class="persona-btn active" onclick="selectLevel(this, 'intermediate')" style="flex:1;">
+            Intermediate<br><span style="font-family:'Space Mono',monospace;font-size:10px;">Standard</span>
+          </button>
+          <button class="persona-btn" onclick="selectLevel(this, 'advanced')" style="flex:1;">
+            Advanced<br><span style="font-family:'Space Mono',monospace;font-size:10px;">Technical</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Toggles -->
+      <div class="config-card">
+        <h2 class="font-black" style="font-size:1.25rem;text-transform:uppercase;margin-bottom:1rem;">Features</h2>
+
+        <div class="toggle-row">
+          <div>
+            <div class="font-black" style="font-size:0.85rem;text-transform:uppercase;">Voice Narration</div>
+            <div style="font-size:0.75rem;color:rgba(0,0,0,0.5);">Read explanations aloud</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')" id="toggleVoice"></div>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="font-black" style="font-size:0.85rem;text-transform:uppercase;">Auto-Generate Quiz</div>
+            <div style="font-size:0.75rem;color:rgba(0,0,0,0.5);">Quiz after each lesson</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')" id="toggleQuiz"></div>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="font-black" style="font-size:0.85rem;text-transform:uppercase;">Flashcard Mode</div>
+            <div style="font-size:0.75rem;color:rgba(0,0,0,0.5);">Auto-create cards from mistakes</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')" id="toggleFlash"></div>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="font-black" style="font-size:0.85rem;text-transform:uppercase;">Mentora Pro</div>
+            <div style="font-size:0.75rem;color:rgba(0,0,0,0.5);">Unlimited context window</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')" id="togglePro"></div>
+        </div>
+      </div>
+
+      <!-- Language -->
+      <div class="config-card">
+        <h2 class="font-black" style="font-size:1.25rem;text-transform:uppercase;margin-bottom:1rem;">Teaching Language</h2>
+        <select id="langSelect" style="width:100%;padding:1rem;font-size:1rem;">
+          <option value="en" selected>English</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+          <option value="te">తెలుగు (Telugu)</option>
+          <option value="mr">मराठी (Marathi)</option>
+          <option value="bn">বাংলা (Bengali)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="kn">ಕನ್ನಡ (Kannada)</option>
+          <option value="es">Español (Spanish)</option>
+        </select>
+      </div>
+
+      <!-- Save -->
+      <button onclick="saveConfig()" style="width:100%;padding:1.5rem;background:var(--acid);color:var(--ink);font-family:'Archivo Black',sans-serif;font-size:1.25rem;text-transform:uppercase;border:3px solid var(--ink);box-shadow:8px 8px 0 0 #000;margin-top:1rem;" class="btn-brutal">
+        Save Settings ✓
+      </button>
+      <div id="saved" style="display:none;text-align:center;margin-top:1rem;">
+        <span class="font-mono" style="font-size:12px;text-transform:uppercase;color:rgba(0,0,0,0.5);">Settings saved!</span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let selectedPersona = localStorage.getItem('mentora_persona') || 'socratic';
+    let selectedLevel = 'intermediate';
+
+    // Restore saved config on load
+    (function() {
+      try {
+        var saved = JSON.parse(localStorage.getItem('mentora_config') || '{}');
+        if(saved.persona) selectedPersona = saved.persona;
+        if(saved.level) selectedLevel = saved.level;
+        if(saved.language) document.getElementById('langSelect').value = saved.language;
+        if(saved.voice !== undefined) { var el = document.getElementById('toggleVoice'); if(el) { el.classList.toggle('on', saved.voice); } }
+        if(saved.quiz !== undefined) { var el = document.getElementById('toggleQuiz'); if(el) { el.classList.toggle('on', saved.quiz); } }
+        if(saved.flashcards !== undefined) { var el = document.getElementById('toggleFlash'); if(el) { el.classList.toggle('on', saved.flashcards); } }
+        if(saved.pro !== undefined) { var el = document.getElementById('togglePro'); if(el) { el.classList.toggle('on', saved.pro); } }
+        // Set active states on persona buttons
+        document.querySelectorAll('.config-card:nth-child(2) .persona-btn').forEach(function(b) {
+          b.classList.remove('active');
+          if(b.textContent.trim().toLowerCase().includes(selectedPersona)) b.classList.add('active');
+        });
+        // Set active states on level buttons
+        document.querySelectorAll('.config-card:nth-child(3) .persona-btn').forEach(function(b) {
+          b.classList.remove('active');
+          if(b.textContent.trim().toLowerCase().includes(selectedLevel)) b.classList.add('active');
+        });
+      } catch(e) {}
+    })();
+
+    function selectPersona(btn, persona) {
+      document.querySelectorAll('.config-card:nth-child(2) .persona-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedPersona = persona;
+    }
+    function selectLevel(btn, level) {
+      document.querySelectorAll('.config-card:nth-child(3) .persona-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedLevel = level;
+    }
+    function saveConfig() {
+      const config = {
+        persona: selectedPersona,
+        level: selectedLevel,
+        language: document.getElementById('langSelect').value,
+        voice: document.getElementById('toggleVoice').classList.contains('on'),
+        quiz: document.getElementById('toggleQuiz').classList.contains('on'),
+        flashcards: document.getElementById('toggleFlash').classList.contains('on'),
+        pro: document.getElementById('togglePro').classList.contains('on')
+      };
+      localStorage.setItem('mentora_config', JSON.stringify(config));
+      localStorage.setItem('mentora_persona', config.persona);
+      // Bridge: also save to DB so Streamlit picks it up
+      fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ persona: config.persona, language: config.language, difficulty: config.level })
+      }).catch(function(e) { console.log('Config bridge save failed:', e); });
+      var toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = 'Settings saved!';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.classList.add('hide'), 2000);
+      setTimeout(() => toast.remove(), 2500);
+    }
+  </script>
+</body>
+</html>

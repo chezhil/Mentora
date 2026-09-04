@@ -1,91 +1,135 @@
-"""Equation/formula renderer using matplotlib.
+"""Equation renderer — the formula, set large, with its derivation under it.
 
-Renders equations with large, readable text filling the full canvas.
-Designed for phone viewing: large fonts, high contrast.
+The teacher's payload for this kind is LaTeX, and the old renderer drew it as
+plain text. So a student asked to learn Ohm's law was shown the string
+
+    V = I \\times R \\quad \\text{(volts)}
+
+backslashes and all. matplotlib has mathtext built in, which renders a useful
+subset of LaTeX with no TeX installation, so the maths is now typeset. When a
+payload uses something mathtext cannot parse the raw source is shown instead,
+tidied of its backslashes — wrong-looking is better than blank.
 """
+
+from __future__ import annotations
+
+import re
+
 import matplotlib
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
-from . import register, save_figure, IMAGE_WIDTH, IMAGE_HEIGHT, DPI, BG_COLOR, TITLE_COLOR, TEXT_COLOR, ACCENT_COLORS
+from . import register, save_figure
+from . import design
+
+# mathtext understands $...$ and most of the maths commands, but none of the
+# text-mode ones. Strip the wrappers rather than fail on them.
+_STRIP = [
+    (re.compile(r"\\(?:text|mathrm|mathbf|textbf|mbox)\s*\{([^{}]*)\}"), r"\\mathrm{\1}"),
+    (re.compile(r"\\(?:begin|end)\{[^}]*\}"), ""),
+    (re.compile(r"\\(?:quad|qquad|,|;|!)"), " "),
+    (re.compile(r"\\\\"), "\n"),
+    (re.compile(r"\$+"), ""),
+]
+
+
+# A sentence is not an equation. mathtext drops every space it is given, so
+# "Voltage in volts, current in amps" typeset as maths came out as
+# "Voltageinvolts,currentinamps". Three or more ordinary words means prose.
+_WORDS = re.compile(r"[A-Za-z]{3,}")
+
+
+def _looks_like_prose(text: str) -> bool:
+    if "\\" in text or "^" in text or "_" in text:
+        return False
+    return len(_WORDS.findall(text)) >= 3
+
+
+def _as_mathtext(raw: str) -> tuple[str, bool]:
+    """(string to draw, whether it is maths). Never raises."""
+    text = str(raw).strip()
+    if not text:
+        return "", False
+    if _looks_like_prose(text):
+        return text, False
+    for pattern, repl in _STRIP:
+        text = pattern.sub(repl, text)
+    text = text.strip()
+    if not text:
+        return "", False
+
+    candidate = f"${text}$"
+    try:
+        from matplotlib import mathtext
+        mathtext.MathTextParser("path").parse(candidate)
+        return candidate, True
+    except Exception:
+        # Not parseable as maths. Show the source with its backslashes taken
+        # out, which is at least readable.
+        return re.sub(r"\\([A-Za-z]+)", r"\1", text), False
 
 
 @register("equation")
 def render_equation(content: str, subject: str, data: dict) -> str:
-    """Render equation/formula filling the full 1280x720 canvas.
-    
-    Content can be:
-    - Single equation: "E = mc^2"
-    - Multi-line with \\n: "E = mc^2\\nwhere E is energy\\nand m is mass"
-    - With data["steps"]: list of derivation steps
+    """Render the equation large, with any derivation steps beneath it.
+
+    Data options:
+      data["steps"]  ordered derivation or explanation lines
+      data["title"]  heading; defaults to "Equation"
     """
-    fig, ax = plt.subplots(1, 1, figsize=(IMAGE_WIDTH/DPI, IMAGE_HEIGHT/DPI), dpi=DPI)
-    ax.set_facecolor(BG_COLOR)
-    fig.patch.set_facecolor(BG_COLOR)
-    ax.axis("off")
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
+    lines = [l for l in str(content).split("\n") if l.strip()] or [str(content)]
+    main_raw = lines[0]
+    steps = [str(s) for s in (data.get("steps") or [])] + lines[1:]
 
-    # Parse content
-    lines = content.split("\n") if "\n" in content else [content]
-    steps = data.get("steps", [])
-    all_lines = lines + steps
+    title = str(data.get("title") or "").strip()
+    fig, ax, area = design.canvas(title or "Equation", subject, accent_index=0)
+    left, bottom, right, top = area
+    cx = (left + right) / 2
 
-    n_lines = len(all_lines)
+    main, is_maths = _as_mathtext(main_raw)
+    if not main:
+        design.empty(ax, area, "No equation given",
+                     "the teacher's payload was empty")
+        return save_figure(fig, "equation")
 
-    # Title at top
-    ax.text(0.5, 0.92, "Equation", fontsize=32, fontweight="bold",
-            ha="center", va="center", color=ACCENT_COLORS[0])
+    # The equation sits in a plate of its own: white, keylined, hard shadow.
+    # Long formulas get smaller type rather than a wider plate, because the
+    # plate is what makes it read as "the thing to remember".
+    length = len(re.sub(r"[${}\\]", "", main))
+    size = 60 if length < 16 else 46 if length < 28 else 34 if length < 46 else 26
 
-    # Divider line
-    ax.plot([0.1, 0.9], [0.87, 0.87], color=ACCENT_COLORS[0],
-            linewidth=2, alpha=0.3, transform=ax.transAxes, clip_on=False)
+    plate_y = top - 20 if steps else (top + bottom) / 2
+    ax.text(cx, plate_y, main, fontsize=size, fontweight="bold",
+            color=design.INK, ha="center", va="center", zorder=6,
+            math_fontfamily="dejavusans" if is_maths else None,
+            bbox=dict(boxstyle="square,pad=0.55", facecolor="#FFFFFF",
+                      edgecolor=design.INK, linewidth=design.BORDER + 0.6))
 
-    # Main equation (large, centered in upper portion)
-    main_eq = all_lines[0] if all_lines else content
+    if not steps:
+        return save_figure(fig, "equation")
 
-    # Calculate font size based on equation length
-    eq_len = len(main_eq)
-    if eq_len < 15:
-        main_fontsize = 72
-    elif eq_len < 25:
-        main_fontsize = 56
-    elif eq_len < 40:
-        main_fontsize = 44
-    else:
-        main_fontsize = 36
+    # Steps below, numbered, each on its own keyline so the eye can step down
+    # them one at a time.
+    room = plate_y - 10 - bottom
+    shown = steps[:5]
+    pitch = min(11.0, room / max(len(shown), 1))
+    step_size = 19 if pitch > 9 else 16
+    y = plate_y - 13
 
-    # Main equation in a styled box
-    ax.text(0.5, 0.65, main_eq, fontsize=main_fontsize, fontweight="bold",
-            ha="center", va="center", color=TITLE_COLOR, fontfamily="serif",
-            bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
-                      edgecolor=ACCENT_COLORS[0], linewidth=3, alpha=0.95))
-
-    # Additional lines (steps, derivations, explanations)
-    if n_lines > 1:
-        remaining = all_lines[1:]
-        step_fontsize = max(20, min(28, 400 // max(len(remaining), 1)))
-
-        y_start = 0.38
-        y_step = min(0.12, 0.30 / max(len(remaining), 1))
-
-        for i, line in enumerate(remaining):
-            y = y_start - i * y_step
-            if y < 0.05:
-                break
-
-            # Number the steps
-            prefix = f"{i+1}. " if steps else ""
-            color = ACCENT_COLORS[(i + 1) % len(ACCENT_COLORS)]
-
-            ax.text(0.5, y, f"{prefix}{line}", fontsize=step_fontsize,
-                    ha="center", va="center", color=TEXT_COLOR,
-                    bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
-                              edgecolor=color, linewidth=1.5, alpha=0.8))
-
-    # Subject tag at bottom
-    if subject:
-        ax.text(0.5, 0.04, subject.title(), fontsize=18,
-                ha="center", va="center", color="#888888", fontstyle="italic")
+    for i, step in enumerate(shown):
+        drawn, maths = _as_mathtext(step)
+        if not drawn:
+            continue
+        ax.text(left + 3, y, f"{i + 1}", fontsize=step_size, fontweight="bold",
+                color=design.INK, ha="center", va="center", zorder=7,
+                bbox=dict(boxstyle="circle,pad=0.32",
+                          facecolor=design.accent(i + 1)[0],
+                          edgecolor=design.INK, linewidth=2.0))
+        # Never truncate maths: cutting inside $...$ unbalances the delimiters
+        # and mathtext then renders the whole line as literal source.
+        shown_text = drawn if maths else design._shorten(drawn, 64)
+        ax.text(left + 9, y, shown_text, fontsize=step_size,
+                color=design.INK, ha="left", va="center", zorder=7,
+                math_fontfamily="dejavusans" if maths else None)
+        y -= pitch
 
     return save_figure(fig, "equation")

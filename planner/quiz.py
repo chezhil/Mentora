@@ -7,6 +7,7 @@ import json
 
 from shared.models import LessonPlan, Question
 from prompts import FINAL_QUIZ_PROMPT, fill
+from teacher.engine import normalise_question
 import llm
 
 KINDS = ("mcq", "short", "explain", "problem")
@@ -23,20 +24,14 @@ def final_quiz(plan: LessonPlan) -> list[Question]:
         concept_id = raw.get("concept_id")
         if concept_id not in ids:
             continue
-        kind = raw.get("kind")
-        if kind not in KINDS:
-            kind = "short"
-        questions.append(
-            Question(
-                id=f"q{i + 1}",
-                concept_id=concept_id,
-                kind=kind,
-                prompt=str(raw.get("prompt", "")),
-                options=[str(o) for o in raw.get("options") or []]
-                or None,
-                expected=str(raw.get("expected", "")),
-            )
-        )
+        # Same hygiene the mid-lesson questions get: strip "A) " prefixes,
+        # make kind agree with options, and snap `expected` onto a real option
+        # so a clicked answer can actually be marked correct.
+        clean = normalise_question(raw, concept_id)
+        if clean is None:
+            continue
+        clean["id"] = f"q{i + 1}"
+        questions.append(Question.model_validate(clean))
     if not questions:
         raise llm.LLMError("final_quiz returned no questions.")
     return questions

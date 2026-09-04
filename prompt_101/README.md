@@ -86,7 +86,6 @@ pip install -r requirements.txt
 |---------|---------|------|------------|
 | **Piper TTS** | Local voice generation | Free | Download from [github.com/rhasspy/piper](https://github.com/rhasspy/piper) |
 | **Google Cloud TTS** | High-quality voice | Free tier: 1M chars/month | Create service account at [console.cloud.google.com](https://console.cloud.google.com) |
-| **Replicate** | Avatar video generation | ~$0.40/minute | Get token at [replicate.com](https://replicate.com) |
 
 ### Environment Variables
 
@@ -101,8 +100,6 @@ export PIPER_MODEL_DIR=/path/to/models
 # Google Cloud TTS
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 
-# Replicate (for avatar)
-export REPLICATE_API_TOKEN=r8_xxxxx
 ```
 
 ---
@@ -180,7 +177,7 @@ All renderers produce **1280x720 PNGs** with content filling 60%+ of the canvas.
 
 - [ ] `speak()` with Piper — Needs Piper binary + models
 - [ ] `speak()` with Google Cloud — Needs service account JSON
-- [ ] `render_avatar()` with LivePortrait — Needs Replicate API token
+- [x] `render_avatar()` — local Wav2Lip (local_avatar/), free, no account
 - [ ] Avatar overlay in `compose()` — Needs real avatar MP4
 
 ---

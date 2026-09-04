@@ -1,4 +1,4 @@
-﻿"""Final quiz screen. OWNER: Utkarsh. Nobody else edits this file.
+"""Final quiz screen. OWNER: Utkarsh. Nobody else edits this file.
 
 WHAT EXISTS ALREADY (do not rebuild any of it):
     orchestrator.quiz_questions(session) -> list[Question]
@@ -12,82 +12,111 @@ WHAT EXISTS ALREADY (do not rebuild any of it):
 """
 
 import streamlit as st
+
 import orchestrator as orch
+from ui.i18n import t
 
 
-def render_quiz(session) -> None:
+def render_quiz(session, lang: str = "en") -> None:
     if session is None:
-        st.info("Start a lesson to unlock the final quiz.")
+        st.info(t("quiz.locked", lang))
         return
 
     questions = orch.quiz_questions(session)
     if not questions:
-        st.info("💡 Complete the lesson to unlock the final quiz assessment.")
+        st.info(t("quiz.locked", lang))
         return
 
-    st.subheader("📝 Final Assessment Quiz")
-    st.caption(f"Testing your understanding across {len(questions)} key concept(s).")
+    st.subheader(t("quiz.title", lang))
+    st.caption(f"{len(questions)} question(s) across every concept taught.")
+
+    # If already evaluated, show the report card directly with option to retake
+    saved_report = st.session_state.get(f"quiz_report_{session.session_id}")
+    if saved_report:
+        st.success(f"🎉 Final Assessment Score: **{saved_report.score:.1f}%**")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### ✅ Concepts Mastered")
+            if saved_report.strong:
+                for s in saved_report.strong:
+                    st.write(f"- {s}")
+            else:
+                st.caption("Keep practicing to master these concepts.")
+
+            if saved_report.misconceptions:
+                st.markdown("#### 🔍 Diagnosed Misconceptions")
+                for m in saved_report.misconceptions:
+                    st.warning(f"⚠️ {m}")
+
+        with col2:
+            if saved_report.weak:
+                st.markdown("#### ⚠️ Concepts to Review")
+                for w in saved_report.weak:
+                    st.write(f"- {w}")
+
+            if saved_report.revise:
+                st.markdown("#### 📖 Recommended Revision")
+                for r in saved_report.revise:
+                    st.info(f"📌 {r}")
+
+            if saved_report.next_topic:
+                st.markdown("#### 🚀 Recommended Next Topic")
+                st.write(f"**{saved_report.next_topic}**")
+
+        st.divider()
+        if st.button("🔄 Retake Quiz", key=f"retake_{session.session_id}"):
+            del st.session_state[f"quiz_report_{session.session_id}"]
+            st.rerun()
+        return
 
     with st.form("final_quiz_form"):
         user_answers = {}
         for idx, q in enumerate(questions, start=1):
-            st.markdown(f"**Question {idx}:** {q.prompt}")
-            
-            if q.kind == "mcq" and q.options:
+            is_mmcq = q.kind in ("mmcq", "msq") or (
+                q.options and any(p in q.prompt.lower() for p in ["select all", "which of the following are", "multiple options"])
+            )
+            badge = "[MMCQ · Multi-select]" if is_mmcq else (f"[{q.kind.upper()}]" if q.kind else "[QUESTION]")
+            st.markdown(f"**Question {idx}** `{badge}`  \n{q.prompt}")
+
+            if is_mmcq and q.options:
+                st.caption("☑️ Select all that apply:")
+                selected_opts = []
+                for opt_idx, opt in enumerate(q.options):
+                    if st.checkbox(opt, key=f"quiz_chk_{session.session_id}_{q.id}_{opt_idx}"):
+                        selected_opts.append(opt)
+                user_answers[q.id] = "; ".join(selected_opts) if selected_opts else ""
+            elif q.kind == "mcq" and q.options:
                 chosen = st.radio(
-                    f"Choose an answer for Question {idx}:",
+                    t("lesson.your_answer", lang),
                     options=q.options,
-                    key=f"quiz_opt_{q.id}",
+                    key=f"quiz_opt_{session.session_id}_{q.id}",
                     index=None,
                     label_visibility="collapsed"
                 )
                 user_answers[q.id] = chosen or ""
             else:
                 text_ans = st.text_input(
-                    f"Your answer for Question {idx}:",
-                    key=f"quiz_txt_{q.id}",
+                    t("lesson.your_answer", lang),
+                    key=f"quiz_txt_{session.session_id}_{q.id}",
                     placeholder="Type your response here...",
                     label_visibility="collapsed"
                 )
                 user_answers[q.id] = text_ans or ""
             st.divider()
 
-        submitted = st.form_submit_button("Submit Quiz Answers", type="primary", use_container_width=True)
+        submitted = st.form_submit_button(t("quiz.submit", lang), type="primary",
+                                          use_container_width=True)
 
     if submitted:
-        # Check if all questions were answered
         unanswered = sum(1 for v in user_answers.values() if not str(v).strip())
         if unanswered > 0:
             st.warning(f"Note: You left {unanswered} question(s) blank.")
 
-        report = orch.submit_quiz(session, user_answers)
-        st.success(f"🎉 Quiz submitted and evaluated! Final Score: **{report.score:.1f}%**")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("#### ✅ Concepts Mastered")
-            if report.strong:
-                for s in report.strong:
-                    st.write(f"- {s}")
-            else:
-                st.caption("Keep practicing to master these concepts.")
-
-            if report.misconceptions:
-                st.markdown("#### 🔍 Diagnosed Misconceptions")
-                for m in report.misconceptions:
-                    st.warning(f"⚠️ {m}")
-
-        with col2:
-            if report.weak:
-                st.markdown("#### ⚠️ Concepts to Review")
-                for w in report.weak:
-                    st.write(f"- {w}")
-
-            if report.revise:
-                st.markdown("#### 📖 Recommended Revision")
-                for r in report.revise:
-                    st.info(f"📌 {r}")
-
-            if report.next_topic:
-                st.markdown("#### 🚀 Recommended Next Topic")
-                st.write(f"**{report.next_topic}**")
+        with st.spinner(t("lesson.marking", lang)):
+            report = orch.submit_quiz(session, user_answers)
+            st.session_state[f"quiz_report_{session.session_id}"] = report
+            # Fold the quiz result into the Report tab as well, so the score a
+            # student sees there is the one they just earned rather than the
+            # mid-lesson score from before the quiz existed.
+            st.session_state.report = report
+            st.rerun()

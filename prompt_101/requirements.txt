@@ -15,7 +15,6 @@ Pygments>=2.16.0
 # google-cloud-texttospeech>=2.14.0
 
 # Avatar - Replicate
-replicate>=0.15.0
 requests>=2.31.0
 
 # Video processing

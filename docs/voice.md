@@ -1,149 +1,73 @@
-# Voice Module
+# Voice
 
-Text-to-speech synthesis with automatic caching and SSML support.
-
-## Quick Start
-
-```python
-from freebuff.voice import speak
-
-# Basic synthesis
-wav_path = speak("Ohm's Law states that V equals I times R", lang="en")
-
-# With SSML pauses for teaching cadence
-wav_path = speak("Ohm's Law. V equals I times R.", lang="en", use_ssml=True)
-```
-
-## How It Works
-
-### speak(text, lang, use_ssml)
-
-1. If `use_ssml=True`, wraps text in SSML with natural pauses
-2. Checks cache — same text+lang never synthesised twice
-3. Dispatches to the configured TTS engine (Piper or Cloud TTS)
-4. Returns path to cached WAV file
-
-**Caching:** SHA-256 hash of `text:lang` determines the cache key. Different text or different language = different cache file. This prevents burning through Cloud TTS allowance on repeated test runs.
-
-### to_ssml(text)
-
-Converts plain text to SSML for natural teaching cadence:
-
-- **500ms pause** after sentences (`.`, `!`, `?`)
-- **300ms pause** after commas for breathing
-- Wrapped in `<speak>` tags for Piper compatibility
+`prompt_101/media_pipeline/voice.py` — one function, `speak(text, lang)`,
+returning a path to a WAV.
 
 ```python
-from freebuff.voice.speak import to_ssml
+from prompt_101.media_pipeline import speak
 
-result = to_ssml("Hello world. How are you? I am fine, thank you.")
-# Output: <speak>Hello world. <break time="500ms"/> How are you?
-#         <break time="500ms"/> I am fine, <break time="300ms"/>
-#         thank you.</speak>
+wav = speak("Ohm's Law states that V equals I times R", lang="en")
+wav = speak("धारा चालक में आवेश का प्रवाह है।", lang="hi")
 ```
 
-SSML and non-SSML calls produce different cache entries, so the same
-plain text with and without SSML generates separate WAV files.
+> This file previously documented a `freebuff.voice` module, an `use_ssml`
+> argument and a Google Cloud TTS backend. None of those exist. The Cloud TTS
+> path needed a paid account the team does not have, and selecting Tamil used
+> to raise `ImportError` in the middle of a lesson; it was removed rather than
+> left as a path that could only fail.
 
-### split_audio(path, max_seconds, output_dir)
+## Two backends, both free, no key anywhere
 
-Splits a WAV file into chunks of `max_seconds` each using stdlib `wave`.
-Returns a list of output paths in order.
+| Backend | Covers | Why it is there |
+|---|---|---|
+| **edge-tts** | all 18 languages | Microsoft's neural voices. Clearly better than the alternative, and the only backend with voices for Tamil, Kannada, Malayalam, Gujarati and the rest. Needs a network connection. |
+| **Piper** | en, hi, te | Local and offline. The fallback for when the network is not there — which is the case a live demo has to survive. |
 
-```python
-from freebuff.voice.speak import split_audio
+Edge leads. That is the opposite of how it used to be: Piper led because it
+works offline, and the result was that the three most-used languages had the
+worst narration in the app while five better voices sat unused. Offline is
+worth having as a fallback, not as a default.
 
-# Split a 3-minute lesson into 60-second chunks
-parts = split_audio("lesson.wav", max_seconds=60)
-# Returns: ["cache/voice/abc_part000.wav",
-#           "cache/voice/abc_part001.wav",
-#           "cache/voice/abc_part002.wav"]
-```
+If both fail, `speak()` returns a silent placeholder of roughly the right
+length and prints why. It never raises — a voice failure degrades a lesson;
+it must not end one.
 
-**When to use:** The avatar renderer refuses audio over 60 seconds.
-Before calling `render_avatar()`, split long audio:
+## Voices
 
-```python
-from freebuff.voice.speak import split_audio
-from freebuff.avatar import render_avatar
+Every voice is declared in `shared/languages.py`, next to that language's font
+and script direction, so a language cannot be added that speaks but cannot
+draw its own alphabet. Both a female and a male voice are named for each.
 
-for chunk in split_audio("long_lesson.wav", max_seconds=60):
-    render_avatar(chunk, "teacher.jpg")
-```
+## Delivery
 
-### audio_duration(path)
+`SPEECH_RATE` defaults to `-8%`. A teacher explaining something new speaks a
+little below conversational pace, and the default rate reads as rushed against
+a diagram the student is still taking in.
 
-Returns the duration of a WAV file in seconds. Uses stdlib `wave` —
-no external dependencies.
+## Caching
 
-```python
-from freebuff.voice.speak import audio_duration
+Keyed on `sha256(text + lang + voice gender)`. The same sentence in the same
+language and voice is never synthesised twice. The gender is part of the key
+because without it, switching voice replayed the previous one out of cache and
+looked like the setting did nothing.
 
-dur = audio_duration("segment.wav")  # e.g., 3.7
-```
+## Environment
 
-## TTS Backends
+| Variable | Effect |
+|---|---|
+| `MENTORA_VOICE=male` | Use the male voice for every language |
+| `MENTORA_SPEECH_RATE` | Override the delivery rate, e.g. `-15%` |
+| `MENTORA_SPEECH_PITCH` | Override pitch, e.g. `+2Hz` |
+| `TTS_PROVIDER=piper` | Force the offline backend |
 
-### Piper (Development)
+## Output format
 
-Local, free, unlimited. Runs on CPU with no API key.
+22050 Hz, mono, 16-bit WAV — which is what Wav2Lip's mel extraction and the
+ffmpeg compositor both expect. edge-tts returns MP3, so it is transcoded on
+the way out.
 
-```yaml
-# config.yaml
-voice:
-  engine: piper
-  piper_voices:
-    en: en_US-lessac-medium
-    hi: hi_IN-swara-medium
-```
+## Verified
 
-Voice models are ONNX files in `voices/`. Download from
-[huggingface.co/rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices).
-
-### Google Cloud TTS (Final Demo)
-
-Better quality, requires billing account. Only used when `engine: cloud_tts`.
-
-```yaml
-voice:
-  engine: cloud_tts
-```
-
-Set `GOOGLE_APPLICATION_CREDENTIALS` env var to your service account JSON.
-
-### Adding a New Backend
-
-1. Create `freebuff/voice/my_backend.py`:
-```python
-def synthesize_my_backend(text, lang, output_path):
-    # Your synthesis logic here
-    pass
-```
-
-2. Add to the engine dispatch in `speak.py`:
-```python
-elif engine == "my_backend":
-    from freebuff.voice.my_backend import synthesize_my_backend
-    synthesize_my_backend(ssml_text, lang, output)
-```
-
-3. Set in config:
-```yaml
-voice:
-  engine: my_backend
-```
-
-## Configuration
-
-All voice settings in `config.yaml` under `voice:`:
-
-| Key | Default | Description |
-|-----|---------|-------------|
-| `engine` | `piper` | TTS backend (`piper` or `cloud_tts`) |
-| `output_dir` | `cache/voice` | Cache directory for WAV files |
-| `piper_voices` | `{}` | Language → voice model mapping |
-
-Override via environment variables:
-```bash
-export FREEBUFF_VOICE_ENGINE=cloud_tts
-```
+All 18 languages were checked end to end: real audio (RMS above the silence
+floor), correct duration, and a font that can draw the same text on the
+visuals. See the language table in the README.

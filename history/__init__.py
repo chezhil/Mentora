@@ -1,3 +1,44 @@
-﻿"""History package."""
-from history.db import save_turn, load_turns, save_report, load_history
-__all__ = ["save_turn", "load_turns", "save_report", "load_history"]
+"""History package."""
+from history.db import (
+    class_summary,
+    concept_mastery,
+    daily_activity,
+    delete_flashcard,
+    due_flashcards,
+    flashcard_signature,
+    get_daily_goal,
+    get_preferences,
+    had_recovery,
+    has_perfect_score,
+    list_flashcards,
+    load_history,
+    load_session_summaries,
+    load_turns,
+    record_answer,
+    record_study_end,
+    record_study_start,
+    review_stats,
+    review_summary,
+    save_flashcard_review,
+    save_report,
+    save_turn,
+    score_history,
+    set_daily_goal,
+    set_preferences,
+    study_streak,
+    update_flashcard,
+    xp_earned,
+)
+
+__all__ = [
+    "save_turn", "load_turns", "save_report", "load_history",
+    "class_summary", "record_answer", "save_flashcard_review",
+    "due_flashcards", "review_stats", "record_study_start",
+    "record_study_end", "study_streak", "concept_mastery",
+    "daily_activity", "xp_earned", "score_history",
+    "list_flashcards", "update_flashcard", "delete_flashcard",
+    "flashcard_signature", "get_daily_goal", "set_daily_goal",
+    "get_preferences", "set_preferences",
+    "review_summary", "had_recovery", "has_perfect_score",
+    "load_session_summaries",
+]

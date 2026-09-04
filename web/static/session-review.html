@@ -1,0 +1,1971 @@
+<!DOCTYPE html><html lang="en" class="scroll-smooth"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: { extend: { fontFamily: {"mono":["'Space Mono'","monospace"]} } }
+}
+</script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&amp;family=Archivo+Black&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Archivo', sans-serif;
+      background-color: #f4f1ea;
+    }
+    ::selection {
+      background: #e8ff00;
+      color: #000000;
+    }
+    .font-black { font-family: 'Archivo Black', sans-serif; }
+    .font-mono { font-family: 'Space Mono', monospace; }
+    .grid-bg {
+      background-image: linear-gradient(to right, rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px);
+      background-size: 44px 44px;
+    }
+    
+    .shadow-brutal { box-shadow: 8px 8px 0 0 #000000; }
+    .shadow-brutal-lg { box-shadow: 14px 14px 0 0 #000000; }
+    .shadow-brutal-sm { box-shadow: 5px 5px 0 0 #000000; }
+    .shadow-brutal-acid { box-shadow: 8px 8px 0 0 #e8ff00, 8px 8px 0 4px #000000; }
+    .shadow-panel { box-shadow: 14px 14px 0 0 #e8ff00, 14px 14px 0 3px #000000; }
+
+    .btn-brutal {
+      transition: transform 0.08s ease, box-shadow 0.08s ease;
+    }
+    .btn-brutal:hover {
+      transform: translate(2px, 2px);
+      box-shadow: 4px 4px 0 0 #000000 !important;
+    }
+    .btn-brutal:active {
+      transform: translate(8px, 8px);
+      box-shadow: 0 0 0 0 #000000 !important;
+    }
+
+    .marquee-track {
+      animation: marquee 22s linear infinite;
+    }
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    input:focus, textarea:focus { outline: none; }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper: '#f4f1ea',
+            ink: '#000000',
+            acid: '#e8ff00',
+          },
+          screens: {
+            'xs': '430px',
+          }
+        }
+      }
+    }
+  </script>
+  <style>sd-component { display: block; }</style>
+  <script src="https://cdn.jsdelivr.net/npm/petite-vue@0.4.1/dist/petite-vue.iife.js" defer init></script>
+
+    <title>Mentora Session Review</title>
+    <meta property="og:title" content="Mentora Session Review">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Mentora Student Dashboard">
+    <meta property="og:image" content="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/screenshots/drafts/f49b8c38-38c2-4f58-8a2d-4accc46d39e6/1788527472439.png">
+    <meta name="twitter:card" content="summary_large_image">
+  
+<meta name="deploy-id" content="carousel-design-brut" />
+<meta name="deploy-timestamp" content="2026-09-04T14:06:42.392Z" />
+
+<link rel="canonical" href="https://carousel-design-brut.superdesign.cloud/mentora-session-review">
+<meta property="og:url" content="https://carousel-design-brut.superdesign.cloud/mentora-session-review">
+
+<style>
+  html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar {
+    display: none !important; width: 0 !important; height: 0 !important;
+  }
+  html, body, * {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+</style>
+<style>:root {
+  --primary: 240 5.9% 10%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 240 5.9% 10%;
+  --sidebar: 0 0% 98%;
+  --sidebar-foreground: 240 5.3% 26.1%;
+  --sidebar-primary: 240 5.9% 10%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 240 4.8% 95.9%;
+  --sidebar-accent-foreground: 240 5.9% 10%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 217 91% 60%;
+  --chart-1: 12 76% 61%;
+  --chart-2: 173 58% 39%;
+  --chart-3: 197 37% 24%;
+  --chart-4: 43 74% 66%;
+  --chart-5: 27 87% 67%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --primary: 0 0% 98%;
+  --primary-foreground: 240 5.9% 10%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 240 4.9% 83.9%;
+  --sidebar: 240 5.9% 10%;
+  --sidebar-foreground: 240 4.8% 95.9%;
+  --sidebar-primary: 224.3 76.3% 48%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 3.7% 15.9%;
+  --sidebar-accent-foreground: 240 4.8% 95.9%;
+  --sidebar-border: 240 3.7% 15.9%;
+  --sidebar-ring: 217 91% 60%;
+  --chart-1: 220 70% 50%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
+}</style>
+<style>@font-face {
+  font-family: 'Aktura';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/aktura/Aktura-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Alpino';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/alpino/Alpino-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Amulya';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/amulya/Amulya-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Amulya';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/amulya/Amulya-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anton';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/anton/Anton-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/archivo/Archivo-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/archivo/Archivo-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Array';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/array/Array-Bold.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Asap';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/asap/Asap-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Asap';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/asap/Asap-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Author';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/author/Author-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Author';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/author/Author-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AzeretMono';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/azeretmono/AzeretMono-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AzeretMono';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/azeretmono/AzeretMono-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BeVietnamPro';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bevietnampro/BeVietnamPro-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BeVietnamPro';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bevietnampro/BeVietnamPro-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BebasNeue';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bebasneue/BebasNeue-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BespokeSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bespokesans/BespokeSans-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BespokeSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bespokesans/BespokeSans-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BespokeSerif';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bespokeserif/BespokeSerif-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BespokeSerif';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bespokeserif/BespokeSerif-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BespokeSlab';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bespokeslab/BespokeSlab-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BespokeSlab';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bespokeslab/BespokeSlab-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BespokeStencil';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bespokestencil/BespokeStencil-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BespokeStencil';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bespokestencil/BespokeStencil-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bevellier';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bevellier/Bevellier-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bevellier';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bevellier/Bevellier-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bonny';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/bonny/Bonny-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Boska';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/boska/Boska-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Boska';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/boska/Boska-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Boxing';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/boxing/Boxing-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Britney';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/britney/Britney-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CabinetGrotesk';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/cabinetgrotesk/CabinetGrotesk-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Chillax';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/chillax/Chillax-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Chubbo';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/chubbo/Chubbo-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Chubbo';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/chubbo/Chubbo-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ClashGrotesk';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/clashgrotesk/ClashGrotesk-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Comico';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/comico/Comico-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CrimsonPro';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/crimsonpro/CrimsonPro-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CrimsonPro';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/crimsonpro/CrimsonPro-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DancingScript';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/dancingscript/DancingScript-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Epilogue';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/epilogue/Epilogue-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Epilogue';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/epilogue/Epilogue-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Erode';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/erode/Erode-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Erode';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/erode/Erode-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Excon';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/excon/Excon-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Expose';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/expose/Expose-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FamiljenGrotesk';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/familjengrotesk/FamiljenGrotesk-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FamiljenGrotesk';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/familjengrotesk/FamiljenGrotesk-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FiraSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/firasans/FiraSans-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FiraSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/firasans/FiraSans-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gambarino';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/gambarino/Gambarino-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gambetta';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/gambetta/Gambetta-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gambetta';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/gambetta/Gambetta-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GeneralSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/generalsans/GeneralSans-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GeneralSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/generalsans/GeneralSans-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Hind';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/hind/Hind-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Hoover';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/hoover/Hoover-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrainsMono';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/jetbrainsmono/JetBrainsMono-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrainsMono';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/jetbrainsmono/JetBrainsMono-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kalam';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/kalam/Kalam-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Karma';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/karma/Karma-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Khand';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/khand/Khand-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kihim';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/kihim/Kihim-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'KohinoorZerone';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/kohinoorzerone/KohinoorZerone-One.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kola';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/kola/Kola-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Literata';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/literata/Literata-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Literata';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/literata/Literata-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lora';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/lora/Lora-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lora';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/lora/Lora-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Manrope';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/manrope/Manrope-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Melodrama';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/melodrama/Melodrama-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MerriweatherSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/merriweathersans/MerriweatherSans-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MerriweatherSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/merriweathersans/MerriweatherSans-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/montserrat/Montserrat-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/montserrat/Montserrat-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Neco';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/neco/Neco-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Neco';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/neco/Neco-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'NewTitle';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/newtitle/NewTitle-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nippo';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/nippo/Nippo-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nunito';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/nunito/Nunito-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nunito';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/nunito/Nunito-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Oswald';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/oswald/Oswald-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Outfit';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/outfit/Outfit-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Pally';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/pally/Pally-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Panchang';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/panchang/Panchang-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Paquito';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/paquito/Paquito-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Pencerio';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/pencerio/Pencerio-Hairline.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PilcrowRounded';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/pilcrowrounded/PilcrowRounded-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Plein';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/plein/Plein-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Plein';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/plein/Plein-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PlusJakartaSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/plusjakartasans/PlusJakartaSans-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PlusJakartaSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/plusjakartasans/PlusJakartaSans-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Poppins';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/poppins/Poppins-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Poppins';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/poppins/Poppins-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PramukhRounded';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/pramukhrounded/PramukhRounded-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PramukhRounded';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/pramukhrounded/PramukhRounded-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PublicSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/publicsans/PublicSans-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PublicSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/publicsans/PublicSans-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Quicksand';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/quicksand/Quicksand-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Quilon';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/quilon/Quilon-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RX100';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/rx100/RX100-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Rajdhani';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/rajdhani/Rajdhani-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ranade';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/ranade/Ranade-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ranade';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/ranade/Ranade-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Recia';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/recia/Recia-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Recia';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/recia/Recia-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RedHatDisplay';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/redhatdisplay/RedHatDisplay-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RedHatDisplay';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/redhatdisplay/RedHatDisplay-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Rosaline';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/rosaline/Rosaline-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roundo';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/roundo/Roundo-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Rowan';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/rowan/Rowan-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Rowan';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/rowan/Rowan-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/satoshi/Satoshi-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/satoshi/Satoshi-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Segment';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/segment/Segment-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Sentient';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/sentient/Sentient-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Sentient';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/sentient/Sentient-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Sharpie';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/sharpie/Sharpie-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Sora';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/sora/Sora-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Sora';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/sora/Sora-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SpaceGrotesk';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/spacegrotesk/SpaceGrotesk-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SplineSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/splinesans/SplineSans-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Stardom';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/stardom/Stardom-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Striper';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/striper/Striper-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Styro';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/styro/Styro-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Supreme';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/supreme/Supreme-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Supreme';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/supreme/Supreme-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Switzer';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/switzer/Switzer-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Switzer';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/switzer/Switzer-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Synonym';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/synonym/Synonym-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tabular';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/tabular/Tabular-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tabular';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/tabular/Tabular-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tanker';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/tanker/Tanker-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Technor';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/technor/Technor-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Teko';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/teko/Teko-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Telma';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/telma/Telma-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TrenchSlab';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/trenchslab/TrenchSlab-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'WorkSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/worksans/WorkSans-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'WorkSans';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/worksans/WorkSans-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Zina';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/zina/Zina-Regular.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Zodiak';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/zodiak/Zodiak-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Zodiak';
+  src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/system/fonts/zodiak/Zodiak-VariableItalic.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}</style>
+
+<script type="module">
+  (function() {
+    document.addEventListener('wheel', function(e) {
+      if (e.ctrlKey) e.preventDefault();
+    }, { passive: false });
+  })();
+</script>
+<script type="module">
+    if (window.tailwind) {
+      window.tailwind.config = {
+        ...(window.tailwind.config || {}),
+        theme: {
+          extend: {"colors":{"border":"hsl(var(--border))","input":"hsl(var(--input))","ring":"hsl(var(--ring))","background":"hsl(var(--background))","foreground":"hsl(var(--foreground))","primary":{"DEFAULT":"hsl(var(--primary))","foreground":"hsl(var(--primary-foreground))"},"secondary":{"DEFAULT":"hsl(var(--secondary))","foreground":"hsl(var(--secondary-foreground))"},"destructive":{"DEFAULT":"hsl(var(--destructive))","foreground":"hsl(var(--destructive-foreground))"},"muted":{"DEFAULT":"hsl(var(--muted))","foreground":"hsl(var(--muted-foreground))"},"accent":{"DEFAULT":"hsl(var(--accent))","foreground":"hsl(var(--accent-foreground))"},"popover":{"DEFAULT":"hsl(var(--popover))","foreground":"hsl(var(--popover-foreground))"},"card":{"DEFAULT":"hsl(var(--card))","foreground":"hsl(var(--card-foreground))"},"sidebar":{"DEFAULT":"hsl(var(--sidebar-background))","foreground":"hsl(var(--sidebar-foreground))","primary":"hsl(var(--sidebar-primary))","primary-foreground":"hsl(var(--sidebar-primary-foreground))","accent":"hsl(var(--sidebar-accent))","accent-foreground":"hsl(var(--sidebar-accent-foreground))","border":"hsl(var(--sidebar-border))"},"chart":{"1":"hsl(var(--chart-1))","2":"hsl(var(--chart-2))","3":"hsl(var(--chart-3))","4":"hsl(var(--chart-4))","5":"hsl(var(--chart-5))"}},"borderRadius":{"lg":"var(--radius)","md":"calc(var(--radius) - 2px)","sm":"calc(var(--radius) - 4px)"},"fontFamily":{"sans":["var(--font-sans)","system-ui","sans-serif"],"serif":["var(--font-serif)","Georgia","serif"],"mono":["var(--font-mono)","monospace"]}}
+        }
+      };
+    }
+  </script>
+<script type="module">
+    // SuperDesign Runtime
+    console.log('[SuperDesign] Preview loaded for deployId:', "carousel-design-brut");
+
+    window.__SUPERDESIGN_DEPLOY__ = {
+      deployId: "carousel-design-brut",
+      timestamp: "2026-09-04T14:06:42.392Z",
+      _modernScreenshotModule: null,
+
+      sendMessage: function(type, data) {
+        if (window.parent) {
+          window.parent.postMessage({
+            source: 'superdesign-deploy',
+            type: type,
+            data: data,
+            deployId: this.deployId
+          }, '*');
+        }
+      },
+
+      ready: function() {
+        this.sendMessage('ready', { timestamp: Date.now() });
+      },
+
+      
+      _captureScreenshotInternal: async function() {
+        if (!this._modernScreenshotModule) {
+          console.log('[SuperDesign] Loading modern-screenshot library...');
+          this._modernScreenshotModule = await import('https://esm.sh/modern-screenshot@4.6.6');
+        }
+        var modernScreenshot = this._modernScreenshotModule;
+        if (!modernScreenshot || !modernScreenshot.domToCanvas) {
+          throw new Error('modern-screenshot library not loaded');
+        }
+
+        var scrollX = window.scrollX || window.pageXOffset;
+        var scrollY = window.scrollY || window.pageYOffset;
+        var viewportWidth = window.innerWidth;
+        var viewportHeight = window.innerHeight;
+        var documentWidth = Math.max(
+          document.documentElement.scrollWidth,
+          document.documentElement.offsetWidth,
+          document.documentElement.clientWidth,
+          document.body.scrollWidth,
+          document.body.offsetWidth
+        );
+        var documentHeight = Math.max(
+          document.documentElement.scrollHeight,
+          document.documentElement.offsetHeight,
+          document.documentElement.clientHeight,
+          document.body.scrollHeight,
+          document.body.offsetHeight
+        );
+
+        var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        var pixelRatio = isMobile ? 1 : (window.devicePixelRatio || 1);
+
+        var dataUrl;
+
+        if (isMobile) {
+          var wrapper = document.createElement('div');
+          wrapper.style.cssText = 'position:fixed;top:0;left:0;width:' + viewportWidth + 'px;height:' + viewportHeight + 'px;overflow:hidden;z-index:999999;pointer-events:none;';
+          var clone = document.body.cloneNode(true);
+          clone.style.cssText = 'position:absolute;top:' + (-scrollY) + 'px;left:' + (-scrollX) + 'px;margin:0;width:' + documentWidth + 'px;';
+          wrapper.appendChild(clone);
+          document.body.appendChild(wrapper);
+          try {
+            var viewportCanvas = await modernScreenshot.domToCanvas(wrapper, {
+              scale: 1, backgroundColor: '#ffffff',
+              width: viewportWidth, height: viewportHeight,
+            });
+            dataUrl = viewportCanvas.toDataURL('image/png', 0.5);
+          } finally {
+            document.body.removeChild(wrapper);
+          }
+        } else {
+          var fullCanvas = await modernScreenshot.domToCanvas(document.documentElement, {
+            scale: pixelRatio, backgroundColor: '#ffffff',
+            width: documentWidth, height: documentHeight,
+          });
+          var viewportCanvas = document.createElement('canvas');
+          viewportCanvas.width = viewportWidth * pixelRatio;
+          viewportCanvas.height = viewportHeight * pixelRatio;
+          var ctx = viewportCanvas.getContext('2d');
+          if (!ctx) throw new Error('Failed to get canvas context');
+          ctx.drawImage(
+            fullCanvas,
+            scrollX * pixelRatio, scrollY * pixelRatio,
+            viewportWidth * pixelRatio, viewportHeight * pixelRatio,
+            0, 0, viewportWidth * pixelRatio, viewportHeight * pixelRatio
+          );
+          dataUrl = viewportCanvas.toDataURL('image/png', 1.0);
+        }
+
+        if (!dataUrl || !dataUrl.startsWith('data:image/png;base64,') || dataUrl.length < 100) {
+          throw new Error('Invalid screenshot data');
+        }
+
+        return {
+          dataUrl: dataUrl,
+          viewportWidth: viewportWidth,
+          viewportHeight: viewportHeight,
+          pixelRatio: pixelRatio
+        };
+      },
+
+      autoCapture: async function() {
+        if (window === window.parent) return;
+        try {
+          var result = await this._captureScreenshotInternal();
+          this.sendMessage('auto-screenshot', {
+            dataUrl: result.dataUrl,
+            timestamp: Date.now(),
+            viewportWidth: result.viewportWidth,
+            viewportHeight: result.viewportHeight,
+            pixelRatio: result.pixelRatio,
+          });
+        } catch (error) {
+          console.error('[SuperDesign] Auto-capture failed:', error);
+        }
+      },
+
+      captureScreenshot: async function(requestId, autoCaptureId) {
+        try {
+          this._currentRequestId = requestId;
+          this._currentAutoCaptureId = autoCaptureId;
+          var result = await this._captureScreenshotInternal();
+          this.sendMessage('screenshot-captured', {
+            dataUrl: result.dataUrl,
+            timestamp: Date.now(),
+            viewportWidth: result.viewportWidth,
+            viewportHeight: result.viewportHeight,
+            pixelRatio: result.pixelRatio,
+            requestId: this._currentRequestId,
+            autoCaptureId: this._currentAutoCaptureId
+          });
+          return result.dataUrl;
+        } catch (error) {
+          console.error('[SuperDesign] Screenshot capture failed:', error);
+          this.sendMessage('screenshot-error', {
+            error: error.message || String(error),
+            timestamp: Date.now(),
+            requestId: this._currentRequestId,
+            autoCaptureId: this._currentAutoCaptureId
+          });
+          throw error;
+        }
+      }
+  
+    };
+
+    
+    // Font loading helpers
+    window.__SUPERDESIGN_DEPLOY__.loadedFonts = new Set();
+    window.__SUPERDESIGN_DEPLOY__.loadGoogleFont = function(fontFamily) {
+      if (!fontFamily || this.loadedFonts.has(fontFamily)) return;
+      if (fontFamily.startsWith('Custom-')) return;
+
+      var systemFonts = ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI',
+        'Roboto', 'Helvetica', 'Arial', 'sans-serif', 'Georgia', 'Times New Roman',
+        'Times', 'serif', 'Menlo', 'Monaco', 'Consolas', 'Courier New', 'monospace'];
+      if (systemFonts.some(function(sf) { return fontFamily.toLowerCase().includes(sf.toLowerCase()); })) return;
+
+      if (!document.querySelector('link[href*="fonts.googleapis.com"]')) {
+        var preconnect1 = document.createElement('link');
+        preconnect1.rel = 'preconnect';
+        preconnect1.href = 'https://fonts.googleapis.com';
+        document.head.appendChild(preconnect1);
+        var preconnect2 = document.createElement('link');
+        preconnect2.rel = 'preconnect';
+        preconnect2.href = 'https://fonts.gstatic.com';
+        preconnect2.crossOrigin = 'anonymous';
+        document.head.appendChild(preconnect2);
+      }
+
+      var linkId = 'google-font-' + fontFamily.replace(/\\s+/g, '-').toLowerCase();
+      if (!document.getElementById(linkId)) {
+        var link = document.createElement('link');
+        link.id = linkId;
+        link.rel = 'stylesheet';
+        link.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(fontFamily) + ':wght@400;500;600;700&display=swap';
+        link.onerror = function() { console.error('[SuperDesign] Failed to load Google Font:', fontFamily); };
+        document.head.appendChild(link);
+      }
+      this.loadedFonts.add(fontFamily);
+    };
+
+    window.__SUPERDESIGN_DEPLOY__.loadedCustomFonts = new Set();
+    window.__SUPERDESIGN_DEPLOY__.loadCustomFont = function(fontInfo) {
+      if (!fontInfo || !fontInfo.family || !fontInfo.url) return;
+      if (this.loadedCustomFonts.has(fontInfo.family)) return;
+      var styleId = 'custom-font-' + fontInfo.family.replace(/[^a-zA-Z0-9]/g, '-');
+      if (document.getElementById(styleId)) return;
+      var style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = '@font-face { ' +
+        'font-family: "' + fontInfo.family + '"; ' +
+        'src: url("' + fontInfo.url + '") format("' + (fontInfo.format || 'woff2') + '"); ' +
+        'font-weight: 100 900; font-style: normal; font-display: swap; }';
+      document.head.appendChild(style);
+      this.loadedCustomFonts.add(fontInfo.family);
+    };
+  
+    
+    // Theme sync
+    window.__SUPERDESIGN_DEPLOY__.applyTheme = function(payload, isDark) {
+      var root = document.documentElement;
+      var colorVars = isDark ? payload.dark : payload.light;
+      for (var name in colorVars) {
+        if (colorVars.hasOwnProperty(name)) {
+          root.style.setProperty(name, colorVars[name]);
+        }
+      }
+
+      if (payload.customFonts && Array.isArray(payload.customFonts)) {
+        payload.customFonts.forEach(function(fontInfo) {
+          window.__SUPERDESIGN_DEPLOY__.loadCustomFont(fontInfo);
+        });
+      }
+
+      if (payload.typography) {
+        var t = payload.typography;
+        if (t.fontSans && !t.fontSans.startsWith('Custom-')) window.__SUPERDESIGN_DEPLOY__.loadGoogleFont(t.fontSans);
+        if (t.fontSerif && !t.fontSerif.startsWith('Custom-')) window.__SUPERDESIGN_DEPLOY__.loadGoogleFont(t.fontSerif);
+        if (t.fontMono && !t.fontMono.startsWith('Custom-')) window.__SUPERDESIGN_DEPLOY__.loadGoogleFont(t.fontMono);
+
+        var formatFontValue = function(ff) {
+          if (!ff) return ff;
+          var first = ff.split(',')[0].trim().replace(/^["']|["']$/g, '');
+          return first.startsWith('var(') ? first : '"' + first + '"';
+        };
+        root.style.setProperty('--font-sans', formatFontValue(t.fontSans));
+        root.style.setProperty('--font-serif', formatFontValue(t.fontSerif));
+        root.style.setProperty('--font-mono', formatFontValue(t.fontMono));
+        root.style.setProperty('--font-size', t.fontSize);
+        root.style.setProperty('--line-height', t.lineHeight);
+        root.style.setProperty('--letter-spacing-body', t.letterSpacing);
+        root.style.setProperty('--letter-spacing-heading', t.headingLetterSpacing);
+        root.style.setProperty('--font-weight-regular', t.fontWeightRegular);
+        root.style.setProperty('--font-weight-bold', t.fontWeightBold);
+      }
+
+      if (payload.effects) {
+        root.style.setProperty('--radius', payload.effects.radius);
+        root.style.setProperty('--shadow', payload.effects.shadow);
+      }
+
+      if (isDark) { root.classList.add('dark'); } else { root.classList.remove('dark'); }
+    };
+  
+    
+    // Message listener
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'request-screenshot') {
+        if (window.__SUPERDESIGN_DEPLOY__) {
+          window.__SUPERDESIGN_DEPLOY__.captureScreenshot(event.data.requestId, event.data.autoCaptureId);
+        }
+      }
+
+      if (event.data && event.data.type === 'superdesign-theme-update') {
+        if (window.__SUPERDESIGN_DEPLOY__ && event.data.payload) {
+          var isDark = event.data.isDark || false;
+          window.__SUPERDESIGN_DEPLOY__.applyTheme(event.data.payload, isDark);
+          window.__SUPERDESIGN_DEPLOY__.sendMessage('theme-applied', { timestamp: Date.now(), isDark: isDark });
+        }
+      }
+
+      if (event.data && event.data.type === 'navigate-to-route') {
+        var route = event.data.route;
+        if (route) {
+          if (route === '/') {
+            if (window.location.hash) {
+              history.pushState(null, '', window.location.pathname + window.location.search);
+              window.dispatchEvent(new HashChangeEvent('hashchange'));
+            }
+          } else {
+            var newHash = '#' + route;
+            if (window.location.hash !== newHash) {
+              window.location.hash = route;
+            }
+          }
+        }
+      }
+    });
+  
+    
+    // Page lifecycle
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() { window.__SUPERDESIGN_DEPLOY__.ready(); });
+    } else {
+      window.__SUPERDESIGN_DEPLOY__.ready();
+    }
+
+    function onPageFullyLoaded() {
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          setTimeout(function() {
+            window.__SUPERDESIGN_DEPLOY__.sendMessage('loaded', { timestamp: Date.now() });
+          }, 1500);
+          // Auto-capture disabled for this preview type
+        });
+      });
+    }
+
+    if (document.readyState === 'complete') {
+      onPageFullyLoaded();
+    } else {
+      window.addEventListener('load', onPageFullyLoaded);
+    }
+  
+  </script>
+</head>
+<body class="selection:bg-acid selection:text-ink">
+  <div class="min-h-screen bg-paper text-ink flex flex-col overflow-hidden" data-sd-id="1">
+    
+    <!-- Header Component -->
+    <!-- component: HeaderNav (e186f640-4cf0-4369-8268-daf0d95ba8c5) -->
+<div v-scope="{ ...{&quot;homeHref&quot;:&quot;#&quot;,&quot;endSessionHref&quot;:&quot;#end-session&quot;,&quot;lessonTitle&quot;:&quot;Quantum Mechanics Overview&quot;}, $emit() {} }">
+<header class="sticky top-0 z-50 bg-[#f4f1ea] border-b-[3px] border-black">
+  <nav class="mx-auto w-full px-5 md:px-8 h-[68px] flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <a :href="homeHref" class="w-9 h-9 grid place-items-center bg-black text-[#e8ff00] font-black text-lg shadow-[5px_5px_0_0_#000000] border-[3px] border-black transition-all duration-75 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none">M</a>
+      <div class="flex items-center font-black text-base md:text-lg tracking-tight uppercase">
+        <span>Mentora</span>
+        <span class="mx-2 text-black/30">/</span>
+        <span class="text-black/60">Tutor Dashboard</span>
+      </div>
+    </div>
+    <div class="hidden md:flex items-center gap-6">
+      <div class="flex flex-col items-end">
+        <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-black/50">Current Lesson</span>
+        <span class="font-black text-sm uppercase tracking-tight" id="hdr-lesson">{{ lessonTitle }}</span>
+      </div>
+      <button 
+        @click="$emit('openSettings')" 
+        class="w-10 h-10 grid place-items-center border-[3px] border-black bg-[#f4f1ea] shadow-[5px_5px_0_0_#000000] transition-all duration-75 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none"
+      >
+        <iconify-icon icon="ph:gear-six-bold" class="text-xl"></iconify-icon>
+      </button>
+      <a 
+        :href="endSessionHref" 
+        class="bg-black text-[#f4f1ea] font-black text-[13px] uppercase tracking-wide px-4 py-2.5 shadow-[5px_5px_0_0_#000000] border-[3px] border-black transition-all duration-75 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none"
+      >
+        End Session <span class="text-[#e8ff00]">-></span>
+      </a>
+    </div>
+  </nav>
+</header>
+</div>
+<!-- /component: HeaderNav (e186f640-4cf0-4369-8268-daf0d95ba8c5) -->
+
+    <main class="flex-1 flex overflow-hidden grid-bg" data-sd-id="2">
+      
+      <!-- Left Sidebar Component -->
+      <!-- component: SidebarControls (ff31add6-a2ea-4628-80d8-17adcc1789d2) -->
+<div v-scope="{ ...{&quot;selectedDifficulty&quot;:&quot;Intermediate (Standard)&quot;,&quot;activePersona&quot;:&quot;socratic&quot;,&quot;showProBadge&quot;:true}, $emit() {} }">
+<aside class="w-80 hidden lg:flex flex-col bg-[#f4f1ea] border-r-[3px] border-black overflow-y-auto z-20">
+  <div class="p-6 space-y-8">
+    <div>
+      <span class="font-mono text-xs font-bold uppercase tracking-widest text-black/65 mb-4 block">01 / Materials</span>
+      <div class="border-[3px] border-black p-5 shadow-[8px_8px_0_0_#000000] bg-white">
+        <div class="mb-4 grid place-items-center w-12 h-12 border-[3px] border-black bg-[#e8ff00]">
+          <iconify-icon icon="ph:file-pdf-bold" class="text-2xl"></iconify-icon>
+        </div>
+        <h3 class="font-black uppercase text-lg leading-none mb-2 text-black">Upload PDF</h3>
+        <p class="text-xs font-medium text-black/70 leading-relaxed mb-4">Mentora reads your slides and builds the curriculum.</p>
+        <button 
+          @click="$emit('uploadFiles')"
+          class="w-full bg-black text-[#f4f1ea] font-black uppercase text-xs tracking-widest py-3 border-[3px] border-black shadow-[5px_5px_0_0_#000000] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none">
+          Select Files
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <span class="font-mono text-xs font-bold uppercase tracking-widest text-black/65 mb-4 block">02 / Topic Config</span>
+      <div class="space-y-4">
+        <div class="group">
+          <label class="font-mono text-[10px] font-bold uppercase tracking-widest mb-1 block">Difficulty Level</label>
+          <select 
+            @change="$emit('changeDifficulty', { value: $event.target.value })"
+            class="w-full bg-[#f4f1ea] border-[3px] border-black p-2.5 font-black uppercase text-xs cursor-pointer">
+            <option :selected="selectedDifficulty === 'Beginner (Fundamentals)'">Beginner (Fundamentals)</option>
+            <option :selected="selectedDifficulty === 'Intermediate (Standard)'">Intermediate (Standard)</option>
+            <option :selected="selectedDifficulty === 'Advanced (Technical)'">Advanced (Technical)</option>
+          </select>
+        </div>
+        <div class="group">
+          <label class="font-mono text-[10px] font-bold uppercase tracking-widest mb-1 block">Avatar Persona</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button 
+              @click="$emit('personaChange', { persona: 'socratic' })"
+              class="border-[3px] border-black p-2 font-black text-[10px] uppercase shadow-[5px_5px_0_0_#000000] transition-all"
+              :class="activePersona === 'socratic' ? 'bg-[#e8ff00]' : 'bg-[#f4f1ea] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none'">
+              Socratic
+            </button>
+            <button 
+              @click="$emit('personaChange', { persona: 'strict' })"
+              class="border-[3px] border-black p-2 font-black text-[10px] uppercase shadow-[5px_5px_0_0_#000000] transition-all"
+              :class="activePersona === 'strict' ? 'bg-[#e8ff00]' : 'bg-[#f4f1ea] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none'">
+              Strict
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showProBadge">
+      <div class="bg-black text-[#f4f1ea] p-4 border-[3px] border-black shadow-[8px_8px_0_0_#000000]">
+        <div class="flex items-center gap-2 mb-2">
+          <iconify-icon icon="ph:lightning-bold" class="text-[#e8ff00]"></iconify-icon>
+          <span class="font-black uppercase text-xs tracking-tighter">Mentora Pro active</span>
+        </div>
+        <p class="text-[10px] font-mono text-[#f4f1ea]/60 leading-tight uppercase">Unlimited context window enabled for this session.</p>
+      </div>
+    </div>
+  </div>
+</aside>
+</div>
+<!-- /component: SidebarControls (ff31add6-a2ea-4628-80d8-17adcc1789d2) -->
+
+      <!-- Center Content: Review Summary -->
+      <section class="flex-1 flex flex-col p-5 md:p-8 overflow-y-auto space-y-10" data-sd-id="3">
+        
+        <!-- Summary Hero Card -->
+        <div class="relative flex-none" data-sd-id="4">
+          <div class="absolute -top-3 left-6 z-10" data-sd-id="5">
+            <span class="bg-acid text-ink font-black uppercase text-xs tracking-widest px-4 py-1 border-[3px] border-ink shadow-brutal-sm" data-sd-id="6">SESSION REVIEW COMPLETE</span>
+          </div>
+          <div class="bg-white border-[3px] border-ink shadow-brutal p-8 md:p-12 flex flex-col md:flex-row gap-8 items-center md:items-start" data-sd-id="7">
+            <div class="w-32 h-32 md:w-48 md:h-48 border-[3px] border-ink bg-acid p-4 grid place-items-center shrink-0 shadow-brutal-sm" data-sd-id="8">
+              <iconify-icon icon="ph:seal-check-bold" class="text-6xl md:text-8xl"></iconify-icon>
+            </div>
+            <div class="flex-1 space-y-4 text-center md:text-left" data-sd-id="9">
+              <h1 class="font-black uppercase text-3xl md:text-5xl tracking-tighter leading-none text-ink" data-sd-id="10">You crushed it today.</h1>
+              <p class="text-lg md:text-xl font-medium leading-relaxed max-w-2xl" data-sd-id="11">
+                Mentora has analyzed your session on <span class="underline decoration-[3px] decoration-acid" id="rv-topic">Wave-Particle Duality</span>. <span id="rv-improvement">Your conceptual grasp of decoherence jumped by 42% since the start of the lesson.</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress Metrics Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6" data-sd-id="13">
+          <div class="border-[3px] border-ink bg-white p-6 shadow-brutal-sm" data-sd-id="14">
+            <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-ink/50" data-sd-id="15">Total Learning Time</span>
+            <div class="flex items-end gap-2 mt-2" data-sd-id="16">
+              <span class="font-black text-4xl uppercase leading-none" id="rv-time">45</span>
+              <span class="font-black text-lg uppercase pb-0.5" data-sd-id="18">Minutes</span>
+            </div>
+          </div>
+          <div class="border-[3px] border-ink bg-acid p-6 shadow-brutal-sm" data-sd-id="19">
+            <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-ink/50" data-sd-id="20">Concepts Mastered</span>
+            <div class="flex items-end gap-2 mt-2" data-sd-id="21">
+              <span class="font-black text-4xl uppercase leading-none" id="rv-concepts">04</span>
+              <span class="font-black text-lg uppercase pb-0.5" data-sd-id="23">Topics</span>
+            </div>
+          </div>
+          <div class="border-[3px] border-ink bg-white p-6 shadow-brutal-sm" data-sd-id="24">
+            <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-ink/50" data-sd-id="25">Questions Handled</span>
+            <div class="flex items-end gap-2 mt-2" data-sd-id="26">
+              <span class="font-black text-4xl uppercase leading-none" id="rv-questions">18</span>
+              <span class="font-black text-lg uppercase pb-0.5" data-sd-id="28">Interactions</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Key Concepts Section -->
+        <div class="space-y-6" data-sd-id="29">
+          <div class="flex items-center gap-4" data-sd-id="30">
+            <h2 class="font-black uppercase text-2xl tracking-tight" data-sd-id="31">Concepts Covered</h2>
+            <div class="h-[3px] bg-ink flex-1" data-sd-id="32"></div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="rv-concepts-grid" data-sd-id="33">
+            <div class="border-[3px] border-ink bg-white p-5 flex justify-between items-center group transition-colors hover:bg-paper" data-sd-id="34">
+              <div class="space-y-1" data-sd-id="35">
+                <h4 class="font-black uppercase text-lg leading-tight" data-sd-id="36">Planck's Constant</h4>
+                <p class="text-xs font-mono font-bold uppercase text-ink/40" data-sd-id="37">E = hf Relationship</p>
+              </div>
+              <div class="bg-acid border-[2px] border-ink px-3 py-1 font-black text-xs uppercase shadow-brutal-sm" data-sd-id="38">Mastered</div>
+            </div>
+            <div class="border-[3px] border-ink bg-white p-5 flex justify-between items-center group transition-colors hover:bg-paper" data-sd-id="39">
+              <div class="space-y-1" data-sd-id="40">
+                <h4 class="font-black uppercase text-lg leading-tight" data-sd-id="41">De Broglie Wavelength</h4>
+                <p class="text-xs font-mono font-bold uppercase text-ink/40" data-sd-id="42">λ = h / p Calculus</p>
+              </div>
+              <div class="bg-acid border-[2px] border-ink px-3 py-1 font-black text-xs uppercase shadow-brutal-sm" data-sd-id="43">Mastered</div>
+            </div>
+            <div class="border-[3px] border-ink bg-white p-5 flex justify-between items-center group transition-colors hover:bg-paper" data-sd-id="44">
+              <div class="space-y-1" data-sd-id="45">
+                <h4 class="font-black uppercase text-lg leading-tight" data-sd-id="46">Probability Fields</h4>
+                <p class="text-xs font-mono font-bold uppercase text-ink/40" data-sd-id="47">Schrödinger's Overview</p>
+              </div>
+              <div class="bg-acid border-[2px] border-ink px-3 py-1 font-black text-xs uppercase shadow-brutal-sm text-ink/20 border-ink/20 shadow-none grayscale" data-sd-id="48">Partial</div>
+            </div>
+            <div class="border-[3px] border-ink bg-white p-5 flex justify-between items-center group transition-colors hover:bg-paper" data-sd-id="49">
+              <div class="space-y-1" data-sd-id="50">
+                <h4 class="font-black uppercase text-lg leading-tight" data-sd-id="51">Wavefront Collapsing</h4>
+                <p class="text-xs font-mono font-bold uppercase text-ink/40" data-sd-id="52">Measurement Effect</p>
+              </div>
+              <div class="bg-acid border-[2px] border-ink px-3 py-1 font-black text-xs uppercase shadow-brutal-sm" data-sd-id="53">Mastered</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="border-[3px] border-ink bg-ink text-paper p-8 shadow-brutal-lg" data-sd-id="54">
+          <div class="flex flex-col md:flex-row gap-8 items-center" data-sd-id="55">
+            <div class="flex-1 space-y-4" data-sd-id="56">
+              <span class="font-mono text-xs font-bold uppercase tracking-widest text-acid" data-sd-id="57">Next Step Recommended</span>
+              <h3 class="font-black uppercase text-2xl md:text-3xl tracking-tight leading-tight" id="rv-next-title" data-sd-id="58">Intro to Heisenberg's Uncertainty Principle</h3>
+              <p class="text-sm md:text-base font-mono leading-relaxed text-paper/70 uppercase" id="rv-next-desc" data-sd-id="59">
+                Building on your mastery of measurement effects, we'll dive into why certain variables cannot be measured simultaneously. Ready to level up?
+              </p>
+            </div>
+            <a href="#start-next" class="w-full md:w-auto px-8 py-5 bg-acid text-ink font-black uppercase text-sm border-[3px] border-ink btn-brutal shadow-brutal shadow-paper/20 whitespace-nowrap" data-sd-id="60">
+              Queue Lesson →
+            </a>
+          </div>
+        </div>
+        
+        <div class="h-12" data-sd-id="61"></div>
+      </section>
+
+    </main>
+
+    <!-- Action Footer (Custom action buttons replaces standard BottomInputBar) -->
+    <footer class="sticky bottom-0 z-50 bg-paper border-t-[3px] border-ink p-6 md:p-8" data-sd-id="62">
+      <div class="mx-auto max-w-6xl flex flex-col md:flex-row gap-4 md:gap-6" data-sd-id="63">
+        <a href="/dashboard" id="btn-start-next" class="flex-1 bg-acid text-ink border-[3px] border-ink p-6 font-black uppercase text-xl shadow-brutal btn-brutal text-center" data-sd-id="64">
+          Start Next Lesson
+        </a>
+        <a href="/mentora-interactive-discussion" id="btn-review-transcript" class="flex-1 bg-white text-ink border-[3px] border-ink p-6 font-black uppercase text-xl shadow-brutal-sm btn-brutal text-center" data-sd-id="65">
+          Review Transcript
+        </a>
+        <a href="#download-summary" id="btn-download-pdf" class="w-full md:w-20 bg-ink text-paper border-[3px] border-ink p-6 grid place-items-center shadow-brutal-sm btn-brutal" data-sd-id="66">
+          <iconify-icon icon="ph:download-bold" class="text-2xl"></iconify-icon>
+        </a>
+      </div>
+    </footer>
+
+    <!-- Marquee -->
+    <div class="bg-ink border-b-[3px] border-ink overflow-hidden py-2.5" data-sd-id="67">
+      <div class="marquee-track flex whitespace-nowrap font-black uppercase text-acid text-sm tracking-tight" data-sd-id="68">
+        <div class="flex shrink-0 items-center" data-sd-id="69">
+          <span class="px-6" data-sd-id="70">Session Complete</span> <span class="text-paper/30" data-sd-id="71">/</span>
+          <span class="px-6" data-sd-id="72">Data Synced to Cloud</span> <span class="text-paper/30" data-sd-id="73">/</span>
+          <span class="px-6" data-sd-id="74">Curriculum Adjusted</span> <span class="text-paper/30" data-sd-id="75">/</span>
+          <span class="px-6" data-sd-id="76">AI Persona Refined</span> <span class="text-paper/30" data-sd-id="77">/</span>
+        </div>
+        <div class="flex shrink-0 items-center" aria-hidden="true" data-sd-id="78">
+          <span class="px-6" data-sd-id="79">Session Complete</span> <span class="text-paper/30" data-sd-id="80">/</span>
+          <span class="px-6" data-sd-id="81">Data Synced to Cloud</span> <span class="text-paper/30" data-sd-id="82">/</span>
+          <span class="px-6" data-sd-id="83">Curriculum Adjusted</span> <span class="text-paper/30" data-sd-id="84">/</span>
+          <span class="px-6" data-sd-id="85">AI Persona Refined</span> <span class="text-paper/30" data-sd-id="86">/</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+  (async function() {
+    try {
+      const res = await fetch('/api/session-review');
+      if (!res.ok) return;
+      const d = await res.json();
+
+      // Header lesson title
+      const hdr = document.getElementById('hdr-lesson');
+      if (hdr) hdr.textContent = d.lesson_title;
+
+      // Hero: topic name
+      const topic = document.getElementById('rv-topic');
+      if (topic) topic.textContent = d.topic;
+
+      // Hero: improvement text
+      const imp = document.getElementById('rv-improvement');
+      if (imp) {
+        if (d.improvement_pct != null) {
+          imp.textContent = 'Your understanding improved by ' + d.improvement_pct + '% since the start of the lesson.';
+        } else if (d.score >= 80) {
+          imp.textContent = 'You demonstrated strong comprehension across all concepts covered.';
+        } else if (d.score >= 50) {
+          imp.textContent = 'Good progress — some concepts need reinforcement.';
+        } else {
+          imp.textContent = 'Keep practicing — review the concepts below and try again.';
+        }
+      }
+
+      // Metrics
+      const time = document.getElementById('rv-time');
+      if (time) time.textContent = String(d.total_minutes).padStart(2, '0');
+      const concepts = document.getElementById('rv-concepts');
+      if (concepts) concepts.textContent = String(d.concepts_mastered).padStart(2, '0');
+      const questions = document.getElementById('rv-questions');
+      if (questions) questions.textContent = String(d.questions_handled).padStart(2, '0');
+
+      // Concept cards
+      const grid = document.getElementById('rv-concepts-grid');
+      if (grid && d.concepts && d.concepts.length) {
+        grid.innerHTML = d.concepts.map(c => {
+          const isMastered = c.status === 'Mastered';
+          const badgeCls = isMastered
+            ? 'bg-acid border-[2px] border-ink px-3 py-1 font-black text-xs uppercase shadow-brutal-sm'
+            : 'bg-acid border-[2px] border-ink px-3 py-1 font-black text-xs uppercase shadow-brutal-sm text-ink/20 border-ink/20 shadow-none grayscale';
+          return '<div class="border-[3px] border-ink bg-white p-5 flex justify-between items-center group transition-colors hover:bg-paper">'
+            + '<div class="space-y-1"><h4 class="font-black uppercase text-lg leading-tight">' + c.name + '</h4>'
+            + (c.description ? '<p class="text-xs font-mono font-bold uppercase text-ink/40">' + c.description + '</p>' : '')
+            + '</div>'
+            + '<div class="' + badgeCls + '">' + c.status + '</div>'
+            + '</div>';
+        }).join('');
+      } else if (grid) {
+        grid.innerHTML = '<div class="col-span-2 border-[3px] border-ink border-dashed bg-paper/50 p-8 text-center">'
+          + '<p class="font-black uppercase text-lg text-ink/40">No concepts yet</p>'
+          + '<p class="font-mono text-xs text-ink/30 mt-2">Complete a lesson to see your concept mastery here.</p>'
+          + '</div>';
+      }
+
+      // Next step
+      const nextTitle = document.getElementById('rv-next-title');
+      if (nextTitle && d.next_topic) nextTitle.textContent = d.next_topic;
+      const nextDesc = document.getElementById('rv-next-desc');
+      if (nextDesc && d.next_description) nextDesc.textContent = d.next_description;
+
+      // Empty state: no session yet — rewrite the hero for a new user
+      if (!d.has_session) {
+        var heroH1 = document.querySelector('h1.font-black.uppercase');
+        if (heroH1) heroH1.textContent = 'Ready to start learning?';
+        if (imp) imp.textContent = 'Complete your first lesson and Mentora will analyze your session, track your progress, and recommend what to study next.';
+        var badge = document.querySelector('[data-sd-id="6"]');
+        if (badge) badge.textContent = 'WELCOME TO MENTORA';
+        // Hide the next-step card for new users
+        var nextCard = document.getElementById('rv-next-title');
+        if (nextCard) { var p = nextCard.closest('[data-sd-id="54"]'); if (p) p.style.display = 'none'; }
+      }
+    } catch(e) { console.error('Session review fetch failed:', e); }
+  })();
+  </script>
+
+</body></html>

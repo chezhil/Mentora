@@ -1,0 +1,56 @@
+{
+  "You are an expert lesson planner": {
+    "topic": "Ohm's Law",
+    "language": "en",
+    "total_minutes": 20,
+    "concepts": [
+      {"name": "Current", "depth": "brief", "minutes": 4.0, "prerequisites": []},
+      {"name": "Voltage", "depth": "brief", "minutes": 5.0, "prerequisites": ["c1"]},
+      {"name": "Resistance", "depth": "standard", "minutes": 5.0, "prerequisites": ["c1"]},
+      {"name": "Ohm's Law", "depth": "standard", "minutes": 6.0, "prerequisites": ["c2", "c3"]}
+    ]
+  },
+  "You are an exam setter": {
+    "questions": [
+      {"concept_id": "c1", "kind": "mcq", "prompt": "What flows in a circuit?",
+       "options": ["electrons", "protons", "light", "heat"], "expected": "electrons"},
+      {"concept_id": "c4", "kind": "problem", "prompt": "V=10, R=5, find I.",
+       "options": null, "expected": "2A"}
+    ]
+  },
+  "You are a teacher writing a report card": {
+    "strong": ["Current", "Voltage", "Resistance", "Ohm's Law"],
+    "weak": [],
+    "misconceptions": [],
+    "revise": [],
+    "next_topic": "Series and parallel circuits"
+  },
+  "You are a curriculum designer": {
+    "steps": ["Python Fundamentals", "Mathematics for ML", "Data Processing",
+              "Supervised Learning", "Unsupervised Learning",
+              "Model Evaluation", "Neural Networks"]
+  },
+  "You are a human teacher": {
+    "concept_id": "c2",
+    "script": "Voltage is the push that moves the charge, like pressure in a hose.",
+    "visual": {"kind": "equation", "payload": "V = I R", "caption": "Ohm's Law"},
+    "question": {"id": "q_AUX_", "concept_id": "c2", "kind": "short",
+                 "prompt": "What is the push called?", "options": null,
+                 "expected": "Voltage"},
+    "used_chunk_indexes": [0, 1]
+  },
+  "You are a teacher marking one student answer": {
+    "correct": true,
+    "misconception": null,
+    "action": "continue",
+    "feedback": "Exactly right — you've got it."
+  },
+  "You are a teacher re-explaining": {
+    "concept_id": "c3",
+    "script": "Think of it as a crowd pushing through a doorway: the smaller the door, the fewer people get through each minute.",
+    "visual": {"kind": "diagram", "payload": "graph TD; A[Resistance] --> B[Less current]", "caption": null},
+    "question": {"id": "q_AUX_", "concept_id": "c3", "kind": "short",
+                 "prompt": "If the doorway gets narrower, what happens to the flow?",
+                 "options": null, "expected": "It decreases."}
+  }
+}
