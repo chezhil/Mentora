@@ -11,6 +11,7 @@ URL:  http://localhost:8000/mentora-session-review
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -819,6 +820,20 @@ async def api_signup(request: Request, response: Response):
     return res
 
 
+# There is no mail server here, so the reset code has to reach the user
+# through the response for the flow to work at all. That is safe enough for
+# someone sitting at the machine and not safe at all over a network, so it
+# goes only to loopback callers -- and MENTORA_DEBUG_RESET_TOKENS=0 turns off
+# even that. Anyone else gets the same answer with no code in it.
+LOOPBACK = {"127.0.0.1", "::1", "localhost"}
+
+
+def _may_see_reset_token(request: Request) -> bool:
+    if os.environ.get("MENTORA_DEBUG_RESET_TOKENS") == "0":
+        return False
+    return bool(request.client) and request.client.host in LOOPBACK
+
+
 @app.post("/api/auth/forgot-password")
 async def api_forgot_password(request: Request):
     try:
@@ -828,10 +843,15 @@ async def api_forgot_password(request: Request):
 
     email = data.get("email", "")
     token = auth.generate_reset_token(email)
-    if not token:
-        return JSONResponse({"ok": False, "error": "No account found with this email address."}, status_code=404)
 
-    return JSONResponse({"ok": True, "token": token, "message": "Recovery code generated."})
+    # The same answer either way. Returning 404 for an unknown address tells
+    # an anonymous caller which emails hold accounts, and returning the token
+    # itself hands out the reset without the mailbox ever being involved.
+    reply = {"ok": True, "message":
+             "If that address has an account, a recovery code has been sent."}
+    if token and _may_see_reset_token(request):
+        reply["token"] = token
+    return JSONResponse(reply)
 
 
 @app.post("/api/auth/reset-password")

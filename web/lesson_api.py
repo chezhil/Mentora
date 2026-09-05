@@ -663,13 +663,21 @@ class KeysBody(BaseModel):
 
 
 @router.post("/api/keys")
-def save_keys(body: KeysBody) -> JSONResponse:
+def save_keys(request: Request, body: KeysBody) -> JSONResponse:
     """Store API keys in .env and apply them to the running process.
 
     Writing .env as well as os.environ is what makes the key survive a
     restart; .env is gitignored, so it does not end up committed.
+
+    Signed in only: this writes the provider credentials for the whole
+    install, so leaving it open would let anyone who can reach the port
+    swap the keys out from under the running server.
     """
     import llm
+
+    if current_user(request) is None:
+        return JSONResponse({"error": "Sign in to change the API keys."},
+                            status_code=401)
 
     updates: dict[str, str] = {}
     for name, env in _KEY_ENV.items():
