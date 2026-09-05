@@ -40,7 +40,8 @@
            transition: transform 0.08s, box-shadow 0.08s; }
     .btn:hover { transform: translate(2px, 2px); box-shadow: 3px 3px 0 0 #000; }
     .btn:active { transform: translate(5px, 5px); box-shadow: 0 0 0 0 #000; }
-    .btn.talk { background: var(--acid); width: 100%; font-size: 1rem; padding: 1.1rem; }
+    .btn.talk { background: var(--acid); width: 100%; font-size: 1.15rem;
+                padding: 1.35rem; box-shadow: 8px 8px 0 0 #000; }
     .btn.talk.live { background: var(--ink); color: var(--acid); }
     .btn[disabled] { opacity: 0.45; cursor: not-allowed; box-shadow: none; transform: none; }
     .row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
@@ -177,18 +178,6 @@
           </div>
 
           <div class="panel" style="margin-top:1.25rem;">
-            <div class="label">Teacher</div>
-            <select id="teacher" style="width:100%;margin:0.4rem 0 0.9rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
-            <div class="label">Language</div>
-            <select id="lang" style="width:100%;margin:0.4rem 0 0.9rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
-            <div class="label">Voice</div>
-            <select id="voice" style="width:100%;margin:0.4rem 0 0.25rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
-            <div class="row" style="margin-top:0.4rem;">
-              <button class="btn" id="preview" style="flex:1;font-size:0.72rem;">Hear this voice</button>
-            </div>
-          </div>
-
-          <div class="panel" style="margin-top:1.25rem;">
             <button class="btn talk" id="talk">Start talking</button>
             <div class="row" style="margin-top:0.7rem;">
               <button class="btn" id="stop" style="flex:1;" disabled>Stop</button>
@@ -222,6 +211,19 @@
             </p>
           </div>
         </div>
+
+          <details class="panel" style="margin-top:1.25rem;">
+            <summary class="label" style="cursor:pointer;">Teacher, language &amp; voice</summary>
+            <div class="label" style="margin-top:0.9rem;">Teacher</div>
+            <select id="teacher" style="width:100%;margin:0.4rem 0 0.9rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
+            <div class="label">Language</div>
+            <select id="lang" style="width:100%;margin:0.4rem 0 0.9rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
+            <div class="label">Voice</div>
+            <select id="voice" style="width:100%;margin:0.4rem 0 0.25rem;padding:0.6rem;border:3px solid var(--ink);font-family:inherit;"></select>
+            <div class="row" style="margin-top:0.4rem;">
+              <button class="btn" id="preview" style="flex:1;font-size:0.72rem;">Hear this voice</button>
+            </div>
+          </details>
 
         <!-- CENTER COLUMN: Transcript + Live Board -->
         <div>
