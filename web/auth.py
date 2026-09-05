@@ -175,8 +175,29 @@ def authenticate_user(login_identifier: str, password: str) -> Optional[dict]:
         conn.close()
 
 
+MAX_SESSIONS = 5000
+
+
+def _purge_sessions() -> None:
+    """Drop expired tokens, and cap the table.
+
+    Sessions are only ever removed when someone logs out or when an expired
+    token is presented again -- a token nobody touches again sits in memory
+    until the process restarts, so the dict grows with every login for the
+    life of the server. Expiry is cheap to enforce here.
+    """
+    now = time.time()
+    for token in [t for t, s in SESSIONS.items() if now > s["expires_at"]]:
+        SESSIONS.pop(token, None)
+    if len(SESSIONS) > MAX_SESSIONS:
+        oldest = sorted(SESSIONS.items(), key=lambda kv: kv[1]["created_at"])
+        for token, _ in oldest[:len(SESSIONS) - MAX_SESSIONS]:
+            SESSIONS.pop(token, None)
+
+
 def create_session(user: dict) -> str:
     """Creates a session token for the user."""
+    _purge_sessions()
     token = secrets.token_urlsafe(32)
     SESSIONS[token] = {
         "user": user,

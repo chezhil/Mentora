@@ -92,9 +92,20 @@ def _new_live() -> tuple[str, _Live]:
     return sid, live
 
 
-def _spawn(live: _Live, phase: str, fn) -> None:
-    """Run `fn` off the request thread, recording progress on `live.job`."""
-    live.job = {"state": "running", "phase": phase, "error": ""}
+def _spawn(live: _Live, phase: str, fn) -> bool:
+    """Start `fn` off the request thread, unless this lesson is already busy.
+
+    Claiming the slot has to be ATOMIC with the check. Every handler used to
+    read live.job, decide it was idle, and call this a moment later -- and
+    under uvicorn's threadpool that gap is a scheduling boundary. Eight
+    interleaved "next" calls ran eight teaching steps against the same
+    SessionState, each mutating current_concept, the pending re-explanation
+    and the turn log. Returns False if a job was already running.
+    """
+    with live.lock:
+        if live.job.get("state") == "running":
+            return False
+        live.job = {"state": "running", "phase": phase, "error": ""}
 
     def run() -> None:
         try:
@@ -108,6 +119,7 @@ def _spawn(live: _Live, phase: str, fn) -> None:
                         "error": human_error(exc)}
 
     threading.Thread(target=run, daemon=True).start()
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -328,6 +340,10 @@ def lesson_start(body: StartBody) -> JSONResponse:
     topic = (body.topic or "").strip()
     if not topic:
         return JSONResponse({"error": "Name a topic to learn."}, status_code=400)
+    if len(topic) > 200:
+        return JSONResponse(
+            {"error": "That topic is too long — keep it under 200 characters."},
+            status_code=400)
 
     prefs = hdb.get_preferences(body.student_id)
     level = body.level or prefs.get("difficulty") or "intermediate"
@@ -338,7 +354,7 @@ def lesson_start(body: StartBody) -> JSONResponse:
         level=level,
         language=body.language or prefs.get("language") or "en",
         time_minutes=max(1, min(int(body.minutes or 5), 10)),
-        goal=(body.goal or "").strip() or None,
+        goal=((body.goal or "").strip()[:300]) or None,
         persona=body.persona or prefs.get("persona") or "socratic",
         avatar=avatar if avatar in ("f", "m") else "f",
         teacher=prefs.get("teacher") or "maya",
@@ -376,8 +392,8 @@ def lesson_next(session_id: str) -> JSONResponse:
                             status_code=404)
     if live.session is None or live.job.get("state") == "running":
         return JSONResponse({"ok": False, "job": live.job})
-    _spawn(live, "Building the next segment", lambda: _teach_one(live))
-    return JSONResponse({"ok": True})
+    started = _spawn(live, "Building the next segment", lambda: _teach_one(live))
+    return JSONResponse({"ok": started, "job": live.job})
 
 
 class AnswerBody(BaseModel):
@@ -424,8 +440,8 @@ def lesson_finish(session_id: str) -> JSONResponse:
     if live.job.get("state") == "running":
         return JSONResponse({"ok": False, "job": live.job})
     phase = "Writing the final quiz" if live.auto_quiz else "Marking the lesson"
-    _spawn(live, phase, lambda: _end_lesson(live))
-    return JSONResponse({"ok": True})
+    started = _spawn(live, phase, lambda: _end_lesson(live))
+    return JSONResponse({"ok": started, "job": live.job})
 
 
 class QuizBody(BaseModel):
@@ -442,9 +458,9 @@ def lesson_quiz(body: QuizBody) -> JSONResponse:
     if live.job.get("state") == "running":
         return JSONResponse({"ok": False, "job": live.job})
     answers = {k: v for k, v in (body.answers or {}).items() if str(v).strip()}
-    _spawn(live, "Marking the final quiz",
-           lambda: _submit_quiz(live, answers))
-    return JSONResponse({"ok": True})
+    started = _spawn(live, "Marking the final quiz",
+                     lambda: _submit_quiz(live, answers))
+    return JSONResponse({"ok": started, "job": live.job})
 
 
 @router.get("/api/lesson/media/{path:path}")
@@ -949,15 +965,18 @@ def voice_reply(body: VoiceBody) -> JSONResponse:
     said = (body.text or "").strip()
     if not said:
         return JSONResponse({"error": "Nothing was heard."}, status_code=400)
+    if len(said) > 1000:
+        said = said[:1000]
 
     prefs = hdb.get_preferences(body.student_id)
     language = body.language or prefs.get("language") or "en"
 
     # Only the last few turns: this is a conversation, and the whole history
     # would cost latency the student hears as a pause.
-    tail = [t for t in (body.history or []) if t.get("text")][-6:]
+    tail = [t for t in (body.history or [])
+            if isinstance(t, dict) and t.get("text")][-6:]
     history = "\n".join(
-        f"{'Student' if t.get('role') == 'student' else 'You'}: {t['text']}"
+        f"{'Student' if t.get('role') == 'student' else 'You'}: {str(t['text'])[:600]}"
         for t in tail
     )
     prompt = (VOICE_PROMPT

@@ -42,9 +42,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import matplotlib
+from functools import lru_cache
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import mathtext as mathtext_mod
 from matplotlib.animation import FFMpegWriter
 from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch
 
@@ -462,7 +464,11 @@ def _depth_of(elements) -> list[int]:
     out = []
     for i in range(len(elements)):
         d, seen, cur = 0, {i}, elements[i].edge_from
-        while cur is not None and cur not in seen and d < len(elements):
+        # An edge pointing at a node that does not exist is a malformed
+        # payload, not a reason to lose the diagram: walking it raised
+        # IndexError and killed the whole render.
+        while (cur is not None and cur not in seen and d < len(elements)
+               and 0 <= cur < len(elements)):
             seen.add(cur)
             cur = elements[cur].edge_from
             d += 1
@@ -524,17 +530,29 @@ def fit_label(ax, text: str, bw: float, bh: float, max_fs: float):
 # Constructs that are legal in LaTeX and fatal in matplotlib's mathtext.
 _MATH_BREAK = re.compile(r"\\\\+")          # \\ is a newline; illegal inline
 _MATH_TRAILING = re.compile(r"\\+$")
+_MATH_PARSER = mathtext_mod.MathTextParser("agg")
+
+
+@lru_cache(maxsize=512)
+def _renders(candidate: str) -> bool:
+    """Whether matplotlib can actually parse this as mathtext."""
+    try:
+        _MATH_PARSER.parse(candidate, dpi=72, prop=None)
+        return True
+    except Exception:
+        return False
 
 
 def mathtext(term: str) -> str:
-    """Wrap a term for mathtext, defusing what mathtext cannot parse.
+    """Wrap a term for mathtext, or fall back to plain text if it will not parse.
 
     matplotlib parses mathtext LAZILY, at draw time, so a bad term does not
     raise where it is created -- it raises inside savefig and takes the whole
-    video with it. One real payload contained `R\\ I`: legal LaTeX, a line
-    break in mathtext, and a ParseException that killed the render and left
-    the segment with no board at all. Cheaper to defuse the string than to
-    lose the lesson over it.
+    video with it. Defusing known-bad constructs was whack-a-mole: `R\\ I`
+    was fixed, and a bare `^`, `_`, `{`, `}` or any unknown command still got
+    through. So the term is PARSED here, once, and anything matplotlib
+    refuses is rendered as literal text instead. A term that reads slightly
+    wrong beats a segment with no board at all.
     """
     if term in ("=", "+", "-"):
         return term
@@ -542,7 +560,14 @@ def mathtext(term: str) -> str:
     safe = _MATH_TRAILING.sub("", safe)
     safe = safe.replace("$", "")            # a stray $ closes our own math
     safe = safe.strip()
-    return f"${safe}$" if safe else ""
+    if not safe:
+        return ""
+    wrapped = f"${safe}$"
+    if _renders(wrapped):
+        return wrapped
+    # Not maths matplotlib understands: show the characters themselves.
+    return safe.replace("\\", "")
+
 
 
 def _rgb(hexcolour: str) -> list[float]:

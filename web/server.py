@@ -19,7 +19,21 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-import web.auth as auth
+# `python web/server.py` puts web/ on sys.path, not the repo root, so an
+# absolute "web.auth" import fails outright -- the documented way to start
+# the server crashed with ModuleNotFoundError. Put the root on the path
+# first and the import works however the file is invoked.
+import sys as _sys
+from pathlib import Path as _Path
+
+_ROOT = _Path(__file__).resolve().parent.parent
+if str(_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_ROOT))
+
+try:
+    import web.auth as auth                      # run as a module / from root
+except ModuleNotFoundError:
+    import auth                                  # run as `python web/server.py`
 
 app = FastAPI(title="Mentora Session Review")
 
