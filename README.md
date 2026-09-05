@@ -6,6 +6,56 @@ An AI teacher that reads your material, plans a lesson for your level and the
 time you have, teaches it with an avatar and visuals, asks you questions,
 works out *why* you got something wrong, and changes its approach.
 
+## Problem statement
+
+Digital learning is mostly pre-recorded lectures or a text chatbot. Neither
+watches the student. A recorded lecture cannot notice that you did not follow
+the third step; a chatbot answers what you asked and never asks anything back.
+What is missing is the thing a teacher actually does: read the learner, plan a
+route, explain, check, and change the plan when the check fails.
+
+Mentora takes a document or a bare topic and teaches it — as a video lesson
+with a spoken, animated teacher, questions during the lesson, and a route that
+changes when the answers do.
+
+## Solution overview
+
+    upload or topic
+        -> ingest and chunk, embed into a vector store        (Pair A)
+        -> plan: concepts, order, minutes each                (Pair B)
+        -> per concept: retrieve, teach, draw, narrate, ask   (Pair B + C)
+        -> evaluate the answer, name the misconception
+        -> continue / re-explain / simplify / harden
+        -> final quiz, scored report, what to revise next
+
+Each teaching segment becomes an MP4: a matplotlib board whose elements appear
+as the narration reaches them, with the teacher drawn into the frame rather
+than laid over it. The same engine drives two surfaces — a web app and a
+Streamlit app — so neither is a mock of the other.
+
+## Key features
+
+- **Learns from your material.** PDF, DOCX, PPTX, TXT. Chunked on sentence
+  boundaries, embedded with BGE-M3, retrieved per concept, and cited on the
+  segment that used it.
+- **Or from nothing at all.** Name a topic and it plans the lesson anyway.
+- **Teaches, rather than answers.** Explains, draws, questions, marks, names
+  the misconception, and re-teaches with a different analogy before moving on.
+- **Adapts.** Two wrong answers simplify the lesson; two quick right ones
+  harden it. The student's chosen level sets the starting point.
+- **Fits the time.** 1 to 60 minutes changes how many concepts are covered and
+  how deep each goes.
+- **Eighteen languages**, each with a neural voice and the font its script
+  needs — narration, board and questions all in the chosen language.
+- **A teacher you can see.** Six characters on one SVG rig, lip-synced to the
+  narration, glancing at each element as it appears.
+- **Talk to it.** Voice mode: speak, and it answers aloud and draws while it
+  does.
+- **Remembers.** Per-student history, flashcards on an SM-2 schedule,
+  transcripts, and a report after every lesson.
+- **A classroom view.** Teachers see the class average, the reteach list —
+  misconceptions more than one student holds — and a row per student.
+
 ## Run it
 
 ```bash
@@ -172,3 +222,25 @@ demoing.
 - `CONTRACT.txt` — the interfaces. Authoritative.
 - `PAIR_A_SPLIT.txt` — how Chezhil and Utkarsh divide Pair A
 - `GIT_WORKFLOW.txt` — branch rules. Nobody commits to main.
+
+## Known limitations
+
+- **A model is required.** Groq's free tier is capped daily; when it runs out
+  the app degrades with an explanation rather than failing silently, but it
+  cannot teach. Ollama runs locally with no cap and no key.
+- **Voice input is Chrome-only.** It uses the browser's SpeechRecognition,
+  which Safari and Firefox do not implement. Those browsers get the typed
+  fallback and still hear the reply.
+- **Spoken output uses the platform's voices.** Quality varies by OS, and a
+  language with no installed voice falls back to the default rather than
+  pretending.
+- **A segment is capped at 60 seconds of narration.** Longer scripts produce
+  audio and a still image instead of a board video.
+- **The multi-day learning path and the 7-day planner are in the Streamlit
+  app only.** The engine supports them; the web UI does not expose them yet.
+- **Wav2Lip weights and Piper voices are not in the repository.** They are
+  large; `setup_assets.py` fetches them. Without them the SVG teacher is used,
+  which is the default path anyway.
+- **Sessions live in memory.** Restarting the server signs everyone out.
+- **Single-machine deployment.** SQLite and an in-process job runner are fine
+  for a classroom, not for concurrent load.

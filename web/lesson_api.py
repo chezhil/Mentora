@@ -417,7 +417,10 @@ def lesson_start(request: Request, body: StartBody) -> JSONResponse:
     profile = LearnerProfile(
         level=level,
         language=body.language or prefs.get("language") or "en",
-        time_minutes=max(1, min(int(body.minutes or 5), 10)),
+        # The brief names 5, 20 and 60 minute lessons as different shapes,
+        # and the planner sizes the concept list from this number. A cap of
+        # 10 here silently rewrote a one-hour request as ten minutes.
+        time_minutes=max(1, min(int(body.minutes or 5), 60)),
         goal=((body.goal or "").strip()[:300]) or None,
         persona=body.persona or prefs.get("persona") or "socratic",
         avatar=avatar if avatar in ("f", "m") else "f",
@@ -570,15 +573,24 @@ _UPLOAD_DIR = (_ROOT / "out" / "uploads").resolve()
 # Groq is the only provider that needs a key; ollama runs locally.
 _KEY_ENV = {"groq": "GROQ_API_KEY"}
 
-LANGUAGES = [
-    ("en", "English"), ("hi", "\u0939\u093f\u0928\u094d\u0926\u0940 (Hindi)"),
-    ("ta", "\u0ba4\u0bae\u0bbf\u0bb4\u0bcd (Tamil)"),
-    ("te", "\u0c24\u0c46\u0c32\u0c41\u0c17\u0c41 (Telugu)"),
-    ("kn", "\u0c95\u0ca8\u0ccd\u0ca8\u0ca1 (Kannada)"),
-    ("mr", "\u092e\u0930\u093e\u0920\u0940 (Marathi)"),
-    ("bn", "\u09ac\u09be\u0982\u09b2\u09be (Bengali)"),
-    ("es", "Espa\u00f1ol (Spanish)"),
-]
+# Read from shared/languages.py rather than kept as a second list here. The
+# engine defines eighteen, each with a real neural voice and the font its
+# script needs; this file offered eight, so ten working languages were
+# unreachable from the web UI purely because a literal had not been updated.
+def _languages() -> list[dict]:
+    try:
+        from shared.languages import LANGUAGES as _L
+    except Exception:
+        return [{"code": "en", "name": "English"}]
+    out = []
+    for code, lang in _L.items():
+        native = getattr(lang, "native_name", "") or ""
+        english = getattr(lang, "english_name", code) or code
+        out.append({"code": code,
+                    "name": english if native in ("", english)
+                            else f"{native} ({english})"})
+    return out
+
 
 
 def _settings(student_id: str) -> dict:
@@ -591,7 +603,7 @@ def _settings(student_id: str) -> dict:
         "teacher": prefs.get("teacher") or "maya",
         "auto_quiz": bool(prefs.get("auto_quiz", True)),
         "daily_goal": prefs.get("daily_goal") or 0,
-        "languages": [{"code": c, "name": n} for c, n in LANGUAGES],
+        "languages": _languages(),
         # Whether a key exists, never the key. Reading one back to the browser
         # would put it in the DOM, in logs and in any screenshot of the page.
         "keys": {name: bool(os.environ.get(env))

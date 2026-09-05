@@ -48,6 +48,11 @@
     }
     .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
     @media (max-width: 640px) { .config-row { grid-template-columns: 1fr; } }
+    .time-preset { flex:1; border:2px solid var(--ink); background:#fff;
+                   font-family:'Space Mono',monospace; font-size:10px; font-weight:700;
+                   text-transform:uppercase; padding:0.35rem; cursor:pointer;
+                   box-shadow:2px 2px 0 0 #000; }
+    .time-preset.on { background:var(--acid); }
   </style>
 </head>
 <body>
@@ -119,10 +124,17 @@
             <label class="font-mono" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:0.25rem;">
               Time Available &mdash; <span id="timeValue" class="font-black">5</span> min
             </label>
-            <input type="range" id="timeSlider" min="1" max="10" step="1" value="5"
+            <input type="range" id="timeSlider" min="1" max="60" step="1" value="5"
                    style="width:100%;accent-color:var(--ink);height:2.6rem;">
             <div class="font-mono" style="display:flex;justify-content:space-between;font-size:10px;color:rgba(0,0,0,0.45);">
-              <span>1 min</span><span>10 min</span>
+              <span>1 min</span><span>60 min</span>
+            </div>
+            <!-- The brief names 5, 20 and 60 minutes as distinct lesson
+                 shapes, so they are one click rather than a careful drag. -->
+            <div style="display:flex;gap:0.4rem;margin-top:0.4rem;">
+              <button type="button" class="time-preset" data-min="5">5 min</button>
+              <button type="button" class="time-preset" data-min="20">20 min</button>
+              <button type="button" class="time-preset" data-min="60">60 min</button>
             </div>
           </div>
         </div>
@@ -238,8 +250,13 @@
       if (s.difficulty) document.getElementById('levelSelect').value = s.difficulty;
 
       const slider = document.getElementById('timeSlider');
-      const show = () => document.getElementById('timeValue').textContent = slider.value;
+      const presets = [...document.querySelectorAll('.time-preset')];
+      const show = () => {
+        document.getElementById('timeValue').textContent = slider.value;
+        presets.forEach(b => b.classList.toggle('on', b.dataset.min === slider.value));
+      };
       slider.addEventListener('input', show);
+      presets.forEach(b => b.onclick = () => { slider.value = b.dataset.min; show(); });
       show();
       loadMaterials();
     }
