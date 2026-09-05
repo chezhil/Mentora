@@ -109,6 +109,33 @@
   var eyeR = svg && svg.querySelector('#eyeR');
 
   var openness = 0, target = 0, t0 = performance.now();
+  var mouthPulseTimer = null;
+  var mouthReleaseTimer = null;
+  var mouthPulseGeneration = 0;
+
+  // SpeechSynthesis boundary events are not implemented consistently across
+  // browsers. Drive a small fallback jaw pulse for the whole utterance so
+  // the SVG and 3D avatars still visibly speak when onboundary never fires.
+  function startMouthPulse() {
+    var generation = ++mouthPulseGeneration;
+    if (mouthPulseTimer) clearInterval(mouthPulseTimer);
+    if (mouthReleaseTimer) clearTimeout(mouthReleaseTimer);
+    target = 0.5;
+    mouthPulseTimer = setInterval(function () {
+      target = 0.45 + Math.random() * 0.55;
+      if (mouthReleaseTimer) clearTimeout(mouthReleaseTimer);
+      mouthReleaseTimer = setTimeout(function () {
+        if (generation === mouthPulseGeneration) target = 0.08;
+      }, 95);
+    }, 135);
+  }
+
+  function stopMouthPulse() {
+    mouthPulseGeneration++;
+    if (mouthPulseTimer) { clearInterval(mouthPulseTimer); mouthPulseTimer = null; }
+    if (mouthReleaseTimer) { clearTimeout(mouthReleaseTimer); mouthReleaseTimer = null; }
+    target = 0;
+  }
 
   function frame(now) {
     var t = (now - t0) / 1000;
@@ -431,7 +458,7 @@
       if (finished) return;
       finished = true;
       if (guard) { clearTimeout(guard); guard = null; }
-      target = 0;
+      stopMouthPulse();
       done();
     }
 
@@ -455,7 +482,10 @@
       target = 0.55 + Math.random() * 0.45;
       setTimeout(function () { target = 0.12; }, 90);
     };
-    u.onstart = function () { say('Speaking'); };
+    u.onstart = function () {
+      startMouthPulse();
+      say('Speaking');
+    };
     u.onend = settle;
     u.onerror = settle;
 
@@ -465,6 +495,9 @@
     guard = setTimeout(settle, Math.max(6000, words * 600 + 4000));
 
     try {
+      // Start immediately as well as in onstart: some browsers delay or omit
+      // the event even though they successfully begin speaking.
+      startMouthPulse();
       synth.speak(u);
     } catch (e) {
       settle();
@@ -635,7 +668,7 @@
     setTalk(false);
     stopRecog();
     if (synth) synth.cancel();
-    target = 0;
+    stopMouthPulse();
     stopVis();
     say('Ready');
     $('hint').textContent = 'Stopped. Press Start to talk again.';
@@ -644,7 +677,7 @@
   $('mute').onclick = function () {
     muted = !muted;
     $('mute').textContent = muted ? 'Unmute' : 'Mute';
-    if (muted && synth) { synth.cancel(); target = 0; stopVis(); }
+    if (muted && synth) { synth.cancel(); stopMouthPulse(); stopVis(); }
   };
 
   function sendTyped() {
