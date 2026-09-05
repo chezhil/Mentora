@@ -146,12 +146,27 @@ def chunk(pages: List[Tuple[str, Optional[int]]]) -> List[SourceChunk]:
             if is_last:
                 break
 
+            # Overlap is measured in WORDS, and the last sentence is trimmed
+            # to fit rather than carried whole. Carrying whole sentences was
+            # fine for prose, but a page with no sentence punctuation -- OCR
+            # output, slide bullets, a table -- is split into pseudo-sentences
+            # of CHUNK_MAX_WORDS, so the "40 word" overlap became 500 words:
+            # the next chunk came out at 1000 words, double the maximum, with
+            # 500 words duplicated into the index and retrieval precision
+            # ruined on exactly the documents that need it most.
             overlap_sents: List[Tuple[str, Optional[int], Optional[str]]] = []
             overlap_words = 0
             for item in reversed(curr_chunk_sents):
-                w_cnt = len(item[0].split())
+                words = item[0].split()
+                room = target_overlap_words - overlap_words
+                if len(words) > room:
+                    if room > 0:
+                        tail = " ".join(words[-room:])
+                        overlap_sents.insert(0, (tail, item[1], item[2]))
+                        overlap_words += room
+                    break
                 overlap_sents.insert(0, item)
-                overlap_words += w_cnt
+                overlap_words += len(words)
                 if overlap_words >= target_overlap_words:
                     break
 

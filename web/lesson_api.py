@@ -830,8 +830,12 @@ class ReviewBody(BaseModel):
 
 @router.post("/api/flashcards/review")
 def review_flashcard(body: ReviewBody) -> JSONResponse:
-    if body.ease not in ("again", "hard", "good", "easy"):
-        return JSONResponse({"error": "Unknown rating."}, status_code=400)
+    # Only what SM-2 actually distinguishes. "hard" was accepted here and
+    # then silently rewritten to "good" one layer down, so the caller was
+    # told its rating had been recorded when a different one had been.
+    if body.ease not in ("again", "good", "easy"):
+        return JSONResponse(
+            {"error": "Rate the card Again, Good or Easy."}, status_code=400)
     interval = orch.record_flashcard(
         body.student_id,
         {"card_key": body.card_key, "front": body.front,

@@ -40,7 +40,7 @@
     }
     .btn.dark { background: var(--ink); color: var(--acid); }
     .row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
-    .grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
+    .grades { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
     .bar { height: 12px; border: 3px solid var(--ink); background: #fff; overflow: hidden; }
     .bar > div { height: 100%; background: var(--acid); width: 0; transition: width .3s; }
     .done { text-align: center; padding: 2rem 1rem; }
@@ -89,9 +89,12 @@
           </div>
           <div id="gradeRow" style="display:none;margin-top:1.25rem;">
             <div class="label" style="margin-bottom:0.5rem;">How well did you know it?</div>
+            <!-- Three, because the scheduler has three. Offering a fourth
+                 "Hard" was a lie: save_flashcard_review maps any unknown
+                 rating to "good", so Hard and Good scheduled a card
+                 identically while looking like different answers. -->
             <div class="grades">
               <button class="btn" data-ease="again">Again</button>
-              <button class="btn" data-ease="hard">Hard</button>
               <button class="btn" data-ease="good">Good</button>
               <button class="btn" data-ease="easy">Easy</button>
             </div>
@@ -224,7 +227,7 @@
       if ($('review').style.display === 'none') return;
       if (e.code === 'Space') { e.preventDefault(); reveal(); return; }
       if (!shown) return;
-      const map = {Digit1: 'again', Digit2: 'hard', Digit3: 'good', Digit4: 'easy'};
+      const map = {Digit1: 'again', Digit2: 'good', Digit3: 'easy'};
       const ease = map[e.code];
       if (ease) document.querySelector('[data-ease="' + ease + '"]').click();
     });
