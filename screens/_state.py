@@ -77,25 +77,23 @@ def _friendly(exc: Exception) -> str:
             )
         return (
             "**Quota exhausted.**"
-            + (" This is the *daily* free-tier cap (Gemini allows 20 "
-               "requests/day), which resets at midnight US Pacific — not in a "
-               "few seconds." if per_day else "")
-            + "\n\nOne lesson costs 10-15 requests. Fix it in **⚙️ APIs** in the "
-              "sidebar: paste another team member's key, switch provider to "
-              "Groq (thousands/day, free), or switch on *Offline mode*."
+            + (" This is the *daily* free-tier cap, which resets on its own "
+               "window — not in a few seconds." if per_day else "")
+            + "\n\nFix it in **⚙️ APIs** in the sidebar: paste another team "
+              "member's Groq key, switch provider to Ollama (local, no cap), "
+              "or switch on *Offline mode*."
         )
     if "API key not valid" in msg or "API_KEY_INVALID" in msg or "PERMISSION_DENIED" in msg:
-        return ("**Gemini rejected that API key.** Paste a valid one in "
-                "**⚙️ APIs** in the sidebar. Keys from Google AI Studio start "
-                "with `AIza`.")
+        return ("**The provider rejected that API key.** Paste a valid one in "
+                "**⚙️ APIs** in the sidebar. Groq keys start with `gsk_`.")
     if "no longer available" in msg or "NOT_FOUND" in msg:
-        return (f"**That Gemini model is not available to this key.** Pick a "
+        return (f"**That model is not available to this key.** Pick a "
                 f"different one in **⚙️ APIs** in the sidebar.\n\n`{msg[:200]}`")
-    if "No Gemini API key" in msg:
-        return ("**No Gemini API key set.** Add one in **⚙️ APIs** in the "
-                "sidebar, or switch on *Offline mode*.")
+    if "No Groq API key" in msg:
+        return ("**No Groq API key set.** Add one in **⚙️ APIs** in the "
+                "sidebar, switch provider to Ollama, or switch on *Offline mode*.")
     if "deadline" in msg.lower() or "timeout" in msg.lower():
-        return "**Gemini timed out.** Try again, or use *Offline mode* in **⚙️ APIs**."
+        return "**The model timed out.** Try again, or use *Offline mode* in **⚙️ APIs**."
     return f"**{type(exc).__name__}**\n\n```\n{msg[:400]}\n```"
 
 

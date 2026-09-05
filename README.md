@@ -98,9 +98,6 @@ the wrong face, set `MENTORA_FACE_BOX="x1,y1,x2,y2"` to skip it.
 
 ### Which LLM provider
 
-Gemini's free tier is **20 requests per day**, per key, per model. One lesson
-costs **22** (measured), so a lesson cannot finish on a single free key.
-
 Groq's free tier is thousands per day and serves Llama 3.3 70B. Get a key at
 **https://console.groq.com/keys** — sign in with Google or GitHub, click
 *Create API Key*, copy it once (it is shown only once).
@@ -112,11 +109,9 @@ echo "AI_TEACHER_PROVIDER=groq" >> .env
 echo "GROQ_API_KEY=your-key-here" >> .env
 ```
 
-`AI_TEACHER_PROVIDER` accepts `groq` (the default), `gemini`, `ollama` or
-`local`. Ollama runs locally with no key and no limit; install it and
-`ollama pull llama3.1:8b`. `local` expects an OpenAI-compatible proxy at
-`GEMINI_URL` (default `http://127.0.0.1:8010`) and is only useful if you
-are running one.
+`AI_TEACHER_PROVIDER` accepts `groq` (the default) or `ollama` — the only two.
+Groq is hosted and needs a free key; Ollama runs on your own machine with no
+key and no limit, so install it and `ollama pull llama3.1:8b`.
 
 Responses are cached in `.cache/llm` keyed on the exact prompt and model, so
 repeating a lesson costs nothing. `AI_TEACHER_CACHE=0` disables it.
@@ -125,7 +120,7 @@ repeating a lesson costs nothing. `AI_TEACHER_CACHE=0` disables it.
 
 | Variable | Without it |
 |---|---|
-| `GEMINI_API_KEY` | Pair B cannot run at all. `AI_TEACHER_MOCK=mocks/fixture_mock.json` replays canned answers instead. |
+| `GROQ_API_KEY` | Pair B cannot run at all. `AI_TEACHER_MOCK=mocks/fixture_mock.json` replays canned answers instead. |
 
 Check the whole loop without a browser:
 

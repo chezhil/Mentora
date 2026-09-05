@@ -28,7 +28,7 @@ LANGUAGES = {code: languages.label(code) for code in languages.codes()}
 # ---------------------------------------------------------------------------
 # Concurrency guards. Two layers, because alone neither is enough:
 #   busy flag   - greys every button out while one call is in flight, so a
-#                 double click cannot spend double Gemini quota
+#                 double click cannot spend double model quota
 #   done tokens - an action already completed can never run twice, even if the
 #                 flag were lost to a cancelled script run
 # ---------------------------------------------------------------------------
@@ -55,11 +55,11 @@ def _release(token: str, completed: bool) -> None:
 def _friendly(exc: Exception) -> str:
     msg = str(exc)
     if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
-        return ("**Gemini quota exhausted.** One lesson costs 10-15 requests "
+        return ("**Model quota exhausted.** One lesson costs 10-15 requests "
                 "and the free tier is 20/day. Switch on offline mode or paste "
                 "another team key, then continue.")
     if "API key not valid" in msg or "PERMISSION_DENIED" in msg:
-        return ("**Gemini rejected that API key.** Paste a valid one (from "
+        return ("**The provider rejected that API key.** Paste a valid one (from "
                 "Google AI Studio, starts with AIza).")
     return f"Something went wrong: `{msg[:200]}`"
 
@@ -122,7 +122,7 @@ def _adaptation_panel(session, lang: str = "en") -> None:
 # ---------------------------------------------------------------------------
 # Language switch — the brief asks us to re-teach in another language
 # mid-conversation. It takes effect on the next part, which is fine and costs
-# no extra Gemini call.
+# no extra model call.
 # ---------------------------------------------------------------------------
 
 def _language_switch(session) -> None:

@@ -176,7 +176,6 @@
           <div class="font-mono" style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.5);margin-bottom:0.35rem;">Provider</div>
           <select id="providerSelect" style="width:100%;padding:1rem;font-size:1rem;">
             <option value="groq">Groq (recommended, free tier)</option>
-            <option value="gemini">Google Gemini</option>
             <option value="ollama">Ollama (local, no key)</option>
           </select>
         </div>
@@ -189,14 +188,7 @@
                  style="width:100%;padding:1rem;font-size:1rem;font-family:'Space Mono',monospace;border:3px solid var(--ink);">
         </div>
 
-        <div>
-          <div class="font-mono" style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.5);margin-bottom:0.35rem;">
-            Gemini key <span id="geminiSet" style="color:#128a3d;"></span>
-          </div>
-          <input type="password" id="geminiKey" placeholder="AIza..." autocomplete="off"
-                 style="width:100%;padding:1rem;font-size:1rem;font-family:'Space Mono',monospace;border:3px solid var(--ink);">
-        </div>
-      </div>
+
 
       <!-- Save -->
 
@@ -279,9 +271,7 @@
       // Say which keys already exist without ever sending their values back.
       if (s.keys) {
         document.getElementById('groqSet').textContent = s.keys.groq ? '· saved' : '';
-        document.getElementById('geminiSet').textContent = s.keys.gemini ? '· saved' : '';
         if (s.keys.groq) document.getElementById('groqKey').placeholder = 'Saved — type to replace';
-        if (s.keys.gemini) document.getElementById('geminiKey').placeholder = 'Saved — type to replace';
       }
 
       await fillTeachers();
@@ -334,17 +324,15 @@
 
       // Keys go separately: they are written to .env, not to the student row.
       const groq = document.getElementById('groqKey').value.trim();
-      const gemini = document.getElementById('geminiKey').value.trim();
       const provider = document.getElementById('providerSelect').value;
-      if (groq || gemini || provider) {
+      if (groq || provider) {
         try {
           const r = await fetch('/api/keys', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({provider, groq: groq || null, gemini: gemini || null}),
+            body: JSON.stringify({provider, groq: groq || null}),
           });
           if (r.ok) {
             document.getElementById('groqKey').value = '';
-            document.getElementById('geminiKey').value = '';
           }
         } catch (e) {}
       }

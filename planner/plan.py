@@ -1,7 +1,7 @@
 """planner.plan — Jyothi's half: turn (topic, profile, doc_id) into a LessonPlan.
 
 The critical invariant: sum(concept.minutes) == profile.time_minutes exactly.
-Gemini proposes minutes; this module force-fits them to the budget so no
+The model proposes minutes; this module force-fits them to the budget so no
 prompt drift can break the timing requirement.
 """
 
@@ -50,7 +50,7 @@ def _as_minutes(value) -> float:
 
 def _resequence(raw_concepts: list[dict], level: str) -> list[Concept]:
     """Renumber ids, drop bad prerequisites, and topologically sort so every
-    concept comes after its prerequisites. Gemini is asked to write
+    concept comes after its prerequisites. The model is asked to write
     prerequisites as ids of ITS OWN listing order (its 'c1' = its first
     concept), which we map onto listing positions before renumbering."""
     raw_concepts = [c for c in raw_concepts if isinstance(c, dict)]

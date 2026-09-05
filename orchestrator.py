@@ -198,7 +198,7 @@ def _log(session: SessionState, role: str, content: str,
 
 
 # ---------------------------------------------------------------------------
-# Context budget — Chezhil's dial. Do not send the whole transcript to Gemini.
+# Context budget — Chezhil's dial. Do not send the whole transcript to the model.
 # ---------------------------------------------------------------------------
 
 def trim_state(session: SessionState) -> SessionState:

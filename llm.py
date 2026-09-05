@@ -1,7 +1,8 @@
-"""Gemini access. One place that talks to the SDK, everything else uses it.
+"""Model access. One place that talks to the provider, everything else uses it.
 
 Contract rule: the current SDK is `google-genai` (NOT google-generativeai).
-Usage: set GEMINI_API_KEY (or GOOGLE_API_KEY) as an environment variable.
+Usage: set GROQ_API_KEY, or run ollama locally and set
+AI_TEACHER_PROVIDER=ollama.
 
 For offline testing without an API key, call `set_handler(fn)` with a
 function that maps a prompt to its JSON text. Tests use this.
@@ -16,43 +17,23 @@ from pathlib import Path
 import re
 from typing import Callable
 
-# google-genai is only needed for the "gemini" (Google Cloud/API) provider.
-# Imported lazily in _get_client() so the app can boot with the local or
-# OpenAI-compatible providers without the SDK installed.
-# There is also a 3rd-party clash: `google.genai` must not be imported when a
-# local/OpenAI provider on a local base_url is in use, or the module import
-# (which resolves the package) may be shadowed.
-
-# Default: groq. See the provider note below for why it is not "local".
+# Two providers, both speaking the OpenAI API: Groq (hosted, free tier) and
+# Ollama (on this machine, no key). Gemini and the private "local" proxy were
+# removed -- Gemini's default model never existed so every call 404'd, and
+# "local" pointed at a port on one developer's laptop. One client, one code
+# path, and nothing that only works on someone else's machine.
 _PROVIDER_EARLY = os.environ.get("AI_TEACHER_PROVIDER", "groq").strip().lower()
 _MODEL_DEFAULTS = {
-    "local": "gemini-3.7-flash",
-    # "gemini-3.6-flash" does not exist and never did: every call on the
-    # gemini provider died with a 404 from models.generateContent, so the
-    # documented fallback was dead on arrival. "gemini-flash-latest" is the
-    # moving alias, so it will not rot the next time the numbering changes.
-    "gemini": "gemini-flash-latest",
     "groq": "openai/gpt-oss-120b",
     "ollama": "llama3.1:8b",
 }
-_MODEL_PREFIX = {
-    "gemini": ("gemini",),
-    "local": ("gemini",),
-}
+PROVIDERS = ("groq", "ollama")
 
 
 def _pick_model() -> str:
-    """Honour AI_TEACHER_MODEL, but not when it belongs to another provider."""
-    default = _MODEL_DEFAULTS.get(_PROVIDER_EARLY, "gemini-3.7-flash")
-    wanted = os.environ.get("AI_TEACHER_MODEL", "").strip()
-    if not wanted:
-        return default
-    prefixes = _MODEL_PREFIX.get(_PROVIDER_EARLY)
-    if prefixes and not wanted.startswith(prefixes):
-        return default
-    if _PROVIDER_EARLY not in ("gemini", "local") and wanted.startswith("gemini"):
-        return default
-    return wanted
+    """Honour AI_TEACHER_MODEL, falling back to the provider's default."""
+    default = _MODEL_DEFAULTS.get(_PROVIDER_EARLY, _MODEL_DEFAULTS["groq"])
+    return os.environ.get("AI_TEACHER_MODEL", "").strip() or default
 
 
 MODEL = _pick_model()
@@ -60,9 +41,7 @@ MODEL = _pick_model()
 # Milliseconds. One segment is a few seconds normally; 60s is generous and
 # still bounded. Override with AI_TEACHER_TIMEOUT_MS if a slow link needs it.
 REQUEST_TIMEOUT_MS = int(os.environ.get("AI_TEACHER_TIMEOUT_MS", "60000"))
-API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
-_client = None
 _handler: Callable[[str], str] | None = None
 _mock: dict | None = None
 
@@ -130,48 +109,33 @@ def cache_stats() -> dict:
 
 
 def configure(provider: str | None = None, api_key: str | None = None,
-              model: str | None = None, local_url: str | None = None) -> None:
+              model: str | None = None) -> None:
     """Change provider / key / model at runtime, correctly.
 
-    PROVIDER, MODEL and the keys are read once at import, and both SDK clients
-    are built once and cached. So setting os.environ["GEMINI_API_KEY"] after
-    import — which is what server.py's /api/start did with the key pasted into
-    the web form — changed nothing at all: the request still went out on
-    whatever was present at startup.
+    PROVIDER, MODEL and the key are read once at import and the client is
+    built once and cached. So setting os.environ["GROQ_API_KEY"] after import
+    — which is what the web form's key field did — changed nothing at all:
+    the request still went out on whatever was present at startup.
 
-    app.py did the whole dance by hand, including reaching into llm._client and
-    llm._openai_client. One place to get it right, so the two callers cannot
-    drift apart.
+    app.py did the whole dance by hand, reaching into llm._openai_client.
+    One place to get it right, so the two callers cannot drift apart.
     """
-    global PROVIDER, MODEL, API_KEY, LOCAL_KEY, LOCAL_BASE_URL
-    global _client, _openai_client
+    global PROVIDER, MODEL, _openai_client
 
     if provider:
         provider = provider.strip().lower()
-        if provider != PROVIDER:
+        if provider in PROVIDERS and provider != PROVIDER:
             PROVIDER = provider
             os.environ["AI_TEACHER_PROVIDER"] = provider
 
-    if local_url:
-        LOCAL_BASE_URL = local_url
-        os.environ["GEMINI_URL"] = local_url
-
-    if api_key:
-        if PROVIDER == "groq":
-            os.environ["GROQ_API_KEY"] = api_key
-        elif PROVIDER == "local":
-            LOCAL_KEY = api_key
-            os.environ["GEMINI_API_KEY"] = api_key
-        else:
-            API_KEY = api_key
-            os.environ["GEMINI_API_KEY"] = api_key
+    if api_key and PROVIDER == "groq":
+        os.environ["GROQ_API_KEY"] = api_key
 
     if model:
         MODEL = model
         os.environ["AI_TEACHER_MODEL"] = model
 
     # Both clients bake the key and base URL in at construction time.
-    _client = None
     _openai_client = None
 
 
@@ -195,21 +159,18 @@ def _mock_response(prompt: str) -> str | None:
 # ---------------------------------------------------------------------------
 # Provider
 #
-# Gemini's free tier is 20 requests per day, per key, per model. One lesson
-# costs 22 — measured — so a single lesson cannot finish on one key. Groq's
-# free tier is thousands a day and serves Llama 3.3 70B, which is close enough
-# in quality for teaching content and misconception naming.
+# Groq is the hosted option: a free tier measured in thousands of requests a
+# day, capped on tokens rather than requests, serving a model good enough for
+# teaching content and misconception naming. Ollama is the offline one: no
+# key, no cap, whatever the machine can run.
 #
 #   AI_TEACHER_PROVIDER=groq     (default) needs GROQ_API_KEY
-#   AI_TEACHER_PROVIDER=gemini             needs GEMINI_API_KEY
 #   AI_TEACHER_PROVIDER=ollama             needs ollama running locally
-#   AI_TEACHER_PROVIDER=local              needs a proxy on GEMINI_URL
 #
 # The default was "local", which points at http://127.0.0.1:8010 -- a private
 # proxy that exists on one developer's machine and nowhere else. Every fresh
 # clone therefore failed on its first LLM call with a bare connection-refused
 # to a localhost port the README never mentions, and the comment here claimed
-# the default was gemini, so neither the docs nor the code told the truth.
 # Defaulting to groq means a clone with no key gets the actionable message in
 # _openai_key() instead, pointing at the free tier the README recommends.
 #
@@ -219,22 +180,13 @@ def _mock_response(prompt: str) -> str | None:
 
 PROVIDER = os.environ.get("AI_TEACHER_PROVIDER", "groq").strip().lower()
 
-DEFAULT_MODELS = {
-    "local": "gemini-3.7-flash",
-    "gemini": "gemini-flash-latest",
-    "groq": "openai/gpt-oss-120b",
-    "ollama": "llama3.1:8b",
-}
+DEFAULT_MODELS = dict(_MODEL_DEFAULTS)
 
 OPENAI_BASE_URLS = {
     "groq": "https://api.groq.com/openai/v1",
     "ollama": os.environ.get("OLLAMA_HOST", "http://localhost:11434") + "/v1",
 }
 
-# Local / self-hosted LLM (e.g. the local Gemini proxy at 127.0.0.1:8010).
-# It exposes the OpenAI Responses API, so it is handled by _complete_local.
-LOCAL_BASE_URL = os.environ.get("GEMINI_URL", "http://127.0.0.1:8010")
-LOCAL_KEY = os.environ.get("GEMINI_KEY", "sk-gemini")
 
 _openai_client = None
 
@@ -276,123 +228,6 @@ def _complete_openai(prompt: str) -> str:
     return resp.choices[0].message.content or ""
 
 
-def _complete_local(prompt: str) -> str:
-    """Local self-hosted LLM speaking the OpenAI Responses API.
-
-    Server advertises /v1/models and /v1/responses (no /chat/completions).
-    Uses stdlib urllib so no openai SDK is required for the local provider.
-    """
-    import urllib.request
-    import urllib.error
-
-    body = json.dumps({
-        "model": MODEL,
-        "input": [{"role": "user", "content": prompt}],
-        "max_output_tokens": 8192,
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        f"{LOCAL_BASE_URL}/v1/responses",
-        data=body,
-        headers={
-            "Authorization": f"Bearer {LOCAL_KEY}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_MS / 1000) as resp:
-            raw = resp.read().decode("utf-8")
-    except urllib.error.HTTPError as exc:
-        raise LLMError(
-            f"Local LLM ({LOCAL_BASE_URL}) returned HTTP {exc.code}: "
-            f"{exc.read().decode(errors='replace')[:300]}"
-        ) from exc
-    except urllib.error.URLError as exc:
-        raise LLMError(
-            f"Could not reach local LLM at {LOCAL_BASE_URL}: {exc.reason}"
-        ) from exc
-
-    # The proxy returns HTTP 200 even on backend errors, with a plain-text
-    # body like "Internal Server Error". Guard against a non-JSON body.
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise LLMError(
-            f"Local LLM ({LOCAL_BASE_URL}) returned non-JSON body: "
-            f"{raw[:200].strip()!r}"
-        ) from exc
-    if not isinstance(data, dict):
-        raise LLMError(
-            f"Local LLM ({LOCAL_BASE_URL}) returned an unexpected body: "
-            f"{str(data)[:200]!r}"
-        )
-
-    text = data.get("output_text") or ""
-    if not text:
-        for item in data.get("output", []) or []:
-            if not isinstance(item, dict):
-                continue
-            for c in item.get("content", []) or []:
-                if isinstance(c, str):
-                    text += c
-                    continue
-                if not isinstance(c, dict):
-                    continue
-                # One "text" field, or {"text": [...]} of str or {text:...}.
-                t = c.get("text")
-                if isinstance(t, str):
-                    text += t
-                elif isinstance(t, list):
-                    for p in t:
-                        if isinstance(p, str):
-                            text += p
-                        elif isinstance(p, dict):
-                            text += p.get("text", "")
-    return text.strip()
-
-
-def _get_client():
-    global _client
-    if _client is None:
-        # Delayed import so the app boots without google-genai installed when
-        # a non-gemini provider (local/groq/ollama) is selected.
-        from google import genai
-        from google.genai import types
-        if not API_KEY:
-            raise LLMError(
-                "No Gemini API key found. Set the environment variable "
-                "GEMINI_API_KEY (or GOOGLE_API_KEY) and try again. "
-                "Each team member uses their own key."
-            )
-        # A request with no timeout hangs forever. It did: the app sat on
-        # plan() with an open socket to Google, 0% CPU, and no way out but
-        # killing the server. On demo day that is fatal, so cap it.
-        _client = genai.Client(
-            api_key=API_KEY,
-            http_options=types.HttpOptions(
-                timeout=REQUEST_TIMEOUT_MS,
-                # Retry genuinely transient server errors, but NOT 429.
-                #
-                # The SDK retries 429 by default with exponential backoff. Our
-                # 429 is a DAILY quota — it will not recover in seconds, so the
-                # retries just sit there. That is what "the server got stuck
-                # after I clicked start lesson": an open socket to Google, 0%
-                # CPU, and no error, when the actual response had come back in
-                # 0.6 seconds saying the quota was gone.
-                #
-                # Excluding 429 lets it surface at once, so the app can say so
-                # and offer another key.
-                retry_options=types.HttpRetryOptions(
-                    attempts=2,
-                    initial_delay=1.0,
-                    max_delay=4.0,
-                    http_status_codes=[500, 502, 503, 504],
-                ),
-            ),
-        )
-    return _client
-
-
 def _complete(prompt: str) -> str:
     if _handler is not None:
         return _handler(prompt)
@@ -404,38 +239,19 @@ def _complete(prompt: str) -> str:
     if cached is not None:
         return cached
 
-    if PROVIDER in OPENAI_BASE_URLS:
-        text = _complete_openai(prompt)
-        _cache_put(prompt, text)
-        return text
-
-    if PROVIDER == "local":
-        text = _complete_local(prompt)
-        _cache_put(prompt, text)
-        return text
-
-    # `types` is imported inside _get_client(), which is a DIFFERENT scope.
-    # Using it here raised NameError on every Gemini call, so selecting Gemini
-    # in the APIs panel could not work at all. Same delayed import, so the app
-    # still boots without google-genai installed.
-    from google.genai import types
-
-    resp = _get_client().models.generate_content(
-        model=MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0.4,
-            max_output_tokens=8192,
-        ),
-    )
-    _cache_put(prompt, resp.text)
-    return resp.text
+    if PROVIDER not in OPENAI_BASE_URLS:
+        raise LLMError(
+            f"Unknown provider {PROVIDER!r}. Set AI_TEACHER_PROVIDER to "
+            "'groq' or 'ollama'."
+        )
+    text = _complete_openai(prompt)
+    _cache_put(prompt, text)
+    return text
 
 
 def _parse_json(text: str) -> dict:
     if not text:
-        raise LLMError("Gemini returned an empty response.")
+        raise LLMError("The model returned an empty response.")
     text = text.strip()
     if re.match(r"^```", text):
         text = re.sub(r"^```[a-zA-Z]*\s*", "", text)
@@ -457,7 +273,7 @@ def _parse_json(text: str) -> dict:
 # A 429 is two completely different problems wearing the same number.
 #
 #   Groq, tokens-per-minute:  "Please try again in 4.24s"   -> waiting works
-#   Gemini, requests-per-day: resets at midnight US Pacific -> waiting is futile
+#   Groq, tokens-per-day: resets on its own daily window -> waiting is futile
 #
 # Both used to end the lesson identically, and the message said "daily quota
 # exhausted" either way — so a four-second hiccup mid-demo looked like the key

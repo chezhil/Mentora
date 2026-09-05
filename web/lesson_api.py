@@ -142,7 +142,7 @@ def human_error(exc: Exception) -> str:
                               "502", "504")):
         return ("The teaching model is busy right now. Give it a few seconds "
                 "and try again.")
-    if "No Groq API key" in msg or "No Gemini API key" in msg or "api key" in msg.lower():
+    if "No Groq API key" in msg or "api key" in msg.lower():
         return "No API key is set. Add one in Settings to start teaching."
     return f"{type(exc).__name__}: {msg[:160]}"
 
@@ -499,7 +499,8 @@ def serve_lesson():
 import history.db as hdb                                        # noqa: E402
 
 _UPLOAD_DIR = (_ROOT / "out" / "uploads").resolve()
-_KEY_ENV = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY"}
+# Groq is the only provider that needs a key; ollama runs locally.
+_KEY_ENV = {"groq": "GROQ_API_KEY"}
 
 LANGUAGES = [
     ("en", "English"), ("hi", "\u0939\u093f\u0928\u094d\u0926\u0940 (Hindi)"),
@@ -578,7 +579,6 @@ def save_settings(body: SettingsBody) -> JSONResponse:
 class KeysBody(BaseModel):
     provider: str | None = None
     groq: str | None = None
-    gemini: str | None = None
 
 
 @router.post("/api/keys")
@@ -596,7 +596,7 @@ def save_keys(body: KeysBody) -> JSONResponse:
         if value:
             updates[env] = value
     provider = (body.provider or "").strip().lower()
-    if provider in ("groq", "gemini", "ollama", "local"):
+    if provider in ("groq", "ollama"):
         updates["AI_TEACHER_PROVIDER"] = provider
 
     if not updates:

@@ -10,7 +10,7 @@ and the escalation to 'simplify' all get exercised.
 """
 
 
-try:                       # load .env if present; it holds GEMINI_API_KEY
+try:                       # load .env if present; it holds GROQ_API_KEY
     from dotenv import load_dotenv
     load_dotenv()
 except Exception:

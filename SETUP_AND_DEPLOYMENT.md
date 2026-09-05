@@ -4,7 +4,7 @@
 The Mentora AI Teacher solution utilizes the following third-party libraries, embedding models, and services:
 
 1. **Google GenAI SDK (`google-genai`)**:
-   - Used for LLM generation, lesson structuring, misconception diagnosis, and multi-turn student adaptation using Gemini Flash.
+   - Used for LLM generation, lesson structuring, misconception diagnosis, and multi-turn student adaptation using Groq (or a local Ollama model).
 2. **BAAI BGE-M3 (`BAAI/bge-m3`)**:
    - 1024-dimensional dense multilingual embedding model used for cross-lingual vector retrieval. Maps non-English student queries (Hindi, Hinglish, Tamil, Kannada) into the same semantic vector space as English textbook material.
 3. **ChromaDB (`chromadb`)**:

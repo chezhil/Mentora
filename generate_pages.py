@@ -14,7 +14,7 @@ pages = {
                         <input type="file" id="doc-upload" class="brutal-input" style="padding: 10px; cursor: pointer;">
                         
                         <p style="margin-top: 20px; font-weight: bold;">API Configuration:</p>
-                        <input type="password" id="api-key-input" class="brutal-input" placeholder="ENTER GEMINI API KEY">
+                        <input type="password" id="api-key-input" class="brutal-input" placeholder="ENTER GROQ API KEY">
                         
                         <button id="start-session-btn" class="brutal-btn action-btn" style="margin-top: 20px;">START SESSION</button>
                     </div>

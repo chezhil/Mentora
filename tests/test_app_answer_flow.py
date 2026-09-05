@@ -21,11 +21,10 @@ class AppAnswerFlowTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls._saved_env = {k: os.environ.get(k) for k in (
-            "AI_TEACHER_MOCK", "AI_TEACHER_PROVIDER", "GEMINI_URL", "GEMINI_KEY")}
+            "AI_TEACHER_MOCK", "AI_TEACHER_PROVIDER", "GROQ_API_KEY")}
         os.environ["AI_TEACHER_MOCK"] = "mocks/fixture_mock.json"
         os.environ["AI_TEACHER_PROVIDER"] = "local"
-        os.environ["GEMINI_URL"] = "http://127.0.0.1:8010"
-        os.environ["GEMINI_KEY"] = "test"
+        os.environ["GROQ_API_KEY"] = "test"
 
     @classmethod
     def tearDownClass(cls):

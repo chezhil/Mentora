@@ -1,10 +1,10 @@
 # Prompt & Agent Architecture
 
 Every model call in Mentora goes through a single, thin agent design: one
-prompt template per job, filled with `prompts.fill(...)`, sent to Gemini via
+prompt template per job, filled with `prompts.fill(...)`, sent to the model via
 `llm.generate_json`, and validated into a `shared/models` shape. There is no
 chain-of-thought scaffold and no tool-use layer — each step is one focused
-call, which keeps cost low on the free Gemini tier and keeps failures simple
+call, which keeps cost low on the free tier and keeps failures simple
 to debug.
 
 ## The one rule that holds it together
@@ -18,7 +18,7 @@ name=value, ...)`, which does a literal string replace.
 Every prompt ends with the same instruction: return ONLY a JSON object with
 no markdown fences and no explanation. `llm._parse_json` strips code fences
 anyway, then `json.loads`es the object (falling back to a raw-decode scan if
-Gemini wraps it in prose). `generate_json` retries once on a parse failure.
+the model wraps it in prose). `generate_json` retries once on a parse failure.
 
 ## The prompts we ship
 
@@ -56,7 +56,7 @@ context trim is tuned in `shared/config.py` (`CONTEXT_FULL_TURNS`,
 ## Deterministic enforcement after the call
 
 Trusting the model is not enough, so each caller hard-fixes what must be
-true regardless of what Gemini guessed:
+true regardless of what the model guessed:
 
 - `next_segment` overwrites `citations` with the real retrieved chunks, so we
   never ship a hallucinated page number.

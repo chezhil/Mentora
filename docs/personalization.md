@@ -8,5 +8,5 @@ Mentora uses a multi-faceted approach to personalize learning:
 
 # AI/ML models used
 
-- **LLM Generation**: Google Gemini Flash via `google-genai` SDK is used as the core engine for planning, teaching, generating quizzes, and evaluating answers.
+- **LLM Generation**: Groq Flash via `google-genai` SDK is used as the core engine for planning, teaching, generating quizzes, and evaluating answers.
 - **Embeddings**: BAAI BGE-M3 for multilingual vector retrieval of document chunks.

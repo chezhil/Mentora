@@ -17,7 +17,7 @@ sentence-transformers>=2.7     # loads BAAI/bge-m3
                                # sentence-transformers, so this is not needed
 
 # Pair B — planner/ teacher/ (Jyothi, Naman)
-google-genai>=1.0              # NOT google-generativeai
+# google-genai removed with the gemini provider: nothing imports it now.
 openai>=1.40                   # Groq and Ollama speak the OpenAI API
 
 # Pair C — prompt_101/media_pipeline (Santosh, Hamza)

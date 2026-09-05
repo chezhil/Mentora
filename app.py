@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 import streamlit as st
 
-try:                       # load .env if present; it holds GEMINI_API_KEY
+try:                       # load .env if present; it holds GROQ_API_KEY
     from dotenv import load_dotenv
     load_dotenv()
 except Exception:
@@ -58,7 +58,7 @@ ROLES = ("student", "teacher")
 st.set_page_config(
     page_title="Mentora — AI Teacher", page_icon="🎓", layout="wide",
     menu_items={
-        "About": "**Mentora** — AI Teacher.\n\nTo change the Gemini API key "
+        "About": "**Mentora** — AI Teacher.\n\nTo change the API key "
                  "or switch to offline mode, use the **⚙️ APIs** panel at the "
                  "bottom of the sidebar. (Streamlit does not allow custom "
                  "controls in this menu.)",
@@ -110,29 +110,22 @@ animations.inject_animations()
 
 
 # ---------------------------------------------------------------------------
-# API Panel — swap the Gemini key without restarting
+# API Panel — swap the API key without restarting
 # ---------------------------------------------------------------------------
 
 ENV_PATH = ".env"
 
-PROVIDERS = ["local", "gemini", "groq", "ollama"]
+# Two providers: Groq hosted, Ollama on this machine. Gemini was removed --
+# its configured model never existed, so every call 404'd -- and with it the
+# private "local" proxy, which only ever resolved on one developer's laptop.
+PROVIDERS = ["groq", "ollama"]
 
 PROVIDER_MODELS = {
-    "local": ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash"],
     "groq": ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'groq/compound', 'groq/compound-mini', 'openai/gpt-oss-20b'],
     "ollama": ["llama3.1:8b", "qwen2.5:7b", "gemma2:9b"],
 }
 
-PROVIDER_KEY_ENV = {"gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY", "local": "GEMINI_KEY"}
-
-GEMINI_MODELS = [
-    "gemini-2.5-flash-lite",
-    "gemini-3.1-flash-lite",
-    "gemini-3.5-flash-lite",
-    "gemini-3.6-flash",
-    "gemini-3.7-flash",
-    "gemini-3.8-flash",
-]
+PROVIDER_KEY_ENV = {"groq": "GROQ_API_KEY"}
 
 
 def _mask(value: str | None) -> str:
@@ -161,7 +154,7 @@ def _write_env(updates: dict) -> None:
 
 
 def api_panel() -> None:
-    """Swap the Gemini key without restarting — for when quota runs out mid-demo."""
+    """Swap the API key without restarting — for when quota runs out mid-demo."""
     import llm
 
     opened = st.session_state.pop("api_panel_open", False)
@@ -175,8 +168,8 @@ def api_panel() -> None:
         else:
             avatar_line = "🟡 placeholder (still image)"
 
-        active_key = llm.LOCAL_KEY if llm.PROVIDER == "local" else (llm.API_KEY or "")
-        active_endpoint = llm.LOCAL_BASE_URL if llm.PROVIDER == "local" else "Google Cloud / API"
+        active_key = os.environ.get("GROQ_API_KEY", "") if llm.PROVIDER == "groq" else ""
+        active_endpoint = llm.OPENAI_BASE_URLS.get(llm.PROVIDER, llm.PROVIDER)
         st.caption(
             f"Provider: `{llm.PROVIDER}`  \n"
             f"Model: `{llm.MODEL}`  \n"
@@ -189,26 +182,20 @@ def api_panel() -> None:
         provider = st.selectbox(
             "Provider", PROVIDERS,
             index=PROVIDERS.index(llm.PROVIDER) if llm.PROVIDER in PROVIDERS else 0,
-            help="Local proxy runs on http://127.0.0.1:8010. Groq/Gemini use cloud APIs."
+            help="Groq is a hosted API and needs a free key. "
+                 "Ollama runs on this machine and needs none."
         )
 
-        local_url = ""
-        if provider == "local":
-            local_url = st.text_input("Local LLM Base URL", value=llm.LOCAL_BASE_URL)
-            key = st.text_input("Local API Key", value=llm.LOCAL_KEY, type="password")
-            key_env = "GEMINI_KEY"
+        key_env = PROVIDER_KEY_ENV.get(provider)
+        key = ""
+        if key_env:
+            key = st.text_input(
+                f"{provider.title()} API key", type="password",
+                placeholder="free key from console.groq.com/keys")
         else:
-            key_env = PROVIDER_KEY_ENV.get(provider)
-            key = ""
-            if key_env:
-                key = st.text_input(
-                    f"{provider.title()} API key", type="password",
-                    placeholder="free key from console.groq.com/keys"
-                                if provider == "groq" else "paste a key")
-            else:
-                st.caption("Ollama needs no key — just `ollama serve` running.")
+            st.caption("Ollama needs no key — just `ollama serve` running.")
 
-        models = PROVIDER_MODELS.get(provider, GEMINI_MODELS)
+        models = PROVIDER_MODELS.get(provider, PROVIDER_MODELS["groq"])
         model = st.selectbox(
             "Model", models,
             index=models.index(llm.MODEL) if llm.MODEL in models else 0)
@@ -224,8 +211,6 @@ def api_panel() -> None:
             saved = {}
             if provider != llm.PROVIDER:
                 saved["AI_TEACHER_PROVIDER"] = provider
-            if provider == "local" and local_url:
-                saved["GEMINI_URL"] = local_url
             if key and key_env:
                 saved[key_env] = key
 
@@ -233,8 +218,7 @@ def api_panel() -> None:
                 saved["AI_TEACHER_MODEL"] = model
             # One call: it sets the globals, updates the environment AND drops
             # both cached SDK clients, which hold the old key and base URL.
-            llm.configure(provider=provider, api_key=key or None, model=model,
-                          local_url=local_url if provider == "local" else None)
+            llm.configure(provider=provider, api_key=key or None, model=model)
             if new_offline:
                 os.environ["AI_TEACHER_MOCK"] = "mocks/fixture_mock.json"
             else:

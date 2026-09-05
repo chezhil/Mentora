@@ -3,8 +3,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 
 # Load .env BEFORE orchestrator, which imports llm, which reads the provider
 # and the API key at import time. Without this the server always fell back to
-# the Gemini default with no key, and every /api call returned a 500 reading
-# "No Gemini API key found" even with a perfectly good GROQ_API_KEY sitting in
+# the default provider with no key, and every /api call returned a 500 reading
+# "No Groq API key found" even with a perfectly good GROQ_API_KEY sitting in
 # .env. app.py has always done this; server.py was missing it.
 try:
     from dotenv import load_dotenv

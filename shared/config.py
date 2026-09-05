@@ -5,7 +5,7 @@ wrong. Change them deliberately, not while debugging something else.
 """
 
 # How many recent turns go to the LLM in full. Everything older is collapsed
-# into one summary Turn. Raising this is the fastest way to blow the Gemini
+# into one summary Turn. Raising this is the fastest way to blow the provider's
 # rate limit on a 60-minute lesson.
 CONTEXT_FULL_TURNS = 6
 

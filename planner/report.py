@@ -2,7 +2,7 @@
 
 The score is computed deterministically from evaluations (correct/total).
 The narrative parts (strong, weak, misconceptions, revise, next_topic) are
-written by Gemini from the session history.
+written by the model from the session history.
 """
 
 from __future__ import annotations

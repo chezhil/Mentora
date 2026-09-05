@@ -5,7 +5,7 @@ to a talking-head avatar video: a still photo + synthesized speech, where the
 photo's mouth is lip-synced (Wav2Lip) so it looks like a real teacher talking.
 
 Pipeline:
-  1. Script generation  -> local Gemini  (falls back to template if Gemini down)
+  1. Script generation  -> the shared llm module (template if it is down)
   2. Speech synthesis   -> Piper (local, free)
   3. Avatar render      -> Wav2Lip photo + audio -> talking-head MP4
 
@@ -27,41 +27,30 @@ ROOT = Path(__file__).resolve().parent
 FACE_IMAGE = ROOT / "assets" / "teacher.jpg"
 PIPER_VOICE = ROOT / "prompt_101" / "media_pipeline" / "piper_models" / "en_US-lessac-medium.onnx"
 
-GEMINI_URL = os.environ.get("GEMINI_URL", "http://127.0.0.1:8010")
-GEMINI_KEY = os.environ.get("GEMINI_KEY", "sk-gemini")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.7-flash")
 
 
 # ---------------------------------------------------------------------------
-# 1. Teaching script: try local Gemini, fall back to a deterministic template.
+# 1. Teaching script: ask the shared llm module, fall back to a template.
+#
+# This spoke HTTP directly to a private proxy on 127.0.0.1:8010 with its own
+# model name and key. That proxy is gone along with the gemini provider, and
+# a second way to reach a model was never worth maintaining: llm.py already
+# handles provider choice, caching, timeouts and retries.
 # ---------------------------------------------------------------------------
 
-def _gemini_script(topic: str, level: str) -> str:
+def _model_script(topic: str, level: str) -> str:
     prompt = (
         f"You are a friendly teacher. Write a short spoken narration to teach "
         f"'{topic}' to a {level} student. Keep it to 3-4 clear, simple spoken "
-        f"sentences. Speak directly to the student. No markdown, no headers."
-    )
-    body = json.dumps({
-        "model": GEMINI_MODEL,
-        "input": prompt,
-        "max_output_tokens": 200,
-    }).encode()
-    req = urllib.request.Request(
-        f"{GEMINI_URL}/v1/responses",
-        data=body,
-        headers={
-            "Authorization": f"Bearer {GEMINI_KEY}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
+        f"sentences. Speak directly to the student. No markdown, no headers. "
+        f'Return json: {{"script": "..."}}'
     )
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read().decode())
-        return _extract_text(data)
+        import llm
+        data = llm.generate_json(prompt)
+        return str((data or {}).get("script") or "").strip()
     except Exception as e:
-        print(f"[avatar] Gemini unavailable ({type(e).__name__}: {e}); "
+        print(f"[avatar] model unavailable ({type(e).__name__}: {e}); "
               f"using template script")
         return ""
 
@@ -88,7 +77,7 @@ def _template_script(topic: str, level: str) -> str:
 
 
 def make_script(topic: str, level: str) -> str:
-    script = _gemini_script(topic, level)
+    script = _model_script(topic, level)
     return script or _template_script(topic, level)
 
 
