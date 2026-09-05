@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mentora — Accounts</title>
+  <link rel="stylesheet" href="/static/brutalist.css">
+  <style>
+    .wrap { max-width: 900px; margin: 0 auto; padding: 1.5rem 1.25rem 5rem; }
+    .panel { border: 3px solid var(--ink); background: #fff;
+             box-shadow: 8px 8px 0 0 #000; padding: 1.25rem; margin-bottom: 1.5rem; }
+    .label { font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700;
+             text-transform: uppercase; letter-spacing: 0.12em; color: rgba(0,0,0,0.45); }
+    h1 { font-family: 'Archivo Black', sans-serif; font-size: clamp(1.6rem,4vw,2.4rem);
+         text-transform: uppercase; line-height: 1.05; margin: 0.35rem 0 0.5rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th { font-family: 'Space Mono', monospace; font-size: 10px; text-transform: uppercase;
+         letter-spacing: 0.1em; color: rgba(0,0,0,0.5); text-align: left;
+         padding: 0.5rem; border-bottom: 3px solid var(--ink); }
+    td { padding: 0.7rem 0.5rem; border-bottom: 2px solid rgba(0,0,0,0.1); font-size: 0.9rem; }
+    .who { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; }
+    select { border: 3px solid var(--ink); padding: 0.4rem; font-family: inherit; font-size: 0.8rem; }
+    .btn { font-family: 'Archivo Black', sans-serif; text-transform: uppercase;
+           border: 3px solid var(--ink); padding: 0.5rem 0.8rem; font-size: 0.7rem;
+           background: #fff; color: var(--ink); box-shadow: 4px 4px 0 0 #000;
+           cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn.dark { background: var(--ink); color: var(--acid); }
+    .btn.danger { background: #ffd9d0; }
+    .btn[disabled] { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+    .hint { font-size: 0.85rem; color: rgba(0,0,0,0.55); line-height: 1.55; }
+    .pill { display: inline-block; border: 2px solid var(--ink); padding: 0.15rem 0.5rem;
+            font-family: 'Space Mono', monospace; font-size: 10px; text-transform: uppercase; }
+    .pill.admin { background: var(--acid); }
+    .pill.teacher { background: #d9e8ff; }
+    #msg { display: none; margin-top: 0.9rem; border: 3px solid var(--ink);
+           padding: 0.7rem 0.9rem; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <header style="border-bottom:3px solid var(--ink);padding:0.9rem 1.25rem;background:var(--paper);">
+    <nav style="display:flex;align-items:center;gap:0.75rem;max-width:900px;margin:0 auto;">
+      <a href="/" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:0.75rem;">
+        <div style="width:36px;height:36px;display:grid;place-items:center;background:var(--ink);color:var(--acid);font-family:'Archivo Black',sans-serif;font-size:1.1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;">M</div>
+        <div style="font-family:'Archivo Black',sans-serif;font-size:1rem;text-transform:uppercase;">Mentora</div>
+      </a>
+      <div class="label">/ Accounts</div>
+      <div style="flex:1;"></div>
+      <a href="/teacher" class="btn">Classroom</a>
+      <a href="/dashboard" class="btn">Dashboard</a>
+      <button class="btn dark" id="logout">Sign out</button>
+    </nav>
+  </header>
+
+  <main class="grid-bg" style="flex:1;">
+    <div class="wrap">
+      <div class="panel">
+        <div class="label">Admin</div>
+        <h1>Accounts</h1>
+        <p class="hint">
+          Every profile keeps its own settings, lessons, flashcards and history —
+          the account you sign in as is the record you build.
+        </p>
+        <div id="msg"></div>
+      </div>
+
+      <div class="panel" id="gate" style="display:none;background:#ffd9d0;">
+        <div class="label">Not available</div>
+        <p style="margin-top:0.4rem;" id="gateText">Sign in as an admin to manage accounts.</p>
+        <div style="margin-top:1rem;"><a class="btn dark" href="/login">Sign in</a></div>
+      </div>
+
+      <div class="panel" id="usersPanel" style="display:none;">
+        <div class="label">All accounts</div>
+        <div style="overflow-x:auto;margin-top:0.8rem;">
+          <table id="users"></table>
+        </div>
+      </div>
+
+      <div class="panel" id="newPanel" style="display:none;">
+        <div class="label">Add an account</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;margin-top:0.8rem;">
+          <input id="nUser" placeholder="username" style="border:3px solid var(--ink);padding:0.7rem;font-family:inherit;">
+          <input id="nEmail" placeholder="email" style="border:3px solid var(--ink);padding:0.7rem;font-family:inherit;">
+          <input id="nPass" type="password" placeholder="password (6+ characters)" style="border:3px solid var(--ink);padding:0.7rem;font-family:inherit;">
+          <select id="nRole"></select>
+        </div>
+        <div style="margin-top:0.9rem;">
+          <button class="btn dark" id="create">Create account</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,
+      c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    let ROLES = ['student', 'teacher', 'admin'];
+    let me = null;
+
+    function say(text, bad) {
+      $('msg').style.display = 'block';
+      $('msg').style.background = bad ? '#ffd9d0' : 'var(--acid)';
+      $('msg').textContent = text;
+    }
+
+    async function load() {
+      const who = await (await fetch('/api/whoami')).json();
+      me = who.user;
+      const r = await fetch('/api/admin/users');
+      if (!r.ok) {
+        $('gate').style.display = 'block';
+        $('gateText').textContent = me
+          ? 'Signed in as ' + me.username + ' (' + me.role + '). Managing accounts needs an admin.'
+          : 'Sign in as an admin to manage accounts.';
+        return;
+      }
+      const d = await r.json();
+      ROLES = d.roles || ROLES;
+      $('usersPanel').style.display = 'block';
+      $('newPanel').style.display = 'block';
+      $('nRole').innerHTML = ROLES.map(r =>
+        '<option value="' + r + '">' + r + '</option>').join('');
+      render(d.users);
+    }
+
+    function render(users) {
+      $('users').innerHTML =
+        '<tr><th>Account</th><th>Email</th><th>Role</th><th>Joined</th><th></th></tr>' +
+        users.map(u => {
+          const isMe = me && u.username === me.username;
+          return '<tr><td><span class="who">' + esc(u.username) + '</span>' +
+            (isMe ? ' <span class="label">(you)</span>' : '') + '</td>' +
+            '<td class="hint">' + esc(u.email) + '</td>' +
+            '<td><select data-role-for="' + esc(u.username) + '">' +
+              ROLES.map(r => '<option value="' + r + '"' +
+                (r === u.role ? ' selected' : '') + '>' + r + '</option>').join('') +
+            '</select></td>' +
+            '<td class="label">' + esc((u.created_at || '').slice(0, 10)) + '</td>' +
+            '<td><button class="btn danger" data-del="' + esc(u.username) + '"' +
+              (isMe ? ' disabled' : '') + '>Delete</button></td></tr>';
+        }).join('');
+
+      document.querySelectorAll('[data-role-for]').forEach(sel => sel.onchange = async () => {
+        const r = await fetch('/api/admin/role', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username: sel.dataset.roleFor, role: sel.value}),
+        });
+        const d = await r.json();
+        if (!r.ok) { say(d.error || 'Could not change that role.', true); load(); return; }
+        say(sel.dataset.roleFor + ' is now a ' + sel.value + '.');
+        render(d.users);
+      });
+
+      document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+        if (!confirm('Delete ' + b.dataset.del + '? Their lessons stay in the history.')) return;
+        const r = await fetch('/api/admin/delete', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username: b.dataset.del}),
+        });
+        const d = await r.json();
+        if (!r.ok) { say(d.error || 'Could not delete that account.', true); return; }
+        say(b.dataset.del + ' deleted.');
+        render(d.users);
+      });
+    }
+
+    $('create').onclick = async () => {
+      const body = {username: $('nUser').value.trim(), email: $('nEmail').value.trim(),
+                    password: $('nPass').value, role: $('nRole').value};
+      const r = await fetch('/api/auth/signup', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!d.ok) { say(d.error || 'Could not create that account.', true); return; }
+      $('nUser').value = $('nEmail').value = $('nPass').value = '';
+      say('Created ' + body.username + '.');
+      load();
+    };
+
+    $('logout').onclick = async () => {
+      await fetch('/api/auth/logout', {method: 'POST'});
+      location.href = '/login';
+    };
+
+    load();
+  </script>
+</body>
+</html>

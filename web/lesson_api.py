@@ -26,7 +26,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
@@ -145,6 +145,48 @@ def human_error(exc: Exception) -> str:
     if "No Groq API key" in msg or "api key" in msg.lower():
         return "No API key is set. Add one in Settings to start teaching."
     return f"{type(exc).__name__}: {msg[:160]}"
+
+
+# ---------------------------------------------------------------------------
+# Who is asking
+#
+# Every endpoint defaulted student_id to the literal "student", so signing in
+# as somebody else changed nothing: two profiles shared one row of settings,
+# one deck of flashcards and one history. The session cookie decides now, and
+# an explicit student_id is honoured only for a teacher or an admin -- for
+# anyone else it would be a way to read another student's record by guessing
+# a username.
+# ---------------------------------------------------------------------------
+
+def current_user(request: Request) -> dict | None:
+    try:
+        import web.auth as _auth
+    except Exception:
+        try:
+            import auth as _auth
+        except Exception:
+            return None
+    return _auth.get_session_user(request.cookies.get("session_token"))
+
+
+def who(request: Request, explicit: str | None = None) -> str:
+    user = current_user(request)
+    if explicit and explicit != "student":
+        if user and user.get("role") in ("teacher", "admin"):
+            return explicit
+        if user is None:                      # unauthenticated single-user use
+            return explicit
+    if user:
+        return user.get("username") or "student"
+    return explicit or "student"
+
+
+def require_role(request: Request, *roles: str) -> dict | None:
+    user = current_user(request)
+    if user is None or user.get("role") not in roles:
+        return None
+    return user
+
 
 
 def _media_url(path: str | None) -> str | None:
@@ -336,7 +378,7 @@ class StartBody(BaseModel):
 
 
 @router.post("/api/lesson/start")
-def lesson_start(body: StartBody) -> JSONResponse:
+def lesson_start(request: Request, body: StartBody) -> JSONResponse:
     topic = (body.topic or "").strip()
     if not topic:
         return JSONResponse({"error": "Name a topic to learn."}, status_code=400)
@@ -345,6 +387,7 @@ def lesson_start(body: StartBody) -> JSONResponse:
             {"error": "That topic is too long — keep it under 200 characters."},
             status_code=400)
 
+    body.student_id = who(request, body.student_id)
     prefs = hdb.get_preferences(body.student_id)
     level = body.level or prefs.get("difficulty") or "intermediate"
     if level not in ("beginner", "intermediate", "advanced"):
@@ -533,8 +576,8 @@ def _settings(student_id: str) -> dict:
 
 
 @router.get("/api/settings")
-def get_settings(student_id: str = "student") -> JSONResponse:
-    return JSONResponse(_settings(student_id))
+def get_settings(request: Request, student_id: str = "student") -> JSONResponse:
+    return JSONResponse(_settings(who(request, student_id)))
 
 
 class SettingsBody(BaseModel):
@@ -549,7 +592,8 @@ class SettingsBody(BaseModel):
 
 
 @router.post("/api/settings")
-def save_settings(body: SettingsBody) -> JSONResponse:
+def save_settings(request: Request, body: SettingsBody) -> JSONResponse:
+    body.student_id = who(request, body.student_id)
     patch: dict = {}
     if body.language:
         patch["language"] = body.language
@@ -635,8 +679,9 @@ def save_keys(body: KeysBody) -> JSONResponse:
 
 
 @router.get("/api/materials")
-def list_materials(student_id: str = "student") -> JSONResponse:
+def list_materials(request: Request, student_id: str = "student") -> JSONResponse:
     """Everything this student has uploaded, newest first."""
+    student_id = who(request, student_id)
     prefs = hdb.get_preferences(student_id)
     topics = {}
     for entry in prefs.get("pending_uploads") or []:
@@ -670,7 +715,7 @@ class UploadBody(BaseModel):
 
 
 @router.post("/api/materials/upload")
-def upload_material(body: UploadBody) -> JSONResponse:
+def upload_material(request: Request, body: UploadBody) -> JSONResponse:
     """Store one uploaded document so a lesson can be built from it.
 
     The page used to collect files, list them, and then throw them away: no
@@ -680,6 +725,7 @@ def upload_material(body: UploadBody) -> JSONResponse:
     import base64
     import re
 
+    body.student_id = who(request, body.student_id)
     name = Path(body.name or "").name          # basename only; no traversal
     if not name:
         return JSONResponse({"error": "No filename."}, status_code=400)
@@ -734,11 +780,13 @@ def _lesson_id(session_id: str) -> str:
 
 
 @router.get("/api/transcript")
-def transcript(session_id: str, student_id: str = "student") -> JSONResponse:
+def transcript(request: Request, session_id: str,
+               student_id: str = "student") -> JSONResponse:
     import sqlite3
 
     if not session_id:
         return JSONResponse({"error": "Which lesson?"}, status_code=400)
+    student_id = who(request, student_id)
     session_id = _lesson_id(session_id)
 
     db = _ROOT / "mentora.db"
@@ -812,7 +860,8 @@ def serve_transcript():
 # ---------------------------------------------------------------------------
 
 @router.get("/api/flashcards")
-def flashcards(student_id: str = "student") -> JSONResponse:
+def flashcards(request: Request, student_id: str = "student") -> JSONResponse:
+    student_id = who(request, student_id)
     due = orch.due_reviews(student_id)
     every = orch.browse_flashcards(student_id)
     due_keys = {c.get("card_key") for c in due}
@@ -835,7 +884,7 @@ class ReviewBody(BaseModel):
 
 
 @router.post("/api/flashcards/review")
-def review_flashcard(body: ReviewBody) -> JSONResponse:
+def review_flashcard(request: Request, body: ReviewBody) -> JSONResponse:
     # Only what SM-2 actually distinguishes. "hard" was accepted here and
     # then silently rewritten to "good" one layer down, so the caller was
     # told its rating had been recorded when a different one had been.
@@ -843,7 +892,7 @@ def review_flashcard(body: ReviewBody) -> JSONResponse:
         return JSONResponse(
             {"error": "Rate the card Again, Good or Easy."}, status_code=400)
     interval = orch.record_flashcard(
-        body.student_id,
+        who(request, body.student_id),
         {"card_key": body.card_key, "front": body.front,
          "back": body.back, "source": body.source},
         body.ease,
@@ -869,13 +918,14 @@ def serve_flashcards():
 
 
 @router.get("/api/summary")
-def summary(session_id: str, student_id: str = "student") -> JSONResponse:
+def summary(request: Request, session_id: str,
+            student_id: str = "student") -> JSONResponse:
     """A plain-text summary of one lesson, for the download button.
 
     The button existed and pointed at #download-summary, which does nothing
     at all.
     """
-    data = transcript(session_id, student_id)
+    data = transcript(request, session_id, who(request, student_id))
     import json as _json
     d = _json.loads(bytes(data.body).decode("utf-8"))
     if "error" in d:
@@ -969,7 +1019,7 @@ class VoiceBody(BaseModel):
 
 
 @router.post("/api/voice/reply")
-def voice_reply(body: VoiceBody) -> JSONResponse:
+def voice_reply(request: Request, body: VoiceBody) -> JSONResponse:
     import llm
 
     said = (body.text or "").strip()
@@ -978,7 +1028,7 @@ def voice_reply(body: VoiceBody) -> JSONResponse:
     if len(said) > 1000:
         said = said[:1000]
 
-    prefs = hdb.get_preferences(body.student_id)
+    prefs = hdb.get_preferences(who(request, body.student_id))
     language = body.language or prefs.get("language") or "en"
 
     # Only the last few turns: this is a conversation, and the whole history
@@ -1069,3 +1119,295 @@ def teacher_presets() -> JSONResponse:
     except Exception:
         return JSONResponse([{"id": "maya", "name": "Ms. Maya", "variant": "f",
                               "note": "Default", "palette": {}}])
+
+
+# ---------------------------------------------------------------------------
+# Teacher mode
+#
+# The adaptation data Mentora already collects is worth more to the person
+# running the class than to the student who lived it. A student learns their
+# weak spot by being taught it again; a teacher learns that four of thirty
+# hold the SAME misconception, and reteaches Monday's lesson. None of this is
+# generated -- every number is counted from reports and answers the teaching
+# engine already wrote.
+#
+# The Teacher role card used to open Settings, which is not a classroom.
+# ---------------------------------------------------------------------------
+
+def _class_rows() -> list[dict]:
+    import sqlite3
+
+    db = _ROOT / "mentora.db"
+    if not db.exists():
+        return []
+    conn = sqlite3.connect(str(db))
+    conn.row_factory = sqlite3.Row
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+        SELECT r.student_id, r.session_id, r.score, r.weak_json,
+               r.misconceptions_json, r.strong_json, r.next_topic, r.created_at,
+               s.topic, s.started_at, s.ended_at, s.minutes_planned
+        FROM reports r
+        LEFT JOIN study_sessions s ON s.session_id = r.session_id
+        ORDER BY r.id DESC
+        """)
+        reports = [dict(r) for r in cur.fetchall()]
+        cur.execute("""
+        SELECT student_id, concept_name, correct, timestamp
+        FROM answers WHERE concept_name IS NOT NULL AND concept_name != ''
+        """)
+        answers = [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+    return [reports, answers]
+
+
+def _jlist(raw) -> list:
+    import json as _json
+    try:
+        out = _json.loads(raw or "[]")
+        return out if isinstance(out, list) else []
+    except Exception:
+        return []
+
+
+@router.get("/api/teacher")
+def teacher_overview(request: Request) -> JSONResponse:
+    # A classroom is every student's record at once. Only staff see it.
+    if require_role(request, "teacher", "admin") is None:
+        return JSONResponse({"error": "Sign in as a teacher to see the class."},
+                            status_code=403)
+    from collections import Counter, defaultdict
+    from datetime import datetime, timedelta
+
+    data = _class_rows()
+    if not data:
+        return JSONResponse({"students": [], "reteach": [], "topics": [],
+                             "overview": {}, "recent": []})
+    reports, answers = data
+
+    by_student: dict[str, dict] = {}
+    for r in reports:
+        sid = r["student_id"]
+        e = by_student.setdefault(sid, {
+            "student_id": sid, "lessons": 0, "scores": [], "weak": [],
+            "misconceptions": [], "strong": [], "topics": [],
+            "last_seen": r["created_at"], "next_topic": r["next_topic"] or "",
+            "minutes": 0.0,
+        })
+        e["lessons"] += 1
+        if r["score"] is not None:
+            e["scores"].append(float(r["score"]))
+        e["weak"] += _jlist(r["weak_json"])
+        e["strong"] += _jlist(r["strong_json"])
+        e["misconceptions"] += _jlist(r["misconceptions_json"])
+        if r["topic"]:
+            e["topics"].append(r["topic"])
+        if r["started_at"] and r["ended_at"]:
+            try:
+                e["minutes"] += max(0.0, (datetime.fromisoformat(r["ended_at"])
+                                          - datetime.fromisoformat(r["started_at"])
+                                          ).total_seconds() / 60.0)
+            except Exception:
+                pass
+
+    # Per-concept accuracy, so a teacher can see WHICH question a class fails.
+    per_concept = defaultdict(lambda: [0, 0])          # name -> [right, total]
+    per_student_concept = defaultdict(lambda: [0, 0])
+    for a in answers:
+        name = (a["concept_name"] or "").strip()
+        per_concept[name][1] += 1
+        per_concept[name][0] += 1 if a["correct"] else 0
+        key = (a["student_id"], name)
+        per_student_concept[key][1] += 1
+        per_student_concept[key][0] += 1 if a["correct"] else 0
+
+    students = []
+    for e in by_student.values():
+        scores = e.pop("scores")
+        avg = round(sum(scores) / len(scores), 1) if scores else 0.0
+        # Trend: the newest half against the oldest half. reports come back
+        # newest-first, so the first entries are the recent ones.
+        trend = 0.0
+        if len(scores) >= 2:
+            half = max(1, len(scores) // 2)
+            recent = sum(scores[:half]) / half
+            older = sum(scores[half:]) / max(1, len(scores) - half)
+            trend = round(recent - older, 1)
+        students.append({
+            **e,
+            "average": avg,
+            "trend": trend,
+            "minutes": round(e["minutes"], 1),
+            "weak": list(dict.fromkeys(e["weak"]))[:6],
+            "strong": list(dict.fromkeys(e["strong"]))[:6],
+            "misconceptions": list(dict.fromkeys(e["misconceptions"]))[:6],
+            "topics": list(dict.fromkeys(e["topics"]))[:6],
+        })
+    students.sort(key=lambda s: s["average"])          # who needs help first
+
+    # The reteach list: a misconception more than one student holds.
+    holders = defaultdict(set)
+    for e in by_student.values():
+        for m in set(e["misconceptions"]):
+            holders[m].add(e["student_id"])
+    reteach = sorted(
+        ({"misconception": m, "students": sorted(who), "count": len(who)}
+         for m, who in holders.items() if len(who) > 1),
+        key=lambda x: -x["count"])
+
+    topics = sorted(
+        ({"concept": name, "correct": right, "asked": total,
+          "accuracy": round(100.0 * right / total)}
+         for name, (right, total) in per_concept.items() if total),
+        key=lambda t: t["accuracy"])
+
+    cutoff = (datetime.now() - timedelta(days=7)).isoformat()
+    active = sum(1 for e in by_student.values() if (e["last_seen"] or "") >= cutoff)
+    all_scores = [float(r["score"]) for r in reports if r["score"] is not None]
+
+    return JSONResponse({
+        "overview": {
+            "students": len(by_student),
+            "lessons": len(reports),
+            "class_average": round(sum(all_scores) / len(all_scores), 1) if all_scores else 0.0,
+            "active_this_week": active,
+            "reteach_items": len(reteach),
+            "questions_answered": len(answers),
+        },
+        "students": students,
+        "reteach": reteach[:10],
+        "topics": topics[:12],
+        "recent": [{"student_id": r["student_id"],
+                    "topic": r["topic"] or r["next_topic"] or "Lesson",
+                    "score": r["score"], "when": (r["created_at"] or "")[:10],
+                    "session_id": r["session_id"]}
+                   for r in reports[:10]],
+    })
+
+
+@router.get("/api/teacher/student")
+def teacher_student(request: Request, student_id: str) -> JSONResponse:
+    if require_role(request, "teacher", "admin") is None:
+        return JSONResponse({"error": "Sign in as a teacher to see a student."},
+                            status_code=403)
+    from collections import defaultdict
+
+    data = _class_rows()
+    if not data:
+        return JSONResponse({"error": "No class data yet."}, status_code=404)
+    reports, answers = data
+    mine = [r for r in reports if r["student_id"] == student_id]
+    if not mine:
+        return JSONResponse({"error": "No records for that student."},
+                            status_code=404)
+
+    concepts = defaultdict(lambda: [0, 0])
+    for a in answers:
+        if a["student_id"] != student_id:
+            continue
+        name = (a["concept_name"] or "").strip()
+        concepts[name][1] += 1
+        concepts[name][0] += 1 if a["correct"] else 0
+
+    return JSONResponse({
+        "student_id": student_id,
+        "lessons": [{"session_id": r["session_id"],
+                     "topic": r["topic"] or "Lesson",
+                     "score": r["score"],
+                     "when": (r["created_at"] or "")[:10],
+                     "weak": _jlist(r["weak_json"])[:5],
+                     "strong": _jlist(r["strong_json"])[:5],
+                     "misconceptions": _jlist(r["misconceptions_json"])[:5]}
+                    for r in mine],
+        "concepts": sorted(
+            ({"concept": n, "correct": c[0], "asked": c[1],
+              "accuracy": round(100.0 * c[0] / c[1])}
+             for n, c in concepts.items() if c[1]),
+            key=lambda x: x["accuracy"]),
+    })
+
+
+@router.get("/teacher")
+def serve_teacher():
+    page = STATIC_DIR / "teacher.html"
+    if page.exists():
+        return HTMLResponse(page.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>teacher.html not found</h1>", status_code=404)
+
+
+# ---------------------------------------------------------------------------
+# Admin: the accounts themselves
+# ---------------------------------------------------------------------------
+
+@router.get("/api/admin/users")
+def admin_users(request: Request) -> JSONResponse:
+    if require_role(request, "admin") is None:
+        return JSONResponse({"error": "Admins only."}, status_code=403)
+    try:
+        import web.auth as _auth
+    except Exception:
+        import auth as _auth
+    return JSONResponse({"users": _auth.list_users(), "roles": list(_auth.ROLES)})
+
+
+class RoleBody(BaseModel):
+    username: str
+    role: str
+
+
+@router.post("/api/admin/role")
+def admin_set_role(request: Request, body: RoleBody) -> JSONResponse:
+    me = require_role(request, "admin")
+    if me is None:
+        return JSONResponse({"error": "Admins only."}, status_code=403)
+    try:
+        import web.auth as _auth
+    except Exception:
+        import auth as _auth
+    if body.username == me.get("username") and body.role != "admin":
+        # Locking yourself out is never what you meant to click.
+        return JSONResponse({"error": "You cannot remove your own admin role."},
+                            status_code=400)
+    if not _auth.set_role(body.username, body.role):
+        return JSONResponse({"error": "Unknown user or role."}, status_code=400)
+    return JSONResponse({"ok": True, "users": _auth.list_users()})
+
+
+class DeleteBody(BaseModel):
+    username: str
+
+
+@router.post("/api/admin/delete")
+def admin_delete(request: Request, body: DeleteBody) -> JSONResponse:
+    me = require_role(request, "admin")
+    if me is None:
+        return JSONResponse({"error": "Admins only."}, status_code=403)
+    try:
+        import web.auth as _auth
+    except Exception:
+        import auth as _auth
+    if body.username == me.get("username"):
+        return JSONResponse({"error": "You cannot delete your own account."},
+                            status_code=400)
+    if not _auth.delete_user(body.username):
+        return JSONResponse(
+            {"error": "Unknown user, or the last admin cannot be removed."},
+            status_code=400)
+    return JSONResponse({"ok": True, "users": _auth.list_users()})
+
+
+@router.get("/admin")
+def serve_admin():
+    page = STATIC_DIR / "admin.html"
+    if page.exists():
+        return HTMLResponse(page.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>admin.html not found</h1>", status_code=404)
+
+
+@router.get("/api/whoami")
+def whoami(request: Request) -> JSONResponse:
+    """Who the browser is signed in as — drives the nav and the role gates."""
+    user = current_user(request)
+    return JSONResponse({"signed_in": user is not None, "user": user})

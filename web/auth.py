@@ -50,11 +50,11 @@ def init_auth_db() -> None:
         """)
         conn.commit()
 
-        # Seed default test accounts if users table is empty
-        cur.execute("SELECT COUNT(*) as count FROM users")
-        row = cur.fetchone()
-        if row and row["count"] == 0:
-            _seed_defaults(conn)
+        # Seed the default accounts. Every insert is OR IGNORE, so this is
+        # idempotent -- and it has to run every time rather than only on an
+        # empty table, or an account added later (the admin) never appears on
+        # a database that already had users in it.
+        _seed_defaults(conn)
     finally:
         conn.close()
 
@@ -96,7 +96,61 @@ def _seed_defaults(conn: sqlite3.Connection) -> None:
     VALUES (?, ?, ?, ?, ?, ?)
     """, ("teacher@mentora.ai", "teacher", t_hash, t_salt, "teacher", now))
 
+    # Default admin: admin@mentora.ai / admin123
+    a_hash, a_salt = _hash_password("admin123")
+    cur.execute("""
+    INSERT OR IGNORE INTO users (email, username, password_hash, salt, role, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    """, ("admin@mentora.ai", "admin", a_hash, a_salt, "admin", now))
+
     conn.commit()
+
+
+def list_users() -> list[dict]:
+    """Every account, for the admin console."""
+    conn = _get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id, email, username, role, created_at FROM users "
+                    "ORDER BY id")
+        return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def set_role(username: str, role: str) -> bool:
+    """Change one account's role. Returns False if the role is not a role."""
+    if role not in ROLES:
+        return False
+    conn = _get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET role = ? WHERE username = ?",
+                    (role, username.strip()))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def delete_user(username: str) -> bool:
+    """Remove an account. The seeded admin cannot delete itself into a corner."""
+    conn = _get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) AS n FROM users WHERE role = 'admin'")
+        admins = cur.fetchone()["n"]
+        cur.execute("SELECT role FROM users WHERE username = ?", (username,))
+        row = cur.fetchone()
+        if row is None:
+            return False
+        if row["role"] == "admin" and admins <= 1:
+            return False                      # never leave the system unadminned
+        cur.execute("DELETE FROM users WHERE username = ?", (username,))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
 
 
 def create_user(email: str, username: str, password: str, role: str = "student") -> dict:
@@ -104,7 +158,7 @@ def create_user(email: str, username: str, password: str, role: str = "student")
     email = email.strip().lower()
     username = username.strip()
     role = role.strip().lower()
-    if role not in ("student", "teacher"):
+    if role not in ROLES:
         role = "student"
 
     if not email or "@" not in email:
@@ -175,6 +229,7 @@ def authenticate_user(login_identifier: str, password: str) -> Optional[dict]:
         conn.close()
 
 
+ROLES = ("student", "teacher", "admin")
 MAX_SESSIONS = 5000
 
 

@@ -55,7 +55,7 @@ def _db() -> sqlite3.Connection:
 # ---------------------------------------------------------------------------
 
 @app.get("/api/session-review")
-def session_review(student_id: str = "student",
+def session_review(request: Request, student_id: str = "student",
                    session_id: str = "") -> dict:
     """Return all data the Session Review HTML needs, in one call.
 
@@ -77,6 +77,7 @@ def session_review(student_id: str = "student",
     # stored id; translate before looking anything up.
     try:
         import lesson_api
+        student_id = lesson_api.who(request, student_id)
         session_id = lesson_api._lesson_id(session_id) if session_id else session_id
     except Exception:
         pass
@@ -272,7 +273,14 @@ def _compute_improvement(cur: sqlite3.Cursor, student_id: str) -> int | None:
 # ---------------------------------------------------------------------------
 
 @app.get("/api/dashboard")
-def dashboard_api(student_id: str = "student") -> dict:
+def dashboard_api(request: Request, student_id: str = "student") -> dict:
+    # Follow whoever is signed in; the literal "student" made every profile
+    # share one dashboard.
+    try:
+        import lesson_api
+        student_id = lesson_api.who(request, student_id)
+    except Exception:
+        pass
     """Everything the student dashboard needs in one call."""
     conn = _db()
     try:
@@ -714,7 +722,8 @@ async def api_login(request: Request, response: Response):
         return JSONResponse({"ok": False, "error": "Invalid email/username or password"}, status_code=401)
 
     token = auth.create_session(user)
-    redirect = "/dashboard" if user.get("role") == "student" else "/config"
+    redirect = {"teacher": "/teacher", "admin": "/admin"}.get(
+        user.get("role"), "/dashboard")
 
     res = JSONResponse({"ok": True, "user": user, "token": token, "redirect": redirect})
     res.set_cookie(
