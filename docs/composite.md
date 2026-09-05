@@ -6,20 +6,26 @@ them into a final lesson video.
 ## Quick Start
 
 ```python
-from freebuff.composite import compose, stitch
+from prompt_101.media_pipeline.compositor import compose, stitch
 
-# Compose a segment: visual + audio + optional avatar
-compose("slide.png", "narration.wav", "segment.mp4")
+# Visual + narration. Returns the path it wrote.
+segment = compose("slide.png", "narration.wav")
 
-# Compose with subtitle and volume normalization
-compose("slide.png", "narration.wav", "segment.mp4",
-        subtitle_text="V = I x R", normalize_audio=True)
+# Visual + narration + a talking-head overlay in the bottom-right corner
+segment = compose("slide.png", "narration.wav", "avatar.mp4")
 
-# Stitch segments into final video
-stitch(["seg1.mp4", "seg2.mp4", "seg3.mp4"], "lesson.mp4")
+# Choose the output path rather than taking the generated one
+compose("slide.png", "narration.wav", output_path="segment.mp4")
+
+# Stitch the segments into the lesson
+stitch([seg1, seg2, seg3])
 ```
 
-## compose(visual_png, audio_wav, output_mp4, ...)
+Both functions **return the path they wrote**, and both invent one under the
+output directory when `output_path` is not given — so the return value is the
+thing to pass on, not the argument.
+
+## compose(visual_path, audio_path=None, avatar_path=None, ...)
 
 Combines a static visual image with narration audio into a video
 segment. Optionally overlays a talking-head avatar and subtitle text.
@@ -28,12 +34,11 @@ segment. Optionally overlays a talking-head avatar and subtitle text.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `visual_png` | str/Path | required | Slide/diagram PNG image |
-| `audio_wav` | str/Path | required | Narration WAV file |
-| `output_mp4` | str/Path | required | Output video path |
-| `avatar_mp4` | str/Path | None | Talking-head overlay |
-| `subtitle_text` | str | None | Text overlay at bottom |
-| `normalize_audio` | bool | True | Apply loudnorm filter |
+| `visual_path` | str | required | Slide/diagram PNG image |
+| `audio_path` | str | `None` | Narration audio. Omitted, three seconds of silence stands in, so a segment still renders |
+| `avatar_path` | str | `None` | Talking-head MP4, scaled to 320px wide and overlaid 40px from the bottom-right corner |
+| `show_avatar` | bool | `True` | Set `False` to ignore `avatar_path` and compose the visual alone |
+| `output_path` | str | `None` | Where to write. Omitted, a name is generated under the compose output directory |
 
 ### How It Works
 
@@ -131,20 +136,29 @@ binary for each platform. This avoids version mismatches across
 macOS, Windows, and Linux.
 
 ```python
-from freebuff.ffmpeg import get_ffmpeg
+from prompt_101.media_pipeline.compositor import get_ffmpeg_exe
 
-ffmpeg_path = get_ffmpeg()  # Returns path to bundled ffmpeg binary
+ffmpeg_path = get_ffmpeg_exe()  # the binary imageio-ffmpeg ships
 ```
+
+Note that `imageio-ffmpeg` bundles **ffmpeg only, not ffprobe** — anything
+needing to read a file's duration or dimensions has to parse `ffmpeg -i`
+stderr instead.
 
 Never use a system-installed ffmpeg — the team is on three different
 OSes and system ffmpeg versions will differ.
 
 ## Configuration
 
-All composite settings in `config.yaml` under `composite:`:
+`config.yaml` carries a `composite:` block:
 
 | Key | Default | Description |
 |-----|---------|-------------|
 | `avatar_width` | `320` | Avatar overlay width (px) |
 | `margin` | `40` | Margin from bottom-right corner (px) |
 | `pixel_format` | `yuv420p` | Output pixel format |
+
+**These are not read.** The compositor hardcodes the same three values in the
+filter it builds (`scale=320:-1`, `overlay=W-w-40:H-h-40`, `-pix_fmt
+yuv420p`), so editing the config changes nothing — the constants in
+`compositor.py` are what to edit.
