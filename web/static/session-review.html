@@ -1660,12 +1660,13 @@ tailwind.config = {
         <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-black/50">Current Lesson</span>
         <span class="font-black text-sm uppercase tracking-tight" id="hdr-lesson">Session review</span>
       </div>
-      <button 
-        @click="$emit('openSettings')" 
-        class="w-10 h-10 grid place-items-center border-[3px] border-black bg-[#f4f1ea] shadow-[5px_5px_0_0_#000000] transition-all duration-75 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none"
+      <a
+        href="/config"
+        aria-label="Open settings"
+        class="w-10 h-10 grid place-items-center border-[3px] border-black bg-[#f4f1ea] shadow-[5px_5px_0_0_#000000] transition-all duration-75 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_0_#000000] active:translate-x-[8px] active:translate-y-[8px]"
       >
         <iconify-icon icon="ph:gear-six-bold" class="text-xl"></iconify-icon>
-      </button>
+      </a>
       <a 
         :href="endSessionHref"
         onclick="if(!confirm('End this session and return to the start screen?')){event.preventDefault();return false}try{localStorage.clear();sessionStorage.clear()}catch(e){}" 

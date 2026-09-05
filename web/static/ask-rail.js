@@ -198,6 +198,12 @@
 
     tab.onclick = function () { show(body.style.display === 'none'); };
 
+    // Navigation should close the popup before the next page loads. Without
+    // this, the remembered open state makes the menu reappear on every page.
+    body.querySelectorAll('a').forEach(function (link) {
+      link.addEventListener('click', function () { show(false); });
+    });
+
     // Escape closes, and so does a click anywhere else -- on a narrow screen
     // the panel covers content, so it needs an exit that is not a small tab.
     document.addEventListener('keydown', function (e) {

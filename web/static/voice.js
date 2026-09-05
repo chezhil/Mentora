@@ -95,8 +95,13 @@
   }
 
   // ---- Avatar -------------------------------------------------------------
-  var avatar3D = window.Avatar3D ? new window.Avatar3D($('avatar')) : null;
-  var svg = $('avatar_svg_disabled');
+  // SVG is the default model because it is the original Mentora tutor and
+  // works consistently across browsers. The 3D model remains available from
+  // the same control and is only rendered in its own host when selected.
+  var avatarRoot = $('avatar');
+  var svg = $('avatar_svg');
+  var avatar3DHost = $('avatar_3d');
+  var avatar3D = window.Avatar3D && avatar3DHost ? new window.Avatar3D(avatar3DHost) : null;
   var mouthCavity = svg && svg.querySelector('#mouthCavity');
   var mouthLine = svg && svg.querySelector('#mouthLine');
   var head = svg && svg.querySelector('#head');
@@ -695,18 +700,30 @@
   function recall(key) {
     try { return localStorage.getItem('mentora_voice_' + key); } catch (e) { return null; }
   }
-
+  function applyAvatarModel(value) {
+    var model = value === '3d' && avatar3D ? '3d' : 'svg';
+    if (avatarRoot) avatarRoot.dataset.model = model;
+    if (avatar3DHost) avatar3DHost.setAttribute('aria-hidden', model === '3d' ? 'false' : 'true');
+    var picker = $('avatarModel');
+    if (picker) picker.value = model;
+    remember('avatar_model', model);
+    if (model === '3d' && avatar3D && avatar3D.onResize) {
+      requestAnimationFrame(function () { avatar3D.onResize(); });
+    }
+  }
   function fillTeachers(selected) {
     var list = window.MENTORA_TEACHERS || [];
     $('teacher').innerHTML = list.map(function (t) {
       return '<option value="' + t.id + '">' + t.name + ' — ' + t.note + '</option>';
     }).join('');
-    $('teacher').value = selected || list[0].id;
+    if (!list.length) return;
+    $('teacher').value = selected && list.some(function (t) { return t.id === selected; })
+      ? selected : list[0].id;
     applyTeacher();
   }
-
   function applyTeacher() {
     var t = window.teacherById($('teacher').value);
+    if (!t) return;
     window.paintTeacher(svg, t);
     if (avatar3D && avatar3D.setTeacher) avatar3D.setTeacher(t);
     remember('teacher', t.id);
@@ -758,6 +775,10 @@
   }
 
   $('teacher').addEventListener('change', applyTeacher);
+  $('avatarModel').addEventListener('change', function () {
+    applyAvatarModel(this.value);
+  });
+  applyAvatarModel(recall('avatar_model') || 'svg');
   $('lang').addEventListener('change', function () {
     remember('lang', $('lang').value);
     voice = null;
