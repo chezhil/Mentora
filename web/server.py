@@ -609,9 +609,30 @@ def upload_files(files: list[dict] = None, topic: str = "", student_id: str = "s
 # Serve the HTML pages
 # ---------------------------------------------------------------------------
 
+def _page_guard(request: Request, *roles: str):
+    """Redirect an unauthorised visitor to /login rather than render a shell."""
+    try:
+        import lesson_api
+        return lesson_api.page_guard(request, *roles)
+    except Exception:
+        return None
+
+
 @app.get("/")
-def serve_root():
-    """Show landing page. Dashboard is at /dashboard."""
+def serve_root(request: Request):
+    """The way in. Signed out, that is the login page.
+
+    The landing page offered Student and Teacher cards to anyone, so the
+    Teacher card led to a classroom with no session behind it. Choosing a
+    role is not the same as being one.
+    """
+    from fastapi.responses import RedirectResponse
+    try:
+        import lesson_api
+        if lesson_api.current_user(request) is None:
+            return RedirectResponse("/login", status_code=303)
+    except Exception:
+        pass
     html_path = STATIC_DIR / "landing.html"
     if html_path.exists():
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
@@ -619,7 +640,11 @@ def serve_root():
 
 
 @app.get("/dashboard")
-def serve_dashboard():
+def serve_dashboard(request: Request):
+    blocked = _page_guard(request)
+    if blocked is not None:
+        return blocked
+
     html_path = STATIC_DIR / "mentora-dashboard.html"
     if html_path.exists():
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
@@ -627,7 +652,11 @@ def serve_dashboard():
 
 
 @app.get("/mentora-session-review")
-def serve_session_review():
+def serve_session_review(request: Request):
+    blocked = _page_guard(request)
+    if blocked is not None:
+        return blocked
+
     html_path = STATIC_DIR / "session-review.html"
     if html_path.exists():
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
@@ -635,7 +664,11 @@ def serve_session_review():
 
 
 @app.get("/upload")
-def serve_upload():
+def serve_upload(request: Request):
+    blocked = _page_guard(request)
+    if blocked is not None:
+        return blocked
+
     html_path = STATIC_DIR / "upload.html"
     if html_path.exists():
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
@@ -643,7 +676,11 @@ def serve_upload():
 
 
 @app.get("/config")
-def serve_config():
+def serve_config(request: Request):
+    blocked = _page_guard(request)
+    if blocked is not None:
+        return blocked
+
     html_path = STATIC_DIR / "config.html"
     if html_path.exists():
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
@@ -651,7 +688,11 @@ def serve_config():
 
 
 @app.get("/discuss")
-def serve_discuss(q: str = ""):
+def serve_discuss(request: Request, q: str = ""):
+    blocked = _page_guard(request)
+    if blocked is not None:
+        return blocked
+
     html_path = STATIC_DIR / "discuss.html"
     if html_path.exists():
         content = html_path.read_text(encoding="utf-8")
@@ -664,7 +705,11 @@ def serve_discuss(q: str = ""):
 
 
 @app.get("/review")
-def serve_review():
+def serve_review(request: Request):
+    blocked = _page_guard(request)
+    if blocked is not None:
+        return blocked
+
     html_path = STATIC_DIR / "session-review.html"
     if html_path.exists():
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
@@ -672,7 +717,11 @@ def serve_review():
 
 
 @app.get("/vtutor")
-def serve_vtutor():
+def serve_vtutor(request: Request):
+    blocked = _page_guard(request)
+    if blocked is not None:
+        return blocked
+
     html_path = STATIC_DIR / "vtutor.html"
     if html_path.exists():
         return HTMLResponse(html_path.read_text(encoding="utf-8"))

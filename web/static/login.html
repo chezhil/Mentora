@@ -293,7 +293,11 @@
         if (res.ok && data.ok) {
           showAlert('Login successful! Redirecting...', 'success');
           setTimeout(() => {
-            window.location.href = data.redirect || '/dashboard';
+            // A guarded page sends people here with ?next=, so put them
+            // back where they were going rather than on a generic home.
+            const next = new URLSearchParams(location.search).get('next');
+            const safe = next && next.startsWith('/') && !next.startsWith('//');
+            window.location.href = safe ? next : (data.redirect || '/dashboard');
           }, 800);
         } else {
           showAlert(data.error || 'Invalid credentials. Please try again.', 'error');

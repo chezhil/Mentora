@@ -189,6 +189,27 @@ def require_role(request: Request, *roles: str) -> dict | None:
 
 
 
+def page_guard(request: Request, *roles: str):
+    """Send an unauthorised visitor to the login page, not to an empty shell.
+
+    /teacher rendered its whole layout to anyone who asked and put "Sign in
+    as a teacher" in small text under the heading, so following the Teacher
+    card from the landing page produced a classroom with no class in it and
+    no obvious reason why. A page nobody may see should not render at all.
+    `next` brings them back here once they are in.
+    """
+    from fastapi.responses import RedirectResponse
+
+    user = current_user(request)
+    if user is None:
+        return RedirectResponse(
+            f"/login?next={request.url.path}", status_code=303)
+    if roles and user.get("role") not in roles:
+        return RedirectResponse("/dashboard", status_code=303)
+    return None
+
+
+
 def _media_url(path: str | None) -> str | None:
     """A servable URL for a file the media pipeline wrote, or None.
 
@@ -523,7 +544,11 @@ def serve_media(path: str):
 
 
 @router.get("/lesson")
-def serve_lesson():
+def serve_lesson(request: Request):
+    blocked = page_guard(request)
+    if blocked is not None:
+        return blocked
+
     page = STATIC_DIR / "lesson.html"
     if page.exists():
         return HTMLResponse(page.read_text(encoding="utf-8"))
@@ -843,7 +868,11 @@ def transcript(request: Request, session_id: str,
 
 
 @router.get("/transcript")
-def serve_transcript():
+def serve_transcript(request: Request):
+    blocked = page_guard(request)
+    if blocked is not None:
+        return blocked
+
     page = STATIC_DIR / "transcript.html"
     if page.exists():
         return HTMLResponse(page.read_text(encoding="utf-8"))
@@ -910,7 +939,11 @@ def review_flashcard(request: Request, body: ReviewBody) -> JSONResponse:
 
 
 @router.get("/flashcards")
-def serve_flashcards():
+def serve_flashcards(request: Request):
+    blocked = page_guard(request)
+    if blocked is not None:
+        return blocked
+
     page = STATIC_DIR / "flashcards.html"
     if page.exists():
         return HTMLResponse(page.read_text(encoding="utf-8"))
@@ -1094,7 +1127,11 @@ def voice_reply(request: Request, body: VoiceBody) -> JSONResponse:
 
 
 @router.get("/voice")
-def serve_voice():
+def serve_voice(request: Request):
+    blocked = page_guard(request)
+    if blocked is not None:
+        return blocked
+
     page = STATIC_DIR / "voice.html"
     if page.exists():
         return HTMLResponse(page.read_text(encoding="utf-8"))
@@ -1102,7 +1139,11 @@ def serve_voice():
 
 
 @router.get("/materials")
-def serve_materials():
+def serve_materials(request: Request):
+    blocked = page_guard(request)
+    if blocked is not None:
+        return blocked
+
     page = STATIC_DIR / "materials.html"
     if page.exists():
         return HTMLResponse(page.read_text(encoding="utf-8"))
@@ -1330,7 +1371,11 @@ def teacher_student(request: Request, student_id: str) -> JSONResponse:
 
 
 @router.get("/teacher")
-def serve_teacher():
+def serve_teacher(request: Request):
+    blocked = page_guard(request, "teacher", "admin")
+    if blocked is not None:
+        return blocked
+
     page = STATIC_DIR / "teacher.html"
     if page.exists():
         return HTMLResponse(page.read_text(encoding="utf-8"))
@@ -1399,7 +1444,11 @@ def admin_delete(request: Request, body: DeleteBody) -> JSONResponse:
 
 
 @router.get("/admin")
-def serve_admin():
+def serve_admin(request: Request):
+    blocked = page_guard(request, "admin")
+    if blocked is not None:
+        return blocked
+
     page = STATIC_DIR / "admin.html"
     if page.exists():
         return HTMLResponse(page.read_text(encoding="utf-8"))
