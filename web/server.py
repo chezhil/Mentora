@@ -620,23 +620,26 @@ def _page_guard(request: Request, *roles: str):
 
 @app.get("/")
 def serve_root(request: Request):
-    """The way in. Signed out, that is the login page.
+    """The front door is the login page.
 
-    The landing page offered Student and Teacher cards to anyone, so the
-    Teacher card led to a classroom with no session behind it. Choosing a
-    role is not the same as being one.
+    It used to be a role chooser -- two cards, Student and Teacher -- which
+    was a decision the account already answers. Picking "Teacher" there did
+    not make anyone a teacher; it just walked into a classroom with no
+    session behind it. Signed in, this goes straight to where that role
+    belongs; signed out, it is the login form itself rather than a page that
+    links to it.
     """
     from fastapi.responses import RedirectResponse
     try:
         import lesson_api
-        if lesson_api.current_user(request) is None:
-            return RedirectResponse("/login", status_code=303)
+        user = lesson_api.current_user(request)
     except Exception:
-        pass
-    html_path = STATIC_DIR / "landing.html"
-    if html_path.exists():
-        return HTMLResponse(html_path.read_text(encoding="utf-8"))
-    return HTMLResponse("<h1>Landing not found</h1>", status_code=404)
+        user = None
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    home = {"teacher": "/teacher", "admin": "/admin"}.get(
+        user.get("role"), "/dashboard")
+    return RedirectResponse(home, status_code=303)
 
 
 @app.get("/dashboard")
