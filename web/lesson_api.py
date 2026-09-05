@@ -561,7 +561,13 @@ def save_settings(body: SettingsBody) -> JSONResponse:
     if body.teacher:
         patch["teacher"] = body.teacher
     if body.daily_goal is not None:
-        patch["daily_goal"] = int(body.daily_goal)
+        # A daily review goal is a small positive number of cards. Nothing
+        # bounded it, so -99999999 went straight into the row and out to
+        # every screen that reads it.
+        try:
+            patch["daily_goal"] = max(0, min(int(body.daily_goal), 200))
+        except (TypeError, ValueError):
+            pass
     if body.auto_quiz is not None:
         patch["auto_quiz"] = bool(body.auto_quiz)
     if patch:
