@@ -213,6 +213,34 @@ Without that key the app boots and the UI works, but the first lesson fails:
 every provider needs either a key or a local model server. Groq's is free and
 takes a minute to create.
 
+The web app instead of the Streamlit one:
+
+```bash
+.venv/bin/uvicorn web.server:app --port 8000      # http://localhost:8000
+```
+
+### Demo accounts
+
+The login page has one-click buttons for the first two.
+
+| Account | Password | Opens on |
+|---|---|---|
+| `student` | `mentora123` | The student dashboard |
+| `teacher` | `teacher123` | The classroom |
+| `admin` | `admin123` | Account management |
+
+The classroom is empty until a class exists. This writes ten invented
+students with lessons, answers and misconceptions — through the same tables
+the teaching engine writes, so no view special-cases it:
+
+```bash
+.venv/bin/python seed_demo_class.py            # each student logs in with demo1234
+.venv/bin/python seed_demo_class.py --clear    # remove them again
+```
+
+Everything it writes is invented. Run `--clear` before showing real data:
+a classroom mixing invented students with real ones is worse than either.
+
 ## Tests
 
 ```bash
