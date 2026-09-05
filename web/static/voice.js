@@ -109,6 +109,24 @@
   var eyeR = svg && svg.querySelector('#eyeR');
 
   var openness = 0, target = 0, t0 = performance.now();
+
+  // Gaze. The pointer position is kept as a -1..1 offset from the middle of
+  // the stage and eased toward each frame, so the eyes travel rather than
+  // snap. The irises sit inside the eye groups the blink scales, so moving
+  // them here does not fight the blink.
+  var irisL = svg && svg.querySelector('#irisL');
+  var irisR = svg && svg.querySelector('#irisR');
+  var gazeX = 0, gazeY = 0, gazeTX = 0, gazeTY = 0;
+
+  if (avatarRoot) {
+    avatarRoot.addEventListener('mousemove', function (e) {
+      var box = avatarRoot.getBoundingClientRect();
+      if (!box.width || !box.height) return;
+      gazeTX = Math.max(-1, Math.min(1, (e.clientX - (box.left + box.width / 2)) / (box.width / 2)));
+      gazeTY = Math.max(-1, Math.min(1, (e.clientY - (box.top + box.height / 2)) / (box.height / 2)));
+    });
+    avatarRoot.addEventListener('mouseleave', function () { gazeTX = gazeTY = 0; });
+  }
   var mouthPulseTimer = null;
   var mouthReleaseTimer = null;
   var mouthPulseGeneration = 0;
@@ -158,6 +176,12 @@
       avatar3D.setMouthOpen(openness);
       avatar3D.setHeadTransform(sway, nod);
     }
+
+    gazeX += (gazeTX - gazeX) * 0.12;
+    gazeY += (gazeTY - gazeY) * 0.12;
+    var gx = (gazeX * 5).toFixed(2), gy = (gazeY * 3.5).toFixed(2);
+    if (irisL) irisL.setAttribute('transform', 'translate(' + gx + ',' + gy + ')');
+    if (irisR) irisR.setAttribute('transform', 'translate(' + gx + ',' + gy + ')');
 
     var blink = (t % 4.7) < 0.13 ? 0.08 : 1;
     [eyeL, eyeR].forEach(function (e, i) {
@@ -758,6 +782,14 @@
     var t = window.teacherById($('teacher').value);
     if (!t) return;
     window.paintTeacher(svg, t);
+    if (!recall('voice')) {
+      var pool = synth ? synth.getVoices() : [];
+      var match = voiceForTeacher(pool.filter(function (v) {
+        return !$('voice').options.length || Array.prototype.some.call(
+          $('voice').options, function (o) { return o.value === v.name; });
+      }));
+      if (match) { $('voice').value = match.name; voice = match; }
+    }
     if (avatar3D && avatar3D.setTeacher) avatar3D.setTeacher(t);
     remember('teacher', t.id);
     fetch('/api/settings', {
@@ -803,8 +835,30 @@
       return '<option value="' + v.name + '">' + v.name + ' (' + v.lang + ')</option>';
     }).join('');
     var want = recall('voice');
-    if (want && pool.some(function (v) { return v.name === want; })) $('voice').value = want;
+    if (want && pool.some(function (v) { return v.name === want; })) {
+      $('voice').value = want;
+    } else {
+      var match = voiceForTeacher(pool);
+      if (match) $('voice').value = match.name;
+    }
     voice = pool.filter(function (v) { return v.name === $('voice').value; })[0] || pool[0];
+  }
+
+  // Ms. Maya speaking with a male voice reads as a bug, so the picker's
+  // default follows the teacher's variant. An explicit choice is remembered
+  // and always wins -- this only decides what is selected first.
+  var FEMALE = /(female|samantha|victoria|karen|moira|tessa|fiona|zira|susan|allison|ava|serena|kate|nicky|zoe|joana|luciana|paulina|monica|amelie|anna|alice|carmit|damayanti|lekha|milena|yuna|kyoko|ting|sinji|mei)/i;
+  var MALE = /(\bmale\b|alex|daniel|fred|tom|oliver|rishi|aaron|david|mark|thomas|jorge|diego|juan|xander|maged|yuri|otoya|hattori|lee|guy|reed|eddy|grandpa)/i;
+
+  function voiceForTeacher(pool) {
+    var t = window.teacherById && $('teacher') ? window.teacherById($('teacher').value) : null;
+    if (!t || !pool.length) return null;
+    var wantMale = (t.variant || 'f') === 'm';
+    var hit = pool.filter(function (v) {
+      return wantMale ? MALE.test(v.name) && !FEMALE.test(v.name)
+                      : FEMALE.test(v.name) && !MALE.test(v.name);
+    });
+    return hit[0] || null;
   }
 
   $('teacher').addEventListener('change', applyTeacher);
