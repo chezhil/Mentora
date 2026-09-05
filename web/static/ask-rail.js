@@ -101,6 +101,41 @@
     return box;
   }
 
+  // Who you are, and the way out. The only sign-out button was on the admin
+  // console, so every other page was a one-way trip: the way to become
+  // somebody else was to clear a cookie by hand.
+  function account() {
+    var box = document.createElement('div');
+    box.style.cssText = 'margin-top:1.1rem;border-top:3px solid ' + INK + ';padding-top:0.85rem;';
+    box.innerHTML = heading('Signed in') +
+      '<div data-who style="font-family:\'Archivo Black\',sans-serif;font-size:0.8rem;' +
+      'text-transform:uppercase;margin-bottom:0.55rem;">…</div>' +
+      '<button data-out style="width:100%;border:3px solid ' + INK + ';background:' + INK + ';' +
+      'color:' + ACID + ';font-family:\'Archivo Black\',sans-serif;text-transform:uppercase;' +
+      'font-size:0.72rem;letter-spacing:0.05em;cursor:pointer;padding:0.55rem;">Sign out</button>';
+
+    var who = box.querySelector('[data-who]');
+    var out = box.querySelector('[data-out]');
+    fetch('/api/whoami').then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.signed_in && d.user) {
+        who.textContent = d.user.username +
+          (d.user.role && d.user.role !== 'student' ? ' \u00b7 ' + d.user.role : '');
+      } else {
+        who.textContent = 'not signed in';
+        out.textContent = 'Sign in';
+      }
+    }).catch(function () { who.textContent = '\u2014'; });
+
+    out.onclick = function () {
+      if (out.textContent === 'Sign in') { window.location = '/login'; return; }
+      out.disabled = true;
+      fetch('/api/auth/logout', {method: 'POST'})
+        .then(function () { window.location = '/login'; })
+        .catch(function () { window.location = '/login'; });
+    };
+    return box;
+  }
+
   function rail(compact) {
     var box = document.createElement('div');
     box.className = 'mentora-rail';
@@ -112,6 +147,7 @@
     // would be noise, not access.
     if (window.location.pathname !== '/dashboard') box.appendChild(nav());
     box.appendChild(ask());
+    box.appendChild(account());
     return box;
   }
 

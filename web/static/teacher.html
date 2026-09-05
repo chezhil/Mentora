@@ -61,6 +61,7 @@
       <div style="flex:1;"></div>
       <a href="/config" class="btn">Settings</a>
       <a href="/upload" class="btn dark">Preview a lesson</a>
+      <button class="btn" id="signout">Sign out</button>
     </nav>
   </header>
 
@@ -242,6 +243,11 @@
     }
 
     $('closeDetail').onclick = () => { $('detail').style.display = 'none'; };
+
+    $('signout').onclick = async () => {
+      await fetch('/api/auth/logout', {method: 'POST'});
+      location.href = '/login';
+    };
   </script>
 </body>
 </html>

@@ -70,6 +70,9 @@
       <a href="/dashboard" style="background:var(--ink);color:var(--paper);font-family:'Archivo Black',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:0.02em;padding:0.625rem 1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;text-decoration:none;" class="btn-brutal">
         Back <span style="color:var(--acid);">→</span>
       </a>
+      <button onclick="mentoraSignOut()" style="background:var(--paper);color:var(--ink);font-family:'Archivo Black',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:0.02em;padding:0.625rem 1rem;border:3px solid var(--ink);box-shadow:5px 5px 0 0 #000;cursor:pointer;margin-left:0.5rem;" class="btn-brutal">
+        Sign out
+      </button>
     </nav>
   </header>
 
@@ -217,6 +220,11 @@
     let selectedLevel = 'intermediate';
 
     // Restore saved config on load
+    async function mentoraSignOut() {
+      await fetch('/api/auth/logout', {method: 'POST'});
+      location.href = '/login';
+    }
+
     let selectedAvatar = 'f';
     let selectedTeacher = 'maya';
     let TEACHERS = [];
