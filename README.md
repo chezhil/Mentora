@@ -56,7 +56,151 @@ Streamlit app — so neither is a mock of the other.
 - **A classroom view.** Teachers see the class average, the reteach list —
   misconceptions more than one student holds — and a row per student.
 
-## Run it
+## System architecture
+
+    upload / topic
+      |
+      v
+    ingest/            extract -> chunk (sentence bounded) -> embed -> ChromaDB
+      |
+      v
+    planner/           concepts, order, minutes per concept, from the level
+      |                and the time budget
+      v
+    teacher/engine.py  per concept: retrieve -> teach -> draw -> narrate -> ask
+      |                            -> evaluate -> name the misconception
+      |                            -> continue / reexplain / simplify / harden
+      v
+    prompt_101/media_pipeline   board frames + narration + avatar -> MP4
+      |
+      v
+    history/           reports, answers, flashcards (SM-2), transcripts
+                       -> mentora.db
+
+One engine, two front ends. `web/` (FastAPI) and `app.py` (Streamlit) both
+call the same `teacher/`, `planner/` and `ingest/` packages, so neither is a
+mock of the other and a fix lands in both.
+
+| Layer | Where |
+|---|---|
+| Ingest, chunking, embeddings | `ingest/` |
+| Lesson planning | `planner/` |
+| Teaching, evaluation, adaptation | `teacher/engine.py` |
+| Board video, avatar, narration | `prompt_101/media_pipeline/`, `avatar-prototype/` |
+| Web app | `web/server.py`, `web/lesson_api.py`, `web/static/` |
+| Streamlit app | `app.py`, `screens/` |
+| History, SRS, accounts | `history/`, `web/auth.py`, `mentora.db` |
+
+## AI/ML models used
+
+| Role | Model | Where it runs |
+|---|---|---|
+| Teaching, planning, evaluation | `openai/gpt-oss-120b` via Groq | Groq API |
+| Same, offline alternative | `llama3.1:8b` via Ollama | This machine |
+| Embeddings for retrieval | `BAAI/bge-m3` (sentence-transformers) | This machine |
+| Narration | Microsoft Edge neural voices (`edge-tts`) | Free web service |
+| Voice mode speech | Browser `speechSynthesis` / `SpeechRecognition` | The browser |
+
+The provider is chosen in `llm.py`; only Groq and Ollama are supported.
+Responses cache to `.cache/llm` keyed on prompt and model, so repeating a
+lesson costs nothing and returns instantly.
+
+## RAG implementation
+
+1. **Extract** — PDF via PyMuPDF, DOCX, PPTX, TXT.
+2. **Chunk** — `ingest/chunk.py`, on sentence boundaries, 200–500 words with a
+   40-word overlap. The overlap is measured in *words*, not sentences: a page
+   with no punctuation used to produce chunks at twice the maximum.
+3. **Embed** — BGE-M3, stored in ChromaDB.
+4. **Retrieve** — per concept, not per lesson, so each segment is grounded in
+   the passage that concept actually needs.
+5. **Cite** — the segment carries the chunk it used, and the UI shows it.
+
+Name a topic instead of uploading, and the planner runs without the retrieval
+step; nothing else changes.
+
+## Prompt/agent architecture
+
+The teaching loop is a small state machine, not one long prompt. Each concept
+runs: **retrieve → teach → draw → narrate → ask → evaluate → decide**. The
+decision step returns one of `continue`, `reexplain`, `simplify`, `harden` or
+`example`, together with the misconception it believes the answer revealed.
+That verdict is what feeds the next iteration, which is what makes the lesson
+a route rather than a script. Prompts live beside the code that calls them in
+`teacher/` and `planner/`; see `docs/prompts_agents.md`.
+
+## Personalization approach
+
+- **Level** sets where the lesson starts — beginner opens simplified,
+  advanced opens hardened (`teacher/engine.py`).
+- **Answers move it from there.** Two reexplains or two simplifies in a row
+  and the lesson simplifies; two hardens and it hardens.
+- **Time budget** (1–60 minutes) decides how many concepts are covered and how
+  long each gets.
+- **Teacher persona** — six characters, each with its own voice and manner.
+- **History carries over.** Every account keeps its own settings, materials,
+  lessons, flashcards and reports; see `docs/personalization.md`.
+
+## Assessment methodology
+
+Questions during the lesson, then a final quiz. An answer is not marked
+right/wrong and dropped — it is evaluated for *which misconception it shows*,
+and that name drives both the re-teach and the report.
+
+The report gives score, concepts understood, weak areas, incorrect concepts,
+recommended revision and the suggested next topic. Wrong answers become
+flashcards on an SM-2 schedule (`history/srs.py`), so the material returns on
+the day it is about to be forgotten. Details in `docs/assessment.md`.
+
+## Multilingual implementation
+
+Eighteen languages, defined once in `shared/languages.py` as voice, font and
+script direction together — so a language cannot be added that speaks but
+cannot draw its own alphabet. Narration, board text, questions and the whole
+interface all switch on one click; `ui/i18n.py` holds every interface string
+in all eighteen. Urdu and Arabic render right-to-left.
+
+## Voice implementation
+
+Narration uses `edge-tts` with a neural voice per language, rendered per
+sentence: edge-tts emits a `SentenceBoundary` event carrying a real offset, so
+the board reveals each element exactly as it is spoken rather than on a timer.
+
+Voice mode (`/voice`) is the browser's own `SpeechRecognition` and
+`speechSynthesis` — the student talks, the teacher answers aloud and draws
+while it answers. Chrome only; other browsers get a typed box and still hear
+the reply. See `docs/voice.md`.
+
+## Avatar/video generation approach
+
+The teacher is an SVG rig — six characters sharing one skeleton, recoloured at
+draw time — animated from the narration: lip-synced per sentence boundary,
+glancing at each board element as it appears, with idle sway, blink and nod.
+
+For lesson video, matplotlib draws the board frame by frame through
+`FFMpegWriter`, with the avatar **drawn into the frame** rather than laid over
+it as a floating head, and the narration muxed in. ffmpeg comes from
+`imageio-ffmpeg`, which ships its own binary — there is no system ffmpeg
+dependency and no ffprobe. See `docs/avatar.md` and `docs/composite.md`.
+
+## APIs and third-party services
+
+| Service / library | Used for | Key needed |
+|---|---|---|
+| Groq API | LLM inference (`openai/gpt-oss-120b`) | Yes, free |
+| Ollama | Local LLM, offline alternative | No |
+| `edge-tts` | Neural narration voices | No |
+| `sentence-transformers` + `BAAI/bge-m3` | Embeddings | No |
+| ChromaDB | Vector store | No |
+| PyMuPDF, python-docx, python-pptx | Document extraction | No |
+| matplotlib, `imageio-ffmpeg` | Board rendering, video encoding | No |
+| FastAPI + uvicorn, Streamlit | The two front ends | No |
+| three.js (CDN) | Optional 3D avatar on `/voice` | No |
+
+No paid service is required. Groq's free tier is the only account needed, and
+Ollama replaces even that.
+
+## Setup instructions
 
 ```bash
 python3 -m venv .venv
@@ -222,6 +366,56 @@ demoing.
 - `CONTRACT.txt` — the interfaces. Authoritative.
 - `PAIR_A_SPLIT.txt` — how Chezhil and Utkarsh divide Pair A
 - `GIT_WORKFLOW.txt` — branch rules. Nobody commits to main.
+
+## Deployment instructions
+
+The web app is a normal ASGI application, so anything that runs uvicorn runs
+Mentora.
+
+```bash
+.venv/bin/uvicorn web.server:app --host 0.0.0.0 --port 8000
+```
+
+Before exposing it beyond your own machine:
+
+- **Set `GROQ_API_KEY` in the environment**, not in a committed file. `.env`
+  is gitignored and read at startup.
+- **Change the seeded passwords.** `student`, `teacher` and `admin` ship with
+  known ones for the demo; `seed_demo_class.py --clear` removes the invented
+  classroom entirely.
+- `mentora.db` (SQLite) holds accounts, history and flashcards. Back it up;
+  it is the whole state of the install.
+- Generated media under `prompt_101/media_pipeline/output/` and `out/avatar`
+  is regenerable and safe to clear.
+- Reset codes are returned in the response only to loopback callers, so a
+  remote deployment needs a mail path before the reset flow is usable. Set
+  `MENTORA_DEBUG_RESET_TOKENS=0` to disable that convenience entirely.
+
+Ollama instead of Groq removes the last external dependency:
+
+```bash
+ollama pull llama3.1:8b
+AI_TEACHER_PROVIDER=ollama .venv/bin/uvicorn web.server:app --port 8000
+```
+
+## Mandatory requirements
+
+Where each of the brief's twelve required capabilities lives.
+
+| # | Requirement | Where |
+|---|---|---|
+| 1 | Learning from uploaded material | `ingest/` — PDF, DOCX, PPTX, TXT, chunked, embedded, cited |
+| 2 | Topic-based teaching | Name a topic; the planner runs with no document |
+| 3 | AI-generated lesson structure | `planner/` — concepts, order, minutes each |
+| 4 | Personalized teaching | Level, time, persona, language, and the student's own history |
+| 5 | Human-like teaching interaction | Explains, asks, marks, names the misconception, re-teaches |
+| 6 | Video-based presentation | matplotlib board + narration + avatar, encoded to MP4 |
+| 7 | AI voice | `edge-tts` neural voices, one per language |
+| 8 | Human-like AI avatar | Six SVG characters, lip-synced, gaze and nod |
+| 9 | Multilingual | Eighteen languages, interface and teaching together |
+| 10 | Student questioning | Questions mid-lesson and a final quiz; answering gates progress |
+| 11 | Adaptive response | `continue` / `reexplain` / `simplify` / `harden` from the answers |
+| 12 | Working prototype | Two front ends on one engine; `pytest` and `tests_e2e.py` |
 
 ## Known limitations
 
