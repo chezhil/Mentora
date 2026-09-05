@@ -112,67 +112,10 @@
         <!-- LEFT COLUMN: Avatar + Controls -->
         <div>
           <div class="panel" style="padding:0;overflow:hidden;">
-            <div id="stage">
-              <svg id="avatar" viewBox="0 0 400 460" aria-label="avatar" data-variant="f">
-                <defs>
-                  <radialGradient id="cheek" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stop-color="#ff8f9c" stop-opacity=".55"/>
-                    <stop offset="100%" stop-color="#ff8f9c" stop-opacity="0"/>
-                  </radialGradient>
-                </defs>
-                <g id="root">
-                  <g id="body">
-                    <path class="v-f" d="M174 286 l52 0 l0 82 q-26 14 -52 0 z" fill="#e8bf9c"/>
-                    <path class="v-m" d="M170 286 l60 0 l0 86 q-30 14 -60 0 z" fill="#e3b795"/>
-                    <path class="v-f" d="M80 520 q14 -184 120 -184 q106 0 120 184 z" fill="#4A7DFF"/>
-                    <path class="v-m" d="M72 520 q16 -180 128 -180 q112 0 128 180 z" fill="#2f6f5e"/>
-                  </g>
-                  <g id="hairBack">
-                    <path class="v-f" d="M200 44 q104 0 108 122 q4 92 -14 150 q-30 -104 -94 -104 q-64 0 -94 104 q-18 -58 -14 -150 q4 -122 108 -122 z" fill="#241d33"/>
-                    <path class="v-m" d="M200 52 q92 0 94 112 q2 34 -6 58 q-16 -40 -88 -40 q-72 0 -88 40 q-8 -24 -6 -58 q2 -112 94 -112 z" fill="#1f1a14"/>
-                  </g>
-                  <g id="head">
-                    <ellipse cx="112" cy="214" rx="13" ry="20" fill="#f0c9a8"/>
-                    <ellipse cx="288" cy="214" rx="13" ry="20" fill="#f0c9a8"/>
-                    <path class="v-f" d="M200 96 q84 0 84 100 q0 58 -25 94 q-24 34 -59 34 q-35 0 -59 -34 q-25 -36 -25 -94 q0 -100 84 -100 z" fill="#f7d9bd"/>
-                    <path class="v-m" d="M200 96 q86 0 86 102 q0 60 -18 94 q-20 36 -68 36 q-48 0 -68 -36 q-18 -34 -18 -94 q0 -102 86 -102 z" fill="#efc9a4"/>
-                    <g id="features">
-                      <g id="blush" opacity="0">
-                        <ellipse cx="146" cy="248" rx="26" ry="15" fill="url(#cheek)"/>
-                        <ellipse cx="254" cy="248" rx="26" ry="15" fill="url(#cheek)"/>
-                      </g>
-                      <g id="brows">
-                        <path class="v-f" d="M136 190 q22 -11 44 -2" stroke="#241d33" stroke-width="7" fill="none" stroke-linecap="round"/>
-                        <path class="v-f" d="M220 188 q22 -9 44 2" stroke="#241d33" stroke-width="7" fill="none" stroke-linecap="round"/>
-                        <path class="v-m" d="M134 199 q23 -7 45 -1" stroke="#1f1a14" stroke-width="8" fill="none" stroke-linecap="round"/>
-                        <path class="v-m" d="M221 198 q23 -6 45 1" stroke="#1f1a14" stroke-width="8" fill="none" stroke-linecap="round"/>
-                      </g>
-                      <g id="eyeL" class="eye">
-                        <ellipse cx="158" cy="222" rx="25" ry="21" fill="#fff"/>
-                        <g id="irisL"><circle cx="158" cy="223" r="14" fill="#3a7bd5"/><circle cx="158" cy="223" r="7" fill="#151226"/><circle cx="153" cy="217" r="4.5" fill="#fff" opacity=".9"/></g>
-                        <path class="lash" d="M133 214 q25 -20 50 -2" stroke="#241d33" stroke-width="5" fill="none" stroke-linecap="round"/>
-                      </g>
-                      <g id="eyeR" class="eye">
-                        <ellipse cx="242" cy="222" rx="25" ry="21" fill="#fff"/>
-                        <g id="irisR"><circle cx="242" cy="223" r="14" fill="#3a7bd5"/><circle cx="242" cy="223" r="7" fill="#151226"/><circle cx="237" cy="217" r="4.5" fill="#fff" opacity=".9"/></g>
-                        <path class="lash" d="M217 212 q25 -18 50 2" stroke="#241d33" stroke-width="5" fill="none" stroke-linecap="round"/>
-                      </g>
-                      <path d="M200 246 q6 10 -2 14" stroke="#d9a882" stroke-width="4" fill="none" stroke-linecap="round"/>
-                      <g id="mouth">
-                        <ellipse id="mouthCavity" cx="200" cy="292" rx="22" ry="3" fill="#7d2740"/>
-                        <ellipse id="mouthTongue" cx="200" cy="299" rx="14" ry="0" fill="#e3697f"/>
-                        <path id="mouthLine" d="M178 291 q22 6 44 0" stroke="#c98d76" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>
-                      </g>
-                    </g>
-                  </g>
-                  <g id="hairFront">
-                    <path class="v-f" d="M104 178 q6 -110 96 -110 q90 0 96 110 q-24 -58 -50 -62 q10 34 -12 48 q-16 -46 -60 -44 q-46 2 -70 58 z" fill="#2e2542"/>
-                    <path class="v-f" d="M262 86 q34 16 34 60 l-12 -6 q-4 -34 -30 -44 z" fill="#FFD400"/>
-                    <path class="v-m" d="M106 186 q2 -114 94 -114 q92 0 94 114 q-12 -32 -34 -48 q-32 30 -84 18 q-40 -12 -62 30 z" fill="#241d18"/>
-                  </g>
-                </g>
-              </svg>
-              <div id="audioVis" class="idle"></div>
+            <div id="stage" style="height: 460px;">
+              <div id="avatar" style="width: 100%; height: 100%;"></div>
+            </div>
+            <div id="audioVis" class="idle"></div>
               <div id="state">Ready</div>
             </div>
           </div>
@@ -311,6 +254,10 @@
   </script>
   <script src="/static/ask-rail.js"></script>
   <script src="/static/teachers.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="/static/Avatar3D.js"></script>
   <script src="/static/voice.js"></script>
 </body>
+
 </html>

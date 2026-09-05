@@ -95,7 +95,8 @@
   }
 
   // ---- Avatar -------------------------------------------------------------
-  var svg = $('avatar');
+  var avatar3D = window.Avatar3D ? new window.Avatar3D($('avatar')) : null;
+  var svg = $('avatar_svg_disabled');
   var mouthCavity = svg && svg.querySelector('#mouthCavity');
   var mouthLine = svg && svg.querySelector('#mouthLine');
   var head = svg && svg.querySelector('#head');
@@ -120,6 +121,11 @@
     var nod = Math.sin(t * 1.3) * 1.4 * life;
     if (head) head.setAttribute('transform',
       'translate(' + sway.toFixed(2) + ',' + nod.toFixed(2) + ')');
+
+    if (avatar3D) {
+      avatar3D.setMouthOpen(openness);
+      avatar3D.setHeadTransform(sway, nod);
+    }
 
     var blink = (t % 4.7) < 0.13 ? 0.08 : 1;
     [eyeL, eyeR].forEach(function (e, i) {
