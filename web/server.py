@@ -900,7 +900,25 @@ from lesson_api import router as lesson_router   # noqa: E402
 app.include_router(lesson_router)
 
 # Mount static files (CSS, JS, images if any)
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+class _NoCacheStatic(StaticFiles):
+    """Serve the static files without letting a browser hold on to them.
+
+    The pages here are edited constantly and reloaded by hand, and a stale
+    voice.js or lesson.html looks exactly like a bug in the feature it drives
+    -- the avatar speaks with its mouth shut, say -- which costs far more time
+    than re-fetching a few hundred kilobytes.
+    """
+
+    def is_not_modified(self, *args, **kwargs) -> bool:
+        return False
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+        return response
+
+
+app.mount("/static", _NoCacheStatic(directory=str(STATIC_DIR)), name="static")
 
 
 # ---------------------------------------------------------------------------

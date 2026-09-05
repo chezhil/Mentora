@@ -156,6 +156,14 @@
   }
 
   function frame(now) {
+    // Anything that throws in here would otherwise take the final
+    // requestAnimationFrame with it and freeze the avatar for good --
+    // mouth shut, mid-sentence -- with nothing on screen to say why.
+    try { tick(now); } catch (e) { if (window.console) console.error(e); }
+    requestAnimationFrame(frame);
+  }
+
+  function tick(now) {
     var t = (now - t0) / 1000;
     openness += (target - openness) * 0.35;
 
@@ -192,7 +200,6 @@
       e.setAttribute('transform-origin', cx + ' 222');
     });
 
-    requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 
