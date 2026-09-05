@@ -156,13 +156,20 @@ def seed(conn) -> None:
     except Exception:
         auth = None
 
-    for i, (name, archetype, lessons) in enumerate(ROSTER):
-        if auth is not None:
+    # Every account is created before the lesson rows below open a write
+    # transaction on `conn`. auth.create_user() uses its own connection, so
+    # creating them inside that loop makes the second and later inserts fail
+    # with "database is locked" -- silently, since the seed carries on either
+    # way, leaving a classroom whose students have no logins.
+    if auth is not None:
+        for name, _archetype, _lessons in ROSTER:
             try:
                 auth.create_user(f"{name}@class.mentora.ai", name, "demo1234", "student")
-            except Exception:
-                pass                        # already there
+            except Exception as exc:
+                if "already" not in str(exc).lower() and "exists" not in str(exc).lower():
+                    print(f"  could not create {name}: {exc}", file=sys.stderr)
 
+    for i, (name, archetype, lessons) in enumerate(ROSTER):
         curve = CURVES[archetype]
         # Everyone shares at least one class-wide misconception; the shape of
         # the reteach list is the point of the demo.
