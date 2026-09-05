@@ -708,6 +708,7 @@
   function applyTeacher() {
     var t = window.teacherById($('teacher').value);
     window.paintTeacher(svg, t);
+    if (avatar3D && avatar3D.setTeacher) avatar3D.setTeacher(t);
     remember('teacher', t.id);
     fetch('/api/settings', {
       method: 'POST', headers: {'Content-Type': 'application/json'},

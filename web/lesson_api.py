@@ -986,13 +986,16 @@ def summary(request: Request, session_id: str,
     if d.get("next_topic"):
         lines.append(f"Next topic : {d['next_topic']}")
     lines += ["", "TRANSCRIPT", "-" * 10, ""]
-    who = {"teacher": "Mentora", "student": "You", "system": "Lesson"}
+    # NOT `who`: that is the module-level function this very function calls a
+    # few lines up, and a local of the same name turns the call into a read of
+    # an unassigned local -- UnboundLocalError on every download.
+    speaker = {"teacher": "Mentora", "student": "You", "system": "Lesson"}
     section = -1
     for t in d["turns"]:
         if t["concept"] != section:
             section = t["concept"]
             lines += ["", f"[{'Concept ' + str(section) if section else 'Lesson'}]", ""]
-        lines.append(f"{who.get(t['role'], t['role'])}: {t['content']}")
+        lines.append(f"{speaker.get(t['role'], t['role'])}: {t['content']}")
         lines.append("")
 
     safe = "".join(c if c.isalnum() or c in "-_ " else "" for c in d["topic"]).strip()
